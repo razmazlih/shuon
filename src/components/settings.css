@@ -269,8 +269,8 @@
   width: 45%;
 }
 .theme-preview-dark {
-  background: linear-gradient(135deg, #393653, #1b2636);
-  color: #f2b378;
+  background: linear-gradient(135deg, #41475f, #1b2534);
+  color: #f4bf8d;
 }
 .theme-preview-sage {
   background: #ccdbcc;
@@ -278,7 +278,7 @@
 }
 .theme-preview-system {
   color: #769080;
-  background: linear-gradient(95deg, #f4f2eb 50%, #1b2636 50%);
+  background: linear-gradient(95deg, #f4f2eb 50%, #1b2534 50%);
 }
 .prefs-identity {
   font-size: 0.95rem;

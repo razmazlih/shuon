@@ -55,14 +55,17 @@
   color: #fffefa;
 }
 :root[data-theme='dark'] .salary-figure-forecast {
-  --figure-secondary: #e0d3f4;
-  --figure-line: #dac5ff3d;
-  background: linear-gradient(135deg, #4a3969, #312844 76%);
-  border-color: #705c92;
-  color: #f9f1ff;
+  --figure-secondary: color-mix(in srgb, var(--lavender) 58%, var(--ink));
+  --figure-line: color-mix(in srgb, var(--lavender) 24%, transparent);
+  background: linear-gradient(135deg, var(--lavender-surface), var(--lavender-tint) 78%);
+  border-color: var(--hero-line);
+  color: var(--ink);
 }
 :root[data-theme='dark'] .salary-figure-forecast .salary-figure-net strong {
   color: var(--lavender);
+}
+:root[data-theme='dark'] .salary-figure:not(.salary-figure-forecast) .salary-figure-net strong {
+  color: var(--green);
 }
 .salary-figure h2 {
   display: flex;

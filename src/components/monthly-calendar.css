@@ -16,14 +16,14 @@
 }
 
 :root[data-theme='dark'] .shift-calendar {
-  --calendar-planned: #f2ca77;
-  --calendar-completed: #a2dfb4;
-  --calendar-active: #ffb196;
-  --calendar-mixed: #d6bafa;
-  --calendar-planned-fill: #4a381c;
-  --calendar-completed-fill: #234936;
-  --calendar-active-fill: #573127;
-  --calendar-mixed-fill: #453354;
+  --calendar-planned: var(--accent);
+  --calendar-completed: var(--green);
+  --calendar-active: var(--danger);
+  --calendar-mixed: var(--lavender);
+  --calendar-planned-fill: var(--amber-tint);
+  --calendar-completed-fill: var(--tag);
+  --calendar-active-fill: var(--danger-bg);
+  --calendar-mixed-fill: var(--lavender-tint);
 }
 
 .cal-month,
@@ -240,6 +240,10 @@
   color: var(--calendar-tone);
 }
 
+:root[data-theme='dark'] .cal-cell[aria-selected='true'] .cal-day {
+  border-color: var(--lavender);
+  box-shadow: inset 0 0 0 1px var(--lavender);
+}
 .cal-day[data-work-status]:hover {
   border-color: var(--calendar-tone);
 }
@@ -283,6 +287,9 @@
   color: var(--card);
 }
 
+:root[data-theme='dark'] .cal-day[data-work-status]:not([aria-current='date']) .cal-day-heading strong {
+  color: var(--ink);
+}
 .cal-more {
   font-size: clamp(0.65rem, 1.6vw, 0.77rem);
   color: var(--muted);
