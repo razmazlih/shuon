@@ -143,7 +143,7 @@ function Weekly({ today, shifts, shiftPayById, onCalendar, onShift }: Pick<Props
     millis: shiftWorkMillis(entry.shift, now),
     gross: shiftPayById.get(entry.shift.id)?.gross,
   }))
-  const columns = Array.from({ length: 7 }, (_, offset) => addDays(today, -offset)).flatMap<{ date: string; row: (typeof rows)[number] | null }>((date) => {
+  const columns = Array.from({ length: 7 }, (_, offset) => addDays(start, offset)).flatMap<{ date: string; row: (typeof rows)[number] | null }>((date) => {
     const dayRows = rows.filter((row) => row.date === date)
     return dayRows.length ? dayRows.map((row) => ({ date, row })) : [{ date, row: null }]
   })
