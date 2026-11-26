@@ -1,5 +1,5 @@
 import './onboarding.css'
-import { useId, useState, type FormEvent } from 'react'
+import { useId, useRef, useState, type FormEvent } from 'react'
 import { BriefcaseBusiness, Check, ClipboardList, MoonStar, Pencil, UserRound } from 'lucide-react'
 import type { UserProfile } from '../data/model'
 import type { PayrollProfile } from '../domain/net'
@@ -187,6 +187,24 @@ function QuestionnaireForm({
     return editSection ? saved : { restDay: String(profile.pay.restDay), ...saved }
   })
   const [step, setStep] = useState(0)
+  const stage = useRef<HTMLFieldSetElement>(null)
+  const transitioning = useRef(false)
+  async function moveToStep(next: number) {
+    if (transitioning.current) return
+    transitioning.current = true
+    try {
+      if (stage.current && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        await stage.current.animate([{ opacity: 1 }, { opacity: 0 }], {
+          duration: 120, easing: 'ease-in', fill: 'forwards',
+        }).finished
+      }
+      setError('')
+      setInvalidField('')
+      setStep(next)
+    } finally {
+      transitioning.current = false
+    }
+  }
   const lastStep = step === onboardingSteps.length - 1
   const [expanded, setExpanded] = useState(false)
   const [error, setError] = useState('')
@@ -213,7 +231,7 @@ function QuestionnaireForm({
     setInvalidField('')
     setError('')
     if (!editSection && !lastStep) {
-      setStep(step + 1)
+      await moveToStep(step + 1)
       return
     }
     setSaving(true)
@@ -267,7 +285,7 @@ function QuestionnaireForm({
   return (
     <form className="question-form" onSubmit={submit} noValidate>
       {!editSection && <p className="prefs-hint" aria-live="polite">שאלה {step + 1} מתוך {onboardingSteps.length}</p>}
-      <fieldset key={editSection ?? step} className="question-fields" disabled={saving}>
+      <fieldset ref={stage} key={editSection ?? step} className="question-fields" disabled={saving}>
         <legend className="sr-only">{section.title}</legend>
         {primary.map(renderQuestion)}
         {compact && (
@@ -293,7 +311,7 @@ function QuestionnaireForm({
         </p>
       )}
       <div className="question-actions">
-        {!editSection && step > 0 && <button type="button" className="prefs-secondary" disabled={saving} onClick={() => { setStep(step - 1); setError(''); setInvalidField('') }}>חזרה</button>}
+        {!editSection && step > 0 && <button type="button" className="prefs-secondary" disabled={saving} onClick={() => void moveToStep(step - 1)}>חזרה</button>}
         <button type="submit" className="prefs-primary" disabled={saving}>
           {saving ? 'בשמירה…' : editSection ? 'שמירת התשובות' : lastStep ? 'שמירה וכניסה ליומן' : 'המשך'}
           {!saving && (editSection || lastStep) && <Check size={16} />}

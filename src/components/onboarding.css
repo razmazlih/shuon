@@ -2,8 +2,23 @@
   font-size: clamp(1.7rem, 5vw, 2.55rem);
   line-height: 1.2;
 }
+.onboarding-content .question-fields {
+  min-block-size: 15rem;
+}
+.onboarding-screen[open] .onboarding-content .question-form {
+  animation: none;
+}
 @media (prefers-reduced-motion: no-preference) {
-  .onboarding-content .question-fields { animation: question-reveal .25s ease-out; }
+  .onboarding-content .question-field > :is(label, legend, .question-hint) {
+    animation: onboarding-enter .24s ease-out both;
+  }
+  .onboarding-content .question-field > :is(.question-choices, .question-number) {
+    animation: onboarding-enter .32s .14s cubic-bezier(.2,.7,.2,1) both;
+  }
+  @keyframes onboarding-enter {
+    from { opacity: 0; transform: translateY(.45rem); }
+    to { opacity: 1; transform: translateY(0); }
+  }
 }
 
 .onboarding-content .onboarding-days {
