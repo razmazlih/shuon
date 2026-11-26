@@ -5,21 +5,26 @@ import { appleApiConfigured, appleRequest } from './appleCalendarApi'
 export function useAppleCalendarSync(user: User | null) {
   useEffect(() => {
     if (!user || !appleApiConfigured) return
+    const key = 'shuon.apple.pending.' + user.uid
+    let pending = localStorage.getItem(key)
     let disposed = false
     let running = false
     let queued = false
     let timer: number | undefined
     const sync = async () => {
-      if (disposed || !navigator.onLine) return
+      if (disposed || !pending || !navigator.onLine) return
       if (running) {
         queued = true
         return
       }
+      const revision = pending
       running = true
       try {
         const status = await appleRequest<{ connected: boolean }>(user, 'getAppleCalendarStatus')
-        if (disposed || !status.connected) return
-        await appleRequest(user, 'syncAppleCalendar')
+        if (disposed) return
+        if (status.connected) await appleRequest(user, 'syncAppleCalendar')
+        if (pending === revision) pending = null
+        if (localStorage.getItem(key) === revision) localStorage.removeItem(key)
       } catch {
         // Firestore keeps the source shifts and mappings for the next reconciliation.
       } finally {
@@ -38,16 +43,17 @@ export function useAppleCalendarSync(user: User | null) {
       timer = window.setTimeout(() => void sync(), 800)
     }
     const afterWrite = (event: Event) => {
-      if ((event as CustomEvent<string>).detail === user.uid) schedule()
+      if ((event as CustomEvent<string>).detail !== user.uid) return
+      pending = crypto.randomUUID()
+      localStorage.setItem(key, pending)
+      schedule()
     }
-    schedule()
-    const interval = window.setInterval(schedule, 15 * 60_000)
+    if (pending) schedule()
     window.addEventListener('shuon-shifts-written', afterWrite)
     window.addEventListener('online', schedule)
     return () => {
       disposed = true
       window.clearTimeout(timer)
-      window.clearInterval(interval)
       window.removeEventListener('shuon-shifts-written', afterWrite)
       window.removeEventListener('online', schedule)
     }

@@ -146,7 +146,7 @@ export default function AppleCalendar({ user, onSignIn }: { user: User | null; o
             <button type="button" disabled={Boolean(busy)} onClick={() => void act('syncAppleCalendar')}><Cloud size={15}/>סנכרון עכשיו</button>
           </div>
         </div>
-        {demo ? <button type="button" className="text-button" onClick={onSignIn}>כניסה לחיבור היומן האישי</button> : <small>סנכרון אוטומטי מדי 15 דקות</small>}
+        {demo ? <button type="button" className="text-button" onClick={onSignIn}>כניסה לחיבור היומן האישי</button> : <small>שינויים בשועון מסתנכרנים בשמירה. לשינויים שביצעתם ביומן Apple לחצו על ״סנכרון עכשיו״.</small>}
         {Boolean(status.unsupported) && <p>{status.unsupported} אירועים דולגו. נתמכות משמרות חד־פעמיות עם שעות התחלה וסיום.</p>}
         {status.reviews.length > 0 && (
           <div className="calendar-reviews">
