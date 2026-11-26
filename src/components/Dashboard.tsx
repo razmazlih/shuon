@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   ArrowLeft,
   CalendarDays,
@@ -18,6 +18,7 @@ import {
 import { Forest } from './Forest'
 import { TimeRange } from './TimeRange'
 import { addDays, localDate, localTime, weekday } from '../domain/time'
+import { weeklyWorkHours } from '../data/shift-hours'
 import { dateLabel, formatMoney, hourCount, type WorkShift } from '../data/model'
 
 type Props = {
@@ -116,23 +117,7 @@ function Clock({ active, scheduled, busy, foxReaction, onTimer }: Pick<Props, 'f
 }
 function Weekly({ today, shifts, onCalendar }: Pick<Props, 'today' | 'shifts' | 'onCalendar'>) {
   const start = addDays(today, -weekday(today))
-  const days = Array.from({ length: 7 }, (_, index) => {
-    const date = addDays(start, index)
-    const rows = shifts.filter((s) => localDate(s.start) === date && s.status !== 'active')
-    const hours = (s: WorkShift) =>
-      Math.max(
-        0,
-        (Date.parse(s.end) -
-          Date.parse(s.start) -
-          s.breaks.reduce((n, b) => n + (b.paid ? 0 : Date.parse(b.end) - Date.parse(b.start)), 0)) /
-          3600000,
-      )
-    return {
-      date,
-      actual: rows.filter((s) => s.status === 'completed').reduce((n, s) => n + hours(s), 0),
-      planned: rows.filter((s) => s.status === 'planned').reduce((n, s) => n + hours(s), 0),
-    }
-  })
+  const days = useMemo(() => weeklyWorkHours(shifts, start), [shifts, start])
   const max = Math.max(8, ...days.map((d) => d.actual + d.planned))
   const total = days.reduce((n, d) => n + d.actual + d.planned, 0)
   return (

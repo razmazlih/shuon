@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import type { WorkShift } from '../src/data/model'
-import { formatWorkDuration, shiftWorkMillis, workMillisOnDay } from '../src/data/shift-hours'
+import { formatWorkDuration, shiftWorkMillis, weeklyWorkHours, workMillisOnDay } from '../src/data/shift-hours'
 import { HOUR_MS, localToInstant } from '../src/domain/time'
 
 function shift(day: string, start: string, endDay: string, end: string): WorkShift {
@@ -45,4 +45,16 @@ test('active shifts count time through now and stop accumulating during an open 
   assert.equal(formatWorkDuration(workMillisOnDay(active, day, now)), '3:35')
   const paused = { ...active, openBreak: localToInstant(day, '10:10') }
   assert.equal(formatWorkDuration(workMillisOnDay(paused, day, now)), '2:10')
+})
+
+test('weekly chart includes only the hours falling inside each displayed day and week', () => {
+  const carry = shift('2026-11-21', '22:00', '2026-11-22', '06:00')
+  const planned = { ...shift('2026-11-27', '22:00', '2026-11-28', '06:00'), status: 'planned' as const }
+  planned.breaks = [{ start: localToInstant('2026-11-27', '23:45'), end: localToInstant('2026-11-28', '00:15') }]
+  const nextWeek = shift('2026-11-29', '08:00', '2026-11-29', '16:00')
+  const active = { ...shift('2026-11-26', '08:00', '2026-11-26', '12:00'), status: 'active' as const }
+
+  const result = weeklyWorkHours([carry, planned, nextWeek, active], '2026-11-22')
+  assert.deepEqual(result.map((day) => day.actual), [6, 0, 0, 0, 0, 0, 0])
+  assert.deepEqual(result.map((day) => day.planned), [0, 0, 0, 0, 0, 1.75, 5.75])
 })
