@@ -511,7 +511,7 @@ function WorkspaceApp({ user }: { user: User | null }) {
         </footer>
       </main>
       {user && !w.profile.onboarded && (
-        <Dialog title="נעים להכיר, זה שועון">
+        <Dialog title="הגדרת היומן בשועון" className="onboarding-screen">
           <Onboarding profile={w.profile} payroll={w.payroll} onSaveQuestionnaire={saveQuestionnaire} />
         </Dialog>
       )}

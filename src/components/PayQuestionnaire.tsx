@@ -262,7 +262,7 @@ function QuestionnaireForm({
       )}
       <div className="question-actions">
         <button type="submit" className="prefs-primary" disabled={saving}>
-          {saving ? 'בשמירה…' : editSection ? 'שמירת התשובות' : 'שמירה והתחלת העבודה'}
+          {saving ? 'בשמירה…' : editSection ? 'שמירת התשובות' : 'שמירה וכניסה ליומן'}
           {!saving && <Check size={16} />}
         </button>
       </div>
@@ -272,12 +272,11 @@ function QuestionnaireForm({
 
 export function Onboarding(props: QuestionnaireProps) {
   return (
-    <>
-      <p className="prefs-hint questionnaire-intro">
-        כדי להתחיל לתעד משמרות מספיק להזין שכר לשעה. אפשר להשלים פרטים לחישוב הנטו בהגדרות.
-      </p>
+    <div className="onboarding-content">
+      <img className="onboarding-fox" src="/fox.svg" alt="" width="64" height="64" />
       <QuestionnaireForm {...props} />
-    </>
+      <p className="prefs-hint">אפשר לעדכן את השכר בהגדרות בכל עת.</p>
+    </div>
   )
 }
 
