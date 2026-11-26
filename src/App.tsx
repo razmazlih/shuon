@@ -509,7 +509,9 @@ function WorkspaceApp({ user }: { user: User | null }) {
             onSaveQuestionnaire={saveQuestionnaire}
             onSave={(v) => setting('profile', v)}
             templates={w.templates}
-            onTemplate={(t) => setting('templates', [...w.templates, t])}
+            onTemplate={(t) => setting('templates', w.templates.some(item => item.id === t.id)
+              ? w.templates.map(item => item.id === t.id ? t : item)
+              : [...w.templates, t])}
             user={user}
             onSalary={openPay}
             onSignIn={signIn}

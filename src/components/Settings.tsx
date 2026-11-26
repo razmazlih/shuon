@@ -18,6 +18,7 @@ import type { Template, UserProfile } from '../data/model'
 import type { PaySettings } from '../domain/gross'
 import { dateMs, localDate, localTime, localToInstant } from '../domain/time'
 import AppleCalendar from './AppleCalendar'
+import { Dialog } from './Dialog'
 import { TimeRange } from './TimeRange'
 import { QuestionnaireSettings, type QuestionnaireProps } from './PayQuestionnaire'
 export { Onboarding } from './PayQuestionnaire'
@@ -376,6 +377,7 @@ function TemplateSettings({
   save: (template: Template) => Promise<boolean>
   feedback: ReactNode
 }) {
+  const [editing, setEditing] = useState<Template | null>(null)
   const [error, setError] = useState('')
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -383,7 +385,7 @@ function TemplateSettings({
     if (busy) return
     const form = event.currentTarget
     const values = new FormData(form)
-    const title = read(values, 'title').trim()
+    const title = editing?.title ?? read(values, 'title').trim()
     const start = read(values, 'start')
     const end = read(values, 'end')
 
@@ -391,45 +393,32 @@ function TemplateSettings({
       setError('יש להזין שם לתבנית ושעות התחלה וסיום שונות.')
       return
     }
-    if (templates.some((item) => item.title === title && item.start === start && item.end === end)) {
+    if (templates.some((item) => item.id !== editing?.id && item.title === title && item.start === start && item.end === end)) {
       setError('תבנית עם השם והשעות האלה כבר קיימת.')
       return
     }
 
     setError('')
-    if (await save({ id: crypto.randomUUID(), title, start, end })) form.reset()
+    if (await save({ id: editing?.id ?? crypto.randomUUID(), title, start, end })) {
+      if (editing) setEditing(null)
+      else form.reset()
+    }
   }
 
-  return (
-    <>
-      {templates.length > 0 && (
-        <ul className="prefs-template-list" aria-label="תבניות שמורות">
-          {templates.map((template) => (
-            <li key={template.id}>
-              <bdi>{template.title}</bdi>
-              <span>
-                <TimeRange start={template.start} end={template.end} />
-                {template.end < template.start && ' למחרת'}
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
-      <details className="prefs-details">
-        <summary>הוספת תבנית</summary>
+  const form = (
         <form className="prefs-form" onSubmit={submit}>
-          <label className="prefs-field">
+          {!editing && <label className="prefs-field">
             שם התבנית
             <input name="title" maxLength={120} placeholder="למשל, משמרת לילה" required disabled={busy} />
-          </label>
+          </label>}
           <div className="prefs-grid prefs-template-times">
             <label className="prefs-field">
               שעת התחלה
-              <input name="start" type="time" dir="ltr" defaultValue="08:00" required disabled={busy} />
+              <input name="start" type="time" dir="ltr" defaultValue={editing?.start ?? '08:00'} required disabled={busy} />
             </label>
             <label className="prefs-field">
               שעת סיום
-              <input name="end" type="time" dir="ltr" defaultValue="16:00" required disabled={busy} />
+              <input name="end" type="time" dir="ltr" defaultValue={editing?.end ?? '16:00'} required disabled={busy} />
             </label>
           </div>
           <button type="submit" className="prefs-primary" disabled={busy}>
@@ -439,9 +428,31 @@ function TemplateSettings({
             <p className="prefs-error" role="alert">
               {error}
             </p>
-          ) : feedback}
+          ) : editing ? feedback : null}
         </form>
-      </details>
+  )
+
+  return (
+    <>
+      {templates.length > 0 && (
+        <ul className="prefs-template-list" aria-label="תבניות שמורות">
+          {templates.map((template) => (
+            <li key={template.id}>
+              <bdi>{template.title}</bdi>
+              <button type="button" className="question-edit" disabled={busy} aria-label={`עריכת שעות: ${template.title}`} onClick={() => { setError(''); setEditing(template) }}>
+                <TimeRange start={template.start} end={template.end} />
+                {template.end < template.start && ' למחרת'}
+                <span>עריכה</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      {editing ? <Dialog title={`עריכת שעות · ${editing.title}`} closeDisabled={busy} onClose={() => { setError(''); setEditing(null) }}>{form}</Dialog> : <details className="prefs-details">
+        <summary>הוספת תבנית</summary>
+        {form}
+      </details>}
+      {!editing && feedback}
     </>
   )
 }
