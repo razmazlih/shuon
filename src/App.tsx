@@ -75,6 +75,9 @@ function monthShift(month: string, offset: number) {
   date.setUTCMonth(date.getUTCMonth() + offset)
   return date.toISOString().slice(0, 7)
 }
+function scheduledShiftAt(shifts: WorkShift[], now: number) {
+  return shifts.find((shift) => shiftStatusAt(shift, now) === 'planned' && Date.parse(shift.start) <= now)
+}
 export default function App() {
   const [identity, setIdentity] = useState<{ user: User | null } | null>(null)
   useEffect(() => onAuthStateChanged(auth, (user) => setIdentity({ user })), [])
@@ -161,8 +164,11 @@ function WorkspaceApp({ user }: { user: User | null }) {
   useEffect(() => {
     let nextUpdate = Date.parse(localToInstant(addDays(today, 1), '00:00'))
     for (const shift of storedShifts || []) {
+      if (shift.status === 'active') continue
+      const start = Date.parse(shift.start)
       const end = Date.parse(shift.end)
-      if (shift.status !== 'active' && end > statusTime) nextUpdate = Math.min(nextUpdate, end)
+      if (start > statusTime) nextUpdate = Math.min(nextUpdate, start)
+      if (end > statusTime) nextUpdate = Math.min(nextUpdate, end)
     }
     const timer = window.setTimeout(() => setStatusTime(Date.now()), Math.max(0, nextUpdate - Date.now()))
     return () => window.clearTimeout(timer)
@@ -273,10 +279,7 @@ function WorkspaceApp({ user }: { user: User | null }) {
       const now = new Date().toISOString()
       if (op === 'start') {
         if (active) return
-        const nowMs = Date.parse(now)
-        const upcoming = w.shifts.find(
-          (s) => shiftStatusAt(s, nowMs) === 'planned' && Date.parse(s.start) <= nowMs,
-        )
+        const upcoming = scheduledShiftAt(w.shifts, Date.parse(now))
         const shift: WorkShift = {
           id: upcoming?.id || crypto.randomUUID(),
           title: upcoming?.title || 'משמרת עבודה',
@@ -445,6 +448,7 @@ function WorkspaceApp({ user }: { user: User | null }) {
             today={today}
             shifts={shifts}
             active={active}
+            scheduled={scheduledShiftAt(shifts, statusTime)}
             previousMonth={previousMonth}
             previousGross={previousGross}
             currentNet={wage.issue ? null : totals.actual.net}

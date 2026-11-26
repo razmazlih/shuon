@@ -357,6 +357,15 @@ button:not(:disabled):active {
   font-size: 13px;
   color: var(--hero-ink);
 }
+.clock-scheduled {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 8px;
+  margin-top: 3px;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
 .status-light {
   width: 7px;
   height: 7px;

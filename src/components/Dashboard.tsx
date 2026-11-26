@@ -24,6 +24,7 @@ type Props = {
   today: string
   shifts: WorkShift[]
   active?: WorkShift
+  scheduled?: WorkShift
   previousMonth: string
   previousGross: number | null
   currentNet: number | null
@@ -49,7 +50,7 @@ function duration(shift: WorkShift) {
   )
   return Math.max(0, Math.floor((end - Date.parse(shift.start) - breaks) / 1000))
 }
-function Clock({ active, busy, onTimer }: Pick<Props, 'active' | 'busy' | 'onTimer'>) {
+function Clock({ active, scheduled, busy, onTimer }: Pick<Props, 'active' | 'scheduled' | 'busy' | 'onTimer'>) {
   const [, refresh] = useState(0)
   useEffect(() => {
     if (!active || active.openBreak) return
@@ -76,8 +77,14 @@ function Clock({ active, busy, onTimer }: Pick<Props, 'active' | 'busy' | 'onTim
         </div>
         <div className="clock-state">
           <span className={'status-light ' + (active ? 'running' : '')} />
-          {active ? (active.openBreak ? 'בהפסקה' : 'המשמרת בפעילות') : 'אין משמרת פעילה'}
+          {active ? (active.openBreak ? 'בהפסקה' : 'המשמרת בפעילות') : scheduled ? 'משמרת מתוכננת עכשיו' : 'אין משמרת פעילה'}
         </div>
+        {!active && scheduled && (
+          <div className="clock-scheduled">
+            <strong>{scheduled.title}</strong>
+            <TimeRange start={localTime(scheduled.start)} end={localTime(scheduled.end)} />
+          </div>
+        )}
         <div className="timer-actions">
           {active ? (
             <>
@@ -198,7 +205,7 @@ export function Dashboard(p: Props) {
   return (
     <>
       <div className="dashboard-top">
-        <Clock active={p.active} busy={p.busy} onTimer={p.onTimer} />
+        <Clock active={p.active} scheduled={p.scheduled} busy={p.busy} onTimer={p.onTimer} />
         <article className="income-card">
           <div className="income-contours" aria-hidden="true" />
           <h2 className="overline">
