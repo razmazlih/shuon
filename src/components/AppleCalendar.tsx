@@ -75,7 +75,7 @@ function AccountCalendar() {
     setBusy(true)
     setError('')
     try {
-      await callable(name, data)
+      if (name !== 'getAppleCalendarStatus') await callable(name, data)
       if (name === 'connectAppleCalendar' || name === 'resolveAppleCalendar')
         await callable('syncAppleCalendar')
     } catch (reason) {
@@ -84,7 +84,7 @@ function AccountCalendar() {
       try {
         setStatus((await callable('getAppleCalendarStatus')).data as Status)
       } catch (reason) {
-        setError(errorMessage(reason))
+        setError((previous) => previous || errorMessage(reason))
       }
       setBusy(false)
     }
@@ -94,7 +94,8 @@ function AccountCalendar() {
     const form = event.currentTarget
     const values = new FormData(form)
     const data = { email: values.get('email'), password: values.get('app-password') }
-    form.reset()
+    const password = form.elements.namedItem('app-password')
+    if (password instanceof HTMLInputElement) password.value = ''
     void act('connectAppleCalendar', data)
   }
   return (
