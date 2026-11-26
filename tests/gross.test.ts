@@ -15,20 +15,25 @@ function shift(date: string, start: string, end: string, endDate = date): Shift 
   return { id: date + '/' + start, start: localToInstant(date, start), end: localToInstant(endDate, end) }
 }
 
-test('all five daily thresholds accumulate exactly 42 ordinary hours; no daily overtime counted twice', () => {
+test('ordinary days use an eight-hour cap and daily overtime does not count toward 42 weekly hours', () => {
   const week = Array.from({ length: 5 }, (_, i) =>
-    shift(addDays('2026-11-22', i), '08:00', i === 4 ? '15:36' : '16:36'),
+    shift(addDays('2026-11-22', i), '08:00', '16:00'),
   )
-  week[0].end = localToInstant('2026-11-22', '18:36') // 2 hours of daily overtime
-  week.push(shift('2026-11-27', '08:00', '11:00'))
+  week[0].end = localToInstant('2026-11-22', '19:00') // 2 hours of daily overtime
+  week.push(shift('2026-11-27', '07:00', '11:00'))
   const pay = calculateGross(week.reverse(), settings)
   assert.equal(pay.gross, 42 * 50 + 4 * 62.5 + 75)
   assert.equal(pay.regularHours, 42)
   assert.equal(pay.overtimeHours, 5)
   assert.equal(pay.pensionable, 2100)
-  assert.deepEqual(pay.shifts.at(-1)?.bands, [
+  assert.deepEqual(pay.shifts[0].bands, [
+    { kind: 'regular', amount: 400, hours: 8 },
     { kind: 'overtime125', amount: 125, hours: 2 },
     { kind: 'overtime150', amount: 75, hours: 1 },
+  ])
+  assert.deepEqual(pay.shifts.at(-1)?.bands, [
+    { kind: 'regular', amount: 100, hours: 2 },
+    { kind: 'overtime125', amount: 125, hours: 2 },
   ])
 })
 
@@ -43,14 +48,14 @@ test('six-day profile, Friday short day, and partial minimum-rest overlap', () =
 })
 
 test('a weekly overtime threshold recognizes hours worked in the prior reporting month', () => {
-  // July 1, 2026 falls on Wednesday. All 42 ordinary hours precede Friday.
+  // July 1, 2026 falls on Wednesday. The 42-hour threshold is reached at noon Friday.
   const week = Array.from({ length: 5 }, (_, i) =>
-    shift(addDays('2026-06-28', i), '08:00', i === 4 ? '15:36' : '16:36'),
+    shift(addDays('2026-06-28', i), '08:00', '16:00'),
   )
-  week.push(shift('2026-07-03', '12:00', '15:00'))
+  week.push(shift('2026-07-03', '10:00', '15:00'))
   const pay = calculateGross(week, settings, '2026-07')
   assert.equal(pay.shifts.length, 3)
-  assert.equal(pay.shifts.at(-1)?.gross, 275)
+  assert.equal(pay.shifts.at(-1)?.gross, 375)
   assert.equal(pay.restHours, 3)
 })
 
@@ -79,7 +84,7 @@ test('same-day split shifts share daily counters; weekly rest and holiday overla
   const pay = calculateGross(shifts, { ...settings, holidays: ['2026-11-28'] })
   const profile = { ...settings, holidayCalendar: 'manual' as const }
   assert.equal(pay.gross, calculateGross(shifts, profile).gross)
-  assert.equal(pay.shifts[1].bands.find((b) => b.kind === 'rest200')?.hours, 0.4)
+  assert.equal(pay.shifts[1].bands.find((b) => b.kind === 'rest200')?.hours, 1)
 })
 
 test('Israel summer time skips one hour and winter time repeats one; inputs are independent of host timezone', () => {

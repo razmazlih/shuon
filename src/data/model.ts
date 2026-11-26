@@ -38,7 +38,6 @@ export interface Workspace {
 export const defaultPay: PaySettings = {
   hourlyRate: 50,
   workDays: 5,
-  shortDay: 4,
   restDay: 6,
   restStart: '12:00',
   restEnd: '24:00',

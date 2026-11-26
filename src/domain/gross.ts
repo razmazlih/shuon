@@ -16,7 +16,7 @@ export interface Shift extends Window {
 export interface PaySettings {
   hourlyRate: number
   workDays: 5 | 6
-  shortDay: number
+  shortDay?: number
   restDay: number
   restStart: string
   restEnd: string
@@ -61,7 +61,7 @@ export const grossCoverage = {
   weekly42EffectiveFrom: '2018-04-01',
   scope: 'אומדן לעובד שעתי בגיר במגזר הפרטי בהסדר הכללי. כל חישוב מתייחס למעסיק אחד.',
   thresholds:
-    'חמישה ימים: 8:36 שעות וביום המקוצר 7:36. שישה ימים: 8 שעות. ערב המנוחה, ערב חג ועבודת לילה: 7 שעות כברירת מחדל. בשני הפרופילים 42 שעות רגילות בשבוע.',
+    'יום רגיל: 8 שעות בשבוע של חמישה או שישה ימים. ערב המנוחה, ערב חג ועבודת לילה: 7 שעות כברירת מחדל. בשני הפרופילים 42 שעות רגילות בשבוע.',
   week: 'שבוע החישוב מתחיל ביום ראשון. משמרת רצופה שומרת על מדרגת השעות היומית בחצות. דקות המשמרת משויכות לחודש ולשבוע לפי מועד העבודה בפועל.',
   premium:
     'תוספת לילה מוגדרת בסכום לשעה או כאחוז משכר הבסיס לכל שעות המשמרת שסווגה כלילה, ונכללת בבסיס לחישוב הגמולים באותה משמרת.',
@@ -159,7 +159,7 @@ function validAmount(value: number): boolean {
 }
 
 function verifySettings(s: PaySettings) {
-  const weekdays = [s.shortDay, s.restDay, s.restStartDay ?? (s.restDay + 6) % 7]
+  const weekdays = [s.restDay, s.restStartDay ?? (s.restDay + 6) % 7]
   if (
     !validAmount(s.hourlyRate) ||
     ![5, 6].includes(s.workDays) ||
@@ -316,10 +316,9 @@ export function calculateGross(shifts: Shift[], settings: PaySettings, month?: s
     const wday = weekday(p.workDate)
     const restEve = (wday + 1) % 7 === settings.restDay
     const holidayEve = calendar.holiday(addDays(p.workDate, 1))
-    const dayHours = settings.workDays === 6 ? 8 : wday === settings.shortDay ? 7.6 : 8.6
     const cap =
       Math.min(
-        dayHours,
+        8,
         night || restEve ? 7 : Infinity,
         holidayEve ? (settings.holidayEveHours ?? 7) : Infinity,
       ) * H
