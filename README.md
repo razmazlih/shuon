@@ -29,6 +29,10 @@
 
 ### שועון בנייד
 
+באייפון פותחים את שועון ב־Safari ובוחרים **שיתוף ← הוספה למסך הבית**. האפליקציה מופיעה בשם **שועון**, עם אייקון השועל.
+
+<img src="public/apple-touch-icon.png" width="90" alt="אייקון מסך הבית של שועון, שועל כתום לצד שעון">
+
 | דף הפתיחה | יומן המשמרות | דוח השכר |
 | --- | --- | --- |
 | <a href="docs/screenshots/landing-mobile.png"><img src="docs/screenshots/landing-mobile.png" width="216" alt="דף הפתיחה בנייד עם כפתורי כניסה והתנסות"></a> | <a href="docs/screenshots/calendar-mobile.png"><img src="docs/screenshots/calendar-mobile.png" width="216" alt="יומן המשמרות החודשי בנייד"></a> | <a href="docs/screenshots/salary-mobile.png"><img src="docs/screenshots/salary-mobile.png" width="216" alt="דוח השכר החודשי בנייד"></a> |
