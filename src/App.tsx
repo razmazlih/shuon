@@ -30,7 +30,7 @@ import {
 import { subscribeWorkspace, writeSetting, writeShifts } from './data/repository'
 import { calculateGross, type BandKind } from './domain/gross'
 import { addDays, localDate, localTime, localToInstant } from './domain/time'
-import { salaryReport } from './domain/net'
+import { estimateSalary, salaryReport } from './domain/net'
 import { Dashboard } from './components/Dashboard'
 import { TimeRange } from './components/TimeRange'
 const Calendar = lazy(() => import('./components/Calendar').then((m) => ({ default: m.Calendar })))
@@ -178,6 +178,20 @@ function WorkspaceApp({ user }: { user: User | null }) {
     [storedShifts, statusTime],
   )
   const pay = workspace?.profile.pay
+  const payroll = workspace?.payroll
+  const adjustments = workspace?.adjustments
+  const previousMonth = monthShift(today.slice(0, 7), -1)
+  const previousGross = useMemo(() => {
+    if (page !== 'today' || !pay || !payroll || !adjustments) return null
+    try {
+      const completed = shifts.filter((shift) => shift.status === 'completed')
+      const earnings = calculateGross(completed, pay, previousMonth)
+      return estimateSalary(previousMonth, earnings, payroll, adjustments.filter((item) => !item.planned))
+        .cashGross
+    } catch {
+      return null
+    }
+  }, [page, pay, payroll, adjustments, shifts, previousMonth])
   const wage = useMemo(() => {
     const rows = shifts.filter((s) => s.status !== 'active')
     const empty = calculateGross([], defaultPay)
@@ -439,12 +453,13 @@ function WorkspaceApp({ user }: { user: User | null }) {
             today={today}
             shifts={shifts}
             active={active}
-            actual={wage.actual}
-            forecastNet={totals.forecast.net}
-            earned={totals.actual.cashGross}
-            forecastGross={totals.forecast.cashGross}
-            forecastCount={count}
-            issue={wage.issue}
+            previousMonth={previousMonth}
+            previousGross={previousGross}
+            currentNet={wage.issue ? null : totals.actual.net}
+            forecastNet={wage.issue ? null : totals.forecast.net}
+            workedHours={wage.issue ? null : wage.actual.hours}
+            overtimeHours={wage.issue ? null : wage.actual.overtimeHours}
+            plannedCount={wage.issue ? null : count}
             busy={working}
             onTimer={timer}
             onSalary={openPay}

@@ -3,6 +3,7 @@ import {
   ArrowLeft,
   CalendarDays,
   CalendarRange,
+  ChartNoAxesColumnIncreasing,
   ChevronLeft,
   CircleDollarSign,
   Clock3,
@@ -17,19 +18,19 @@ import {
 import { Forest } from './Forest'
 import { TimeRange } from './TimeRange'
 import { addDays, localDate, localTime, weekday } from '../domain/time'
-import type { GrossResult } from '../domain/gross'
 import { dateLabel, formatMoney, hourCount, type WorkShift } from '../data/model'
 
 type Props = {
   today: string
   shifts: WorkShift[]
   active?: WorkShift
-  actual: GrossResult
+  previousMonth: string
+  previousGross: number | null
+  currentNet: number | null
   forecastNet: number | null
-  earned: number
-  forecastGross: number
-  forecastCount: number
-  issue?: string
+  workedHours: number | null
+  overtimeHours: number | null
+  plannedCount: number | null
   busy: boolean
   onTimer: (op: 'start' | 'pause' | 'resume' | 'stop') => void
   onSalary: () => void
@@ -190,66 +191,62 @@ export function Dashboard(p: Props) {
     .sort((a, b) => a.start.localeCompare(b.start))
     .slice(0, 3)
   const month = dateLabel(p.today, { month: 'long' })
+  const lastMonth = dateLabel(p.previousMonth + '-01', { month: 'long', year: 'numeric' })
+  const metrics = [
+    { label: 'שעות עבודה', value: p.workedHours, icon: Clock3 },
+    { label: 'מתוכן שעות נוספות', value: p.overtimeHours, icon: ChartNoAxesColumnIncreasing },
+    { label: 'משמרות מתוכננות', value: p.plannedCount, icon: CalendarDays },
+  ]
   return (
     <>
       <div className="dashboard-top">
         <Clock active={p.active} busy={p.busy} onTimer={p.onTimer} />
         <article className="income-card">
           <div className="income-contours" aria-hidden="true" />
-          <div className="income-header">
-            <span className="overline">
-              <CircleDollarSign size={18} /> השכר שלי
-            </span>
-            <span className="month-tag">{month}</span>
-          </div>
+          <h2 className="overline">
+            <CircleDollarSign size={18} /> השכר שלי
+          </h2>
           <div className="income-body">
-            <span className="income-label">ברוטו שנצבר החודש</span>
-            <strong className="income-number">{p.issue ? '—' : formatMoney(p.earned)}</strong>
+            <div>
+              <span className="income-label">ברוטו בחודש שעבר</span>
+              <span className="income-period">{lastMonth}</span>
+            </div>
+            <strong className="income-number">{p.previousGross === null ? '—' : formatMoney(p.previousGross)}</strong>
           </div>
-          <button className="income-footer" onClick={p.onSalary}>
-            <span>
-              <span className="net-line">נטו צפוי בסוף החודש</span>
-              <b>{p.forecastNet === null || p.issue ? 'לפירוט החישוב' : formatMoney(p.forecastNet)}</b>
-            </span>
-            <span className="arrow-bubble">
-              <ArrowLeft size={17} />
-            </span>
-          </button>
+          <div className="income-current">
+            <div className="income-current-heading">
+              <h3>אומדן נטו · {month}</h3>
+              <button className="income-details" onClick={p.onSalary}>
+                לדוח השכר <ArrowLeft size={14} />
+              </button>
+            </div>
+            <dl className="income-estimates">
+              <div>
+                <dt>נצבר עד כה</dt>
+                <dd>{p.currentNet === null ? '—' : formatMoney(p.currentNet)}</dd>
+              </div>
+              <div>
+                <dt>צפוי כולל משמרות מתוכננות</dt>
+                <dd>{p.forecastNet === null ? '—' : formatMoney(p.forecastNet)}</dd>
+              </div>
+            </dl>
+          </div>
         </article>
       </div>
-      <div className="summary-strip">
-        <div>
-          <span className="metric-icon orange">
-            <Clock3 />
-          </span>
-          <div>
-            <small>שעות שבוצעו החודש</small>
-            <b>
-              {p.issue ? '—' : hourCount(p.actual.hours)} <em>שעות</em>
-            </b>
-          </div>
-        </div>
-        <div>
-          <span className="metric-icon lilac">
-            <CalendarDays />
-          </span>
-          <div>
-            <small>משמרות מתוכננות החודש</small>
-            <b>
-              {p.forecastCount} <em>משמרות</em>
-            </b>
-          </div>
-        </div>
-        <div>
-          <span className="metric-icon sage">
-            <CircleDollarSign />
-          </span>
-          <div>
-            <small>ברוטו צפוי בסוף החודש</small>
-            <b>{p.issue ? '—' : formatMoney(p.forecastGross)}</b>
-          </div>
-        </div>
-      </div>
+      <section className="summary-strip" aria-labelledby="month-summary-title">
+        <h2 id="month-summary-title">המשמרות שלי · {month}</h2>
+        <dl className="summary-metrics">
+          {metrics.map(({ label, value, icon: Icon }) => (
+            <div key={label}>
+              <dt>
+                <Icon size={16} aria-hidden="true" />
+                {label}
+              </dt>
+              <dd>{value === null ? '—' : hourCount(value)}</dd>
+            </div>
+          ))}
+        </dl>
+      </section>
       <div className="dashboard-bottom">
         <Weekly today={p.today} shifts={p.shifts} onCalendar={p.onCalendar} />
         <article className="panel upcoming">
