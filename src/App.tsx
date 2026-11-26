@@ -4,8 +4,6 @@ import {
   ArrowLeft,
   CalendarDays,
   ChartNoAxesColumnIncreasing,
-  ChevronLeft,
-  ChevronRight,
   Clock3,
   FilePenLine,
   House,
@@ -28,10 +26,11 @@ import {
 } from './data/model'
 import { subscribeWorkspace, writeSetting, writeShifts } from './data/repository'
 import { calculateGross, type BandKind } from './domain/gross'
-import { addDays, localDate, localTime, localToInstant } from './domain/time'
+import { addDays, addMonths, localDate, localTime, localToInstant } from './domain/time'
 import { estimateSalary, salaryReport } from './domain/net'
 import { Dashboard } from './components/Dashboard'
 import { SleepingFox } from './components/SleepingFox'
+import { SalaryMonthPicker } from './components/SalaryMonthPicker'
 import { TimeRange } from './components/TimeRange'
 const Calendar = lazy(() => import('./components/Calendar').then((m) => ({ default: m.Calendar })))
 const ShiftEditor = lazy(() => import('./components/ShiftEditor').then((m) => ({ default: m.ShiftEditor })))
@@ -70,11 +69,6 @@ function errText(e: unknown) {
   if (code === 'unavailable' || code === 'auth/network-request-failed')
     return 'החיבור לשרת נכשל. יש לבדוק את החיבור לאינטרנט ולנסות שוב.'
   return e instanceof Error && /[א-ת]/.test(e.message) ? e.message : 'הפעולה לא הושלמה. אפשר לנסות שוב.'
-}
-function monthShift(month: string, offset: number) {
-  const date = new Date(month + '-15T12:00:00Z')
-  date.setUTCMonth(date.getUTCMonth() + offset)
-  return date.toISOString().slice(0, 7)
 }
 function scheduledShiftAt(shifts: WorkShift[], now: number) {
   return shifts.find((shift) => shiftStatusAt(shift, now) === 'planned' && Date.parse(shift.start) <= now)
@@ -191,7 +185,7 @@ function WorkspaceApp({ user }: { user: User | null }) {
   const pay = workspace?.profile.pay
   const payroll = workspace?.payroll
   const adjustments = workspace?.adjustments
-  const previousMonth = monthShift(today.slice(0, 7), -1)
+  const previousMonth = addMonths(today, -1).slice(0, 7)
   const previousGross = useMemo(() => {
     if (page !== 'today' || !pay || !payroll || !adjustments) return null
     try {
@@ -423,34 +417,7 @@ function WorkspaceApp({ user }: { user: User | null }) {
               <Plus size={17} aria-hidden="true" /> <span>הוספת משמרת</span>
             </button>
           )}
-          {page === 'salary' && (
-            <div className="month-control">
-              <button
-                className="icon-btn"
-                aria-label="לחודש הקודם"
-                onClick={() => setMonth(monthShift(month, -1))}
-              >
-                <ChevronRight size={16} />
-              </button>
-              <label>
-                <span className="sr-only">חודש הדוח</span>
-                <input
-                  type="month"
-                  value={month}
-                  onChange={(e) => {
-                    if (e.target.value) setMonth(e.target.value)
-                  }}
-                />
-              </label>
-              <button
-                className="icon-btn"
-                aria-label="לחודש הבא"
-                onClick={() => setMonth(monthShift(month, 1))}
-              >
-                <ChevronLeft size={16} />
-              </button>
-            </div>
-          )}
+          {page === 'salary' && <SalaryMonthPicker month={month} onChange={setMonth} />}
         </div>
         {wage.issue && (page === 'salary' || page === 'today') && (
           <p className="warning" role="alert">

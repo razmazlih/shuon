@@ -2,8 +2,8 @@
 export const TIME_ZONE = 'Asia/Jerusalem'
 export const HOUR_MS = 3_600_000
 const DAY_MS = 24 * HOUR_MS
-const FIRST_CALENDAR_YEAR = 1
-const LAST_CALENDAR_YEAR = 9999
+export const FIRST_CALENDAR_YEAR = 1
+export const LAST_CALENDAR_YEAR = 9999
 const clock = new Intl.DateTimeFormat('sv-SE', {
   timeZone: TIME_ZONE,
   year: 'numeric',

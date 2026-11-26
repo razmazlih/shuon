@@ -1,0 +1,80 @@
+.salary-month-control {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+}
+.salary-month-control > .icon-btn,
+.salary-month-navigation > .icon-btn {
+  width: 44px;
+  height: 44px;
+}
+.salary-month-trigger,
+.salary-month-year {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  min-height: 44px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--ink);
+}
+.salary-month-trigger {
+  min-width: 8rem;
+  padding-inline: 0.3rem;
+  font-size: 0.87rem;
+  white-space: nowrap;
+}
+.salary-month-trigger svg,
+.salary-month-year svg {
+  color: var(--muted);
+}
+.salary-month-trigger:hover,
+.salary-month-year:hover,
+.salary-month-options button:hover {
+  background: var(--tint);
+}
+.modal.salary-month-dialog {
+  width: min(410px, calc(100vw - 24px));
+}
+.salary-month-navigation {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.salary-month-year {
+  font-size: 1rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.salary-month-year[aria-expanded='true'] svg {
+  transform: rotate(180deg);
+}
+.salary-month-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+.salary-month-options button {
+  min-height: 44px;
+  padding: 0.35rem 0.15rem;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--card);
+  color: var(--ink);
+  font-size: 0.92rem;
+}
+.salary-month-options button[aria-pressed='true'] {
+  border-color: var(--green);
+  background: var(--tint);
+  color: var(--green);
+  font-weight: 700;
+}
