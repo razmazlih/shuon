@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { getApp } from 'firebase/app'
 import type { User } from 'firebase/auth'
 import { connectFunctionsEmulator, getFunctions, httpsCallable, type Functions } from 'firebase/functions'
+import { TimeRange } from './TimeRange'
 
 type EventTimes = { title: string; start: string; end: string }
 type Review = {
@@ -43,9 +44,7 @@ function eventSummary(event: EventTimes | null) {
   return event ? (
     <>
       {event.title} ·{' '}
-      <bdi>
-        {formatted.format(new Date(event.start))} – {formatted.format(new Date(event.end))}
-      </bdi>
+      <TimeRange start={formatted.format(new Date(event.start))} end={formatted.format(new Date(event.end))} />
     </>
   ) : (
     'המשמרת נמחקה'

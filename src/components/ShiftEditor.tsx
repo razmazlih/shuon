@@ -13,6 +13,7 @@ import {
 import type { Template, WorkShift } from '../data/model'
 import { addDays, dateMs, localDate, localToInstant } from '../domain/time'
 import { ShiftDatesPicker } from './ShiftDatesPicker'
+import { TimeRange } from './TimeRange'
 import './calendar.css'
 
 interface ShiftEditorProps {
@@ -350,7 +351,7 @@ export function ShiftEditor({
                       {templates.map((template) => (
                         <button key={template.id} type="button" onClick={() => applyTemplate(template)}>
                           <span>{template.title}</span>
-                          <bdi dir="ltr">{template.start}–{template.end}</bdi>
+                          <TimeRange start={template.start} end={template.end} />
                         </button>
                       ))}
                     </div>

@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { onAuthStateChanged, type User } from 'firebase/auth'
 import {
   ArrowLeft,
@@ -32,6 +32,7 @@ import { calculateGross, type BandKind } from './domain/gross'
 import { addDays, localDate, localTime, localToInstant } from './domain/time'
 import { salaryReport } from './domain/net'
 import { Dashboard } from './components/Dashboard'
+import { TimeRange } from './components/TimeRange'
 const Calendar = lazy(() => import('./components/Calendar').then((m) => ({ default: m.Calendar })))
 const ShiftEditor = lazy(() => import('./components/ShiftEditor').then((m) => ({ default: m.ShiftEditor })))
 const Onboarding = lazy(() => import('./components/Settings').then((m) => ({ default: m.Onboarding })))
@@ -518,9 +519,10 @@ function WorkspaceApp({ user }: { user: User | null }) {
             </p>
             <div className="detail-time">
               <Clock3 size={19} />
-              <bdi>
-                {localTime(picked.start)} – {picked.status === 'active' ? '…' : localTime(picked.end)}
-              </bdi>
+              <TimeRange
+                start={localTime(picked.start)}
+                end={picked.status === 'active' ? '…' : localTime(picked.end)}
+              />
               <span>
                 {picked.status === 'active' ? 'פעילה' : picked.status === 'completed' ? 'בוצעה' : 'מתוכננת'}
               </span>
@@ -546,9 +548,13 @@ function WorkspaceApp({ user }: { user: User | null }) {
             {picked.breaks.length > 0 && (
               <p>
                 הפסקות:{' '}
-                {picked.breaks
-                  .map((b) => localTime(b.start) + '–' + localTime(b.end) + (b.paid ? ' (בתשלום)' : ''))
-                  .join(', ')}
+                {picked.breaks.map((pause, index) => (
+                  <Fragment key={pause.start}>
+                    {index > 0 && ', '}
+                    <TimeRange start={localTime(pause.start)} end={localTime(pause.end)} />
+                    {pause.paid && ' (בתשלום)'}
+                  </Fragment>
+                ))}
               </p>
             )}
             {picked.note && <p>{picked.note}</p>}

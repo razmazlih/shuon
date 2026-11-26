@@ -91,7 +91,7 @@ function savedBreaks(shift: WorkShift, date: string, start: number, end: number)
     const pauseEnd = Date.parse(pause.end)
     if (pauseStart < start || pauseEnd > end || pauseEnd <= pauseStart) {
       throw new Error(
-        `ההפסקה שנרשמה (${localTime(pause.start)}–${localTime(pause.end)}) אינה מתאימה לטווח החדש. יש להתאים את שעות המשמרת.`,
+        `ההפסקה שנרשמה משעה ${localTime(pause.start)} עד ${localTime(pause.end)} אינה מתאימה לטווח החדש. יש להתאים את שעות המשמרת.`,
       )
     }
   }

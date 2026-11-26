@@ -15,6 +15,7 @@ import {
   Timer,
 } from 'lucide-react'
 import { Forest } from './Forest'
+import { TimeRange } from './TimeRange'
 import { addDays, localDate, localTime, weekday } from '../domain/time'
 import type { GrossResult } from '../domain/gross'
 import { dateLabel, formatMoney, hourCount, type WorkShift } from '../data/model'
@@ -279,9 +280,7 @@ export function Dashboard(p: Props) {
                     <b>{s.title}</b>
                     <small>
                       {dateLabel(date, { weekday: 'long' })} <i>·</i>{' '}
-                      <bdi>
-                        {localTime(s.start)}–{localTime(s.end)}
-                      </bdi>
+                      <TimeRange start={localTime(s.start)} end={localTime(s.end)} />
                     </small>
                   </span>
                   <Icon className="shift-kind" size={17} />

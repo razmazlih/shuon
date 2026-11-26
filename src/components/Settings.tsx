@@ -19,6 +19,7 @@ import type { Template, UserProfile } from '../data/model'
 import type { PaySettings } from '../domain/gross'
 import { dateMs, localDate, localTime, localToInstant } from '../domain/time'
 import AppleCalendar from './AppleCalendar'
+import { TimeRange } from './TimeRange'
 import './settings.css'
 
 type SaveProfile = (profile: UserProfile) => Promise<void>
@@ -498,7 +499,7 @@ function TemplateSettings({
             <li key={template.id}>
               <bdi>{template.title}</bdi>
               <span>
-                <bdi dir="ltr">{template.start}–{template.end}</bdi>
+                <TimeRange start={template.start} end={template.end} />
                 {template.end < template.start && ' למחרת'}
               </span>
             </li>

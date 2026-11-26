@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react'
 import type { DaySelection } from '../data/manual-shifts'
 import type { WorkShift } from '../data/model'
 import { addDays, addMonths, dateMs, localDate, localTime, monthDays } from '../domain/time'
+import { TimeRange } from './TimeRange'
 import './shift-dates-picker.css'
 
 type PickerProps = {
@@ -89,7 +90,8 @@ function ShiftDayManagement({
                 : endDate === addDays(selection.date, 1)
                   ? 'למחרת'
                   : 'עד ' + shortDateFormat.format(dateMs(endDate))
-            const time = localTime(shift.start) + (active ? ' – …' : ' – ' + localTime(shift.end))
+            const startTime = localTime(shift.start)
+            const endTime = active ? '…' : localTime(shift.end)
             const action =
               selection.replacement?.id === shift.id
                 ? 'replace'
@@ -100,12 +102,16 @@ function ShiftDayManagement({
               <li className="se-day-shift" key={shift.id}>
                 <div className="se-day-shift-summary">
                   <span>{shift.title || 'משמרת עבודה'}</span>
-                  <bdi dir="ltr">{time}</bdi>
+                  <TimeRange start={startTime} end={endTime} />
                   {endDay && <small>{endDay}</small>}
                   {active && <small>שעון נוכחות פעיל</small>}
                 </div>
                 {!active && (
-                  <div className="se-day-shift-actions" role="group" aria-label={'פעולות למשמרת ' + time}>
+                  <div
+                    className="se-day-shift-actions"
+                    role="group"
+                    aria-label={`פעולות למשמרת מ־${startTime} עד ${endTime}`}
+                  >
                     {shiftActions.map(({ key, label }) => (
                       <button
                         key={key}
