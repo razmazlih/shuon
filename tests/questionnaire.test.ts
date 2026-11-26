@@ -87,6 +87,17 @@ test('keeps legacy and manually corrected payslip values on unrelated changes', 
   )
 })
 
+test('defaults older profiles to automatic Israeli holidays and preserves an explicit manual calendar', () => {
+  const legacy = { ...profile, onboarded: true, pay: { ...profile.pay } }
+  delete legacy.pay.holidayCalendar
+  const initial = initialAnswers(legacy, payroll, today)
+  assert.equal(initial.holidayCalendar, 'israel-jewish')
+  assert.equal(applyAnswers(legacy, payroll, initial, today).profile.pay.holidayCalendar, 'israel-jewish')
+
+  const manual = applyAnswers(legacy, payroll, { ...initial, holidayCalendar: 'manual' }, today)
+  assert.equal(initialAnswers(manual.profile, manual.payroll, today).holidayCalendar, 'manual')
+})
+
 test('dated rates preserve previous shifts and a night supplement in shekels stays fixed across a raise', () => {
   const original = apply({ ...basic, nights: 'yes', nightBonus: 'amount', nightAmount: '10' })
   const raised = applyAnswers(

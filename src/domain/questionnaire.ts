@@ -75,7 +75,7 @@ export function visibleQuestions(a: Answers): Question[] {
       [['israel-jewish', 'חגי ישראל'], ['manual', 'חגים אחרים, לפי תאריכים שאבחר'], unsure],
       a.holidayCalendar === 'manual'
         ? 'אפשר להוסיף תאריכים בהגדרות, תחת תעריפים עתידיים, זמני מנוחה וחגים.'
-        : 'אם לא ידוע, האומדן ישתמש בחגי ישראל.',
+        : 'חגי ישראל מזוהים אוטומטית בחישוב השכר.',
     ),
     choice('shifts', 'nights', 'יש לך משמרות לילה?', [...yesNo, unsure]),
   )
@@ -323,7 +323,7 @@ export function initialAnswers(
   if (profile.onboarded || saved) {
     a.hourlyRate = String(currentRate(profile, today))
     a.restDay ??= String(profile.pay.restDay)
-    a.holidayCalendar ??= profile.pay.holidayCalendar ?? 'manual'
+    a.holidayCalendar ??= profile.pay.holidayCalendar ?? 'israel-jewish'
     if (!saved && profile.pay.nightPremiumPercent) {
       Object.assign(a, {
         nights: 'yes',

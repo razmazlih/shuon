@@ -14,7 +14,7 @@ import {
   UserRound,
 } from 'lucide-react'
 import type { Template, UserProfile } from '../data/model'
-import type { PaySettings } from '../domain/gross'
+import { holidayTimeMode, type PaySettings } from '../domain/gross'
 import { dateMs, localDate, localTime, localToInstant } from '../domain/time'
 import AppleCalendar from './AppleCalendar'
 import { PayrollSettings } from './PayrollSettings'
@@ -125,6 +125,9 @@ type SavePay = (pay: PaySettings, section: string, message: string) => Promise<b
 function TimeSettings({ pay, busy, save }: { pay: PaySettings; busy: boolean; save: SavePay }) {
   const [holidayDraft, setHolidays] = useState<HolidayDate[] | null>(null)
   const [rangeDraft, setRanges] = useState<HolidayRange[] | null>(null)
+  const [timeModeDraft, setTimeMode] = useState<PaySettings['holidayTimeMode']>()
+  const manualCalendar = pay.holidayCalendar === 'manual'
+  const timeMode = manualCalendar ? 'fixed' : (timeModeDraft ?? holidayTimeMode(pay))
   const holidays = holidayDraft ?? (pay.holidays ?? []).map((date, index) => ({ id: String(index), date }))
   const ranges = rangeDraft ?? (pay.holidayWindows ?? []).map((range, index) => ({
     id: String(index),
@@ -150,24 +153,28 @@ function TimeSettings({ pay, busy, save }: { pay: PaySettings; busy: boolean; sa
       })
       const newHolidays = [...new Set(holidays.map((row) => row.date))].sort()
       newHolidays.forEach(dateMs)
-      const saved = await save(
-        {
-          ...pay,
-          restStartDay,
-          restStart,
-          restEnd,
-          holidayEveHours: Number(data.get('holidayEveHours')) as 7 | 8,
-          holidayStart: read(data, 'holidayStart'),
-          holidayEnd: read(data, 'holidayEnd'),
-          holidays: newHolidays,
-          holidayWindows: windows,
-        },
-        'time',
-        'הגדרות שבוע העבודה נשמרו',
-      )
+      const nextPay: PaySettings = {
+        ...pay,
+        restStartDay,
+        restStart,
+        restEnd,
+        holidayEveHours: Number(data.get('holidayEveHours')) as 7 | 8,
+        holidays: newHolidays,
+        holidayWindows: windows,
+      }
+      if (!manualCalendar) nextPay.holidayTimeMode = timeMode
+      if (timeMode === 'fixed') {
+        nextPay.holidayStart = read(data, 'holidayStart')
+        nextPay.holidayEnd = read(data, 'holidayEnd')
+      } else {
+        delete nextPay.holidayStart
+        delete nextPay.holidayEnd
+      }
+      const saved = await save(nextPay, 'time', 'הגדרות שבוע העבודה נשמרו')
       if (saved) {
         setHolidays(null)
         setRanges(null)
+        setTimeMode(undefined)
       }
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'יש לבדוק את הגדרות השעות.')
@@ -194,6 +201,15 @@ function TimeSettings({ pay, busy, save }: { pay: PaySettings; busy: boolean; sa
         <summary>חגים וערבי חג</summary>
         <div className="prefs-form">
           <div className="prefs-grid">
+            {!manualCalendar && (
+              <label className="prefs-field">
+                זמני כניסה ויציאה של חגי ישראל
+                <select value={timeMode} onChange={(event) => setTimeMode(event.target.value === 'fixed' ? 'fixed' : 'automatic')}>
+                  <option value="automatic">אוטומטיים לפי תאריך החג</option>
+                  <option value="fixed">שעות קבועות לפי מקום העבודה</option>
+                </select>
+              </label>
+            )}
             <label className="prefs-field">
               שעות רגילות בערב חג
               <select key={pay.holidayEveHours} name="holidayEveHours" defaultValue={pay.holidayEveHours ?? 7}>
@@ -201,13 +217,17 @@ function TimeSettings({ pay, busy, save }: { pay: PaySettings; busy: boolean; sa
                 <option value={8}>8 שעות</option>
               </select>
             </label>
-            <ClockField name="holidayStart" title="שעת כניסה בערב החג" value={pay.holidayStart ?? '18:00'} />
-            <ClockField
-              name="holidayEnd"
-              title="שעת יציאה ביום החג"
-              value={pay.holidayEnd ?? '19:00'}
-              canEndAtMidnight
-            />
+            {timeMode === 'fixed' && (
+              <>
+                <ClockField name="holidayStart" title="שעת כניסה בערב החג" value={pay.holidayStart ?? '18:00'} />
+                <ClockField
+                  name="holidayEnd"
+                  title="שעת יציאה ביום החג"
+                  value={pay.holidayEnd ?? '19:00'}
+                  canEndAtMidnight
+                />
+              </>
+            )}
           </div>
           <fieldset className="prefs-collection">
             <legend>תאריכי חג נוספים</legend>
@@ -244,7 +264,7 @@ function TimeSettings({ pay, busy, save }: { pay: PaySettings; busy: boolean; sa
           <fieldset className="prefs-collection">
             <legend>זמני חג בתאריך מסוים</legend>
             <p className="prefs-hint">
-              הזמנים שהוגדרו כאן מחליפים את שעות הכניסה והיציאה הקבועות של החג המסתיים בתאריך הזה.
+              הזמנים שהוגדרו כאן מחליפים את שעות הכניסה והיציאה של החג המסתיים בתאריך הזה.
             </p>
             {ranges.map((row) => (
               <div className="prefs-adder-row" key={row.id}>

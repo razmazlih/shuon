@@ -12,11 +12,13 @@
     "dev:emulators": "firebase emulators:start --only auth,firestore,functions --project demo-shuon"
   },
   "dependencies": {
+    "@fontsource-variable/heebo": "^5.2.0",
+    "@hebcal/noaa": "^0.12.4",
     "firebase": "^12.0.0",
     "lucide-react": "^0.468.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "@fontsource-variable/heebo": "^5.2.0"
+    "temporal-polyfill": "^1.0.8"
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "^5.0.0",

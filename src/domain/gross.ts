@@ -1,4 +1,7 @@
 import { addDays, dateMs, HOUR_MS, instantMs, localDate, localToInstant, weekday } from './time'
+import { automaticHolidayWindow, holidayTimeMode, israelHolidayName } from './holidays'
+
+export { holidayTimeMode, israelHolidayName } from './holidays'
 
 export interface Window {
   start: string
@@ -26,6 +29,7 @@ export interface PaySettings {
   rateHistory?: { from: string; rate: number }[]
   holidays?: string[]
   holidayCalendar?: 'israel-jewish' | 'manual'
+  holidayTimeMode?: 'automatic' | 'fixed'
   holidayStart?: string
   holidayEnd?: string
   holidayEveHours?: 7 | 8
@@ -65,7 +69,7 @@ export const grossCoverage = {
   week: 'שבוע החישוב מתחיל ביום ראשון. משמרת רצופה שומרת על מדרגת השעות היומית בחצות. דקות המשמרת משויכות לחודש ולשבוע לפי מועד העבודה בפועל.',
   premium:
     'תוספת לילה מוגדרת בסכום לשעה או כאחוז משכר הבסיס לכל שעות המשמרת שסווגה כלילה, ונכללת בבסיס לחישוב הגמולים באותה משמרת.',
-  rest: 'חלונות המנוחה והחג הם השעות שהוגדרו במקום העבודה. השעות הקבועות לחגים הן קירוב. חפיפה בין חג למנוחה מזכה פעם אחת בתוספת.',
+  rest: 'זמני חג מחושבים לפי ירושלים כברירת מחדל. אפשר להגדיר שעות לפי מקום העבודה. חפיפה בין חג למנוחה מזכה פעם אחת בתוספת.',
   limitations:
     'החישוב כולל משמרות שהוזנו. השלמת שכר בערב חג לפי הסכם, דמי חג בגין היעדרות או עבודה מכורח, חופשה, מחלה, שעות גמישות, הסדרים ענפיים, שעות גלובליות ומנוחת פיצוי טעונים בדיקה נפרדת. שבוע שחסרים בו ימי עבודה או היעדרות בתשלום עשוי לתת אומדן חלקי.',
   pension:
@@ -80,34 +84,6 @@ export const grossCoverage = {
 } as const
 
 const H = HOUR_MS
-const hebrewCalendar = new Intl.DateTimeFormat('en-u-ca-hebrew', {
-  timeZone: 'UTC',
-  month: 'long',
-  day: 'numeric',
-})
-const festivalNames: Record<string, string> = {
-  'Tishri 1': 'ראש השנה',
-  'Tishri 2': 'ראש השנה',
-  'Tishri 10': 'יום הכיפורים',
-  'Tishri 15': 'סוכות',
-  'Tishri 22': 'שמיני עצרת ושמחת תורה',
-  'Nisan 15': 'פסח',
-  'Nisan 21': 'שביעי של פסח',
-  'Sivan 6': 'שבועות',
-}
-
-/** Major Jewish rest days in Israel, plus the observed modern Independence Day (2004 onward). */
-export function israelHolidayName(date: string): string | undefined {
-  const parts = hebrewCalendar.formatToParts(dateMs(date))
-  const month = parts.find((p) => p.type === 'month')?.value
-  const day = Number(parts.find((p) => p.type === 'day')?.value)
-  if (month === 'Iyar' && date >= '2004-01-01') {
-    const nominal = weekday(addDays(date, 5 - day))
-    const observed = nominal === 6 ? 3 : nominal === 5 ? 4 : nominal === 1 ? 6 : 5
-    if (day === observed) return 'יום העצמאות'
-  }
-  return festivalNames[month + ' ' + day]
-}
 
 interface Span {
   start: number
@@ -180,17 +156,23 @@ function makeCalendar(s: PaySettings) {
   const manual = new Set(s.holidays ?? [])
   const exact = (s.holidayWindows ?? []).map(readSpan)
   const replaced = new Set(exact.map((h) => localDate(h.end - 1)))
+  const automatic = holidayTimeMode(s) === 'automatic'
   const cache = new Map<string, { intervals: Span[]; nightEnd: number; nightStart: number; next: number }>()
-  const holidays = new Map<string, boolean>()
-  function holiday(date: string): boolean {
-    if (!holidays.has(date))
-      holidays.set(
-        date,
-        manual.has(date) ||
-          replaced.has(date) ||
-          (s.holidayCalendar === 'israel-jewish' && Boolean(israelHolidayName(date))),
-      )
-    return holidays.get(date)!
+  const windows = new Map<string, Span | undefined>()
+  function holidayWindow(date: string): Span | undefined {
+    if (!windows.has(date)) {
+      const name = s.holidayCalendar === 'manual' ? undefined : israelHolidayName(date)
+      let window: Span | undefined
+      if (!replaced.has(date) && (name || manual.has(date))) {
+        window = name && automatic ? automaticHolidayWindow(date, name) : undefined
+        window ??= {
+          start: boundary(addDays(date, -1), s.holidayStart ?? '18:00'),
+          end: boundary(date, s.holidayEnd ?? '19:00', true),
+        }
+      }
+      windows.set(date, window)
+    }
+    return windows.get(date)
   }
   function forDate(date: string) {
     const cached = cache.get(date)
@@ -206,17 +188,14 @@ function makeCalendar(s: PaySettings) {
     const today = boundary(date, '00:00')
     const intervals = [rest, ...exact.filter((h) => h.start < next && h.end > today)]
     for (const day of [date, tomorrow]) {
-      if (holiday(day) && !replaced.has(day))
-        intervals.push({
-          start: boundary(addDays(day, -1), s.holidayStart ?? '18:00'),
-          end: boundary(day, s.holidayEnd ?? '19:00', true),
-        })
+      const window = holidayWindow(day)
+      if (window) intervals.push(window)
     }
     const info = { intervals, next, nightEnd: boundary(date, '06:00'), nightStart: boundary(date, '22:00') }
     cache.set(date, info)
     return info
   }
-  return { forDate, holiday }
+  return { forDate, holiday: (date: string) => replaced.has(date) || Boolean(holidayWindow(date)) }
 }
 
 function emptyTotals(): Totals {

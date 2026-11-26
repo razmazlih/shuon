@@ -99,7 +99,7 @@ test('Israel summer time skips one hour and winter time repeats one; inputs are 
   assert.throws(() => localToInstant('2026-02-30', '08:00'))
 })
 
-test('Jewish calendar offers nine days in Israel and honors checked holiday hours; intermediate days are ordinary', () => {
+test('Jewish calendar identifies the nine Israeli holidays, including observed Independence Day', () => {
   for (const date of [
     '2026-04-02',
     '2026-04-08',
@@ -115,11 +115,71 @@ test('Jewish calendar offers nine days in Israel and honors checked holiday hour
   }
   assert.equal(israelHolidayName('2026-04-05'), undefined)
   assert.equal(israelHolidayName('2025-05-01'), 'יום העצמאות')
-  const profile: PaySettings = { ...settings, holidayCalendar: 'israel-jewish' }
+  assert.equal(israelHolidayName('2026-03-03'), undefined) // Purim
+  assert.equal(israelHolidayName('2026-12-06'), undefined) // Hanukkah
+})
+
+test('Independence Day uses its own 20:00-to-20:00 window on the observed date', () => {
+  const work = [shift('2026-04-21', '19:00', '21:00'), shift('2026-04-22', '19:00', '21:00')]
+  const pay = calculateGross(work, settings)
+  assert.deepEqual(pay.shifts.map((row) => row.restHours), [1, 1])
+  assert.equal(pay.gross, 250)
+})
+
+test('holiday rates and overtime apply to existing profiles without holiday settings', () => {
+  const work = shift('2026-04-02', '06:00', '18:00')
+  const pay = calculateGross([work], settings, '2026-04')
+  assert.deepEqual(pay.shifts[0].bands, [
+    { kind: 'rest150', hours: 8, amount: 600 },
+    { kind: 'rest175', hours: 2, amount: 175 },
+    { kind: 'rest200', hours: 2, amount: 200 },
+  ])
+  assert.equal(pay.gross, 975)
+  assert.equal(calculateGross([work], { ...settings, holidayCalendar: 'manual' }).restHours, 0)
+  assert.equal(
+    calculateGross([work], { ...settings, holidayCalendar: 'manual', holidays: ['2026-04-02'] }).gross,
+    975,
+  )
+  assert.equal(calculateGross([shift('2026-04-05', '08:00', '16:00')], settings).restHours, 0)
+})
+
+test('automatic entry and exit replace saved defaults, while custom clocks and exact dates retain precedence', () => {
   const eve = shift('2026-04-01', '17:00', '20:00')
-  assert.equal(calculateGross([eve], profile).restHours, 2)
+  const closing = shift('2026-04-02', '18:00', '21:00')
+  const saved: PaySettings = { ...settings, holidayCalendar: 'israel-jewish', holidayStart: '18:00', holidayEnd: '19:00' }
+  const automatic = calculateGross([eve, closing], settings)
+  // Jerusalem entry is 18:18 on April 1 and exit is 19:36 on April 2.
+  assert.deepEqual(automatic.shifts.map((row) => row.restHours), [102 / 60, 96 / 60])
+  assert.deepEqual(calculateGross([eve, closing], saved), automatic)
+  assert.deepEqual(
+    calculateGross([eve, closing], { ...saved, holidayTimeMode: 'fixed' }).shifts.map((row) => row.restHours),
+    [2, 1],
+  )
+  assert.equal(calculateGross([eve], { ...saved, holidayStart: '18:30' }).restHours, 1.5)
+  assert.deepEqual(
+    calculateGross([eve, closing], { ...saved, holidayStart: '18:30', holidayTimeMode: 'automatic' }),
+    automatic,
+  )
   const exact = { start: localToInstant('2026-04-01', '18:30'), end: localToInstant('2026-04-02', '19:30') }
-  assert.equal(calculateGross([eve], { ...profile, holidayWindows: [exact] }).restHours, 1.5)
+  assert.deepEqual(
+    calculateGross([eve, closing], { ...settings, holidayWindows: [exact] }).shifts.map((row) => row.restHours),
+    [1.5, 1.5],
+  )
+})
+
+test('Rosh Hashanah remains a continuous holiday across both days and the weekly rest overlap', () => {
+  const overnight = {
+    ...shift('2026-09-12', '16:00', '02:00', '2026-09-13'),
+    breaks: [{ start: localToInstant('2026-09-12', '19:00'), end: localToInstant('2026-09-12', '19:30') }],
+  }
+  const pay = calculateGross([overnight], settings)
+  assert.equal(pay.restHours, 9.5)
+  assert.deepEqual(calculateGross([overnight], { ...settings, restDay: 3 }), pay)
+  assert.deepEqual(pay.bands.map(({ kind, hours }) => ({ kind, hours })), [
+    { kind: 'rest150', hours: 7 },
+    { kind: 'rest175', hours: 2 },
+    { kind: 'rest200', hours: 0.5 },
+  ])
 })
 
 test('invalid and overlapping records fail before payment; fully unpaid shift remains a zero row', () => {
