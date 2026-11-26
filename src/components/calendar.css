@@ -223,8 +223,8 @@
   border-radius: 0.65rem;
   font-size: 0.9rem;
 }
-.se-option.se-delete {
-  color: var(--accent);
+.se-footer .se-delete {
+  color: var(--danger-strong);
 }
 .se-error,
 .se-destructive {

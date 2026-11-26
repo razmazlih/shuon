@@ -161,6 +161,9 @@ export function ShiftEditor({
   const contentRef = useRef<HTMLDivElement>(null)
   const pickerButtonRef = useRef<HTMLButtonElement>(null)
   const restorePickerFocus = useRef(false)
+  const deleteButtonRef = useRef<HTMLButtonElement>(null)
+  const cancelDeleteRef = useRef<HTMLButtonElement>(null)
+  const restoreDeleteFocus = useRef(false)
   const templateButtonRef = useRef<HTMLButtonElement>(null)
   const detailsId = useId()
   const templatesId = useId()
@@ -191,6 +194,20 @@ export function ShiftEditor({
     }
   }, [pickingDates])
 
+  useLayoutEffect(() => {
+    if (confirmDelete) cancelDeleteRef.current?.focus()
+    else if (restoreDeleteFocus.current) {
+      restoreDeleteFocus.current = false
+      deleteButtonRef.current?.focus()
+    }
+  }, [confirmDelete])
+
+  function cancelDeletion() {
+    restoreDeleteFocus.current = true
+    setConfirmDelete(false)
+    setError('')
+  }
+
   function closeDatesPicker() {
     restorePickerFocus.current = true
     setPickingDates(false)
@@ -211,7 +228,7 @@ export function ShiftEditor({
 
   async function submit(event: FormEvent) {
     event.preventDefault()
-    if (busy || pickingDates) return
+    if (busy || pickingDates || confirmDelete) return
     setError('')
     setNotice('')
     try {
@@ -227,7 +244,7 @@ export function ShiftEditor({
   }
 
   async function deleteShift() {
-    if (busy || !editing) return
+    if (busy || !editing || !confirmDelete) return
     setBusy(true)
     setError('')
     try {
@@ -332,25 +349,6 @@ export function ShiftEditor({
                 <div className="se-disclosure-clip">
                   <div className="se-details-body">
                     <NoteField value={note} onChange={setNote} />
-                    {editing && !confirmDelete && (
-                      <button className="se-option se-delete" type="button" onClick={() => setConfirmDelete(true)}>
-                        <Trash2 size={16} aria-hidden="true" />
-                        מחיקת משמרת
-                      </button>
-                    )}
-                    {confirmDelete && (
-                      <div className="se-confirm" role="group" aria-label="אישור מחיקת המשמרת">
-                        <span>למחוק את המשמרת מהיומן?</span>
-                        <div>
-                          <button type="button" className="btn secondary" onClick={() => setConfirmDelete(false)}>
-                            חזרה
-                          </button>
-                          <button type="button" className="btn se-destructive" onClick={deleteShift}>
-                            כן, למחוק
-                          </button>
-                        </div>
-                      </div>
-                    )}
                   </div>
                 </div>
               </div>
@@ -364,24 +362,47 @@ export function ShiftEditor({
             {error && <p className="se-error" role="alert">{error}</p>}
             {notice && <p className="sr-only" role="status">{notice}</p>}
             {changeSummary && <p className="se-change-summary" role="status">{changeSummary}</p>}
-            <div className="se-save-actions">
-              <button type="submit" className="btn primary" disabled={busy}>
-                {busy ? 'שומר…' : days.length > 1 ? 'שמירת ' + days.length + ' משמרות' : 'שמירת משמרת'}
-              </button>
-              {!editing && (
-                <button
-                  ref={pickerButtonRef}
-                  className="btn secondary"
-                  type="button"
-                  disabled={busy || !day}
-                  onClick={() => setPickingDates(true)}
-                >
-                  <CalendarPlus size={17} aria-hidden="true" />
-                  <span>{selections.length ? 'עריכת ימים נוספים' : 'בחירת ימים נוספים'}</span>
-                  {selections.length > 0 && <span className="se-count">{selections.length}</span>}
+            {confirmDelete ? (
+              <div className="se-confirm" role="group" aria-label="אישור מחיקת המשמרת">
+                <strong>למחוק את המשמרת מהיומן?</strong>
+                <span>{dateFormat.format(dateMs(originalDate))} · לא ניתן לבטל אחרי המחיקה.</span>
+                <div>
+                  <button ref={cancelDeleteRef} type="button" className="btn secondary" disabled={busy} onClick={cancelDeletion}>
+                    ביטול
+                  </button>
+                  <button type="button" className="btn se-destructive" disabled={busy} onClick={deleteShift}>
+                    {busy ? 'מוחק…' : 'כן, למחוק'}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="se-save-actions">
+                <button type="submit" className="btn primary" disabled={busy}>
+                  {busy ? 'שומר…' : days.length > 1 ? 'שמירת ' + days.length + ' משמרות' : 'שמירת משמרת'}
                 </button>
-              )}
-            </div>
+                {editing ? (
+                  <button ref={deleteButtonRef} type="button" className="btn secondary se-delete" disabled={busy} onClick={() => {
+                    setError('')
+                    setConfirmDelete(true)
+                  }}>
+                    <Trash2 size={16} aria-hidden="true" />
+                    מחיקת משמרת
+                  </button>
+                ) : (
+                  <button
+                    ref={pickerButtonRef}
+                    className="btn secondary"
+                    type="button"
+                    disabled={busy || !day}
+                    onClick={() => setPickingDates(true)}
+                  >
+                    <CalendarPlus size={17} aria-hidden="true" />
+                    <span>{selections.length ? 'עריכת ימים נוספים' : 'בחירת ימים נוספים'}</span>
+                    {selections.length > 0 && <span className="se-count">{selections.length}</span>}
+                  </button>
+                )}
+              </div>
+            )}
           </>
         )}
       </div>
@@ -394,7 +415,7 @@ export function ShiftEditor({
       className={preview ? undefined : 'shift-editor-modal'}
       transitionFrom={transitionFrom}
       closeDisabled={busy}
-      onClose={pickingDates ? undefined : onClose}
+      onClose={pickingDates ? undefined : confirmDelete ? cancelDeletion : onClose}
       onBack={pickingDates ? closeDatesPicker : undefined}
     >
       {preview ? preview.content : editing && initial.status === 'active' ? (
