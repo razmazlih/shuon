@@ -2,7 +2,6 @@ import { useState, type FormEvent, type ReactNode } from 'react'
 import type { User } from 'firebase/auth'
 import {
   Banknote,
-  Bookmark,
   CalendarDays,
   ChevronLeft,
   Laptop,
@@ -18,9 +17,8 @@ import type { Template, UserProfile } from '../data/model'
 import type { PaySettings } from '../domain/gross'
 import { dateMs, localDate, localTime, localToInstant } from '../domain/time'
 import AppleCalendar from './AppleCalendar'
-import { Dialog } from './Dialog'
 import { PayrollSettings } from './PayrollSettings'
-import { TimeRange } from './TimeRange'
+import { ShiftTemplates } from './ShiftTemplates'
 import { QuestionnaireSettings, type QuestionnaireProps } from './PayQuestionnaire'
 export { Onboarding } from './PayQuestionnaire'
 import './settings.css'
@@ -368,97 +366,6 @@ function RateSettings({ pay, busy, save }: { pay: PaySettings; busy: boolean; sa
   )
 }
 
-function TemplateSettings({
-  templates,
-  busy,
-  save,
-  feedback,
-}: {
-  templates: Template[]
-  busy: boolean
-  save: (template: Template) => Promise<boolean>
-  feedback: ReactNode
-}) {
-  const [editing, setEditing] = useState<Template | null>(null)
-  const [error, setError] = useState('')
-
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    if (busy) return
-    const form = event.currentTarget
-    const values = new FormData(form)
-    const title = editing?.title ?? read(values, 'title').trim()
-    const start = read(values, 'start')
-    const end = read(values, 'end')
-
-    if (!title || !start || !end || start === end) {
-      setError('יש להזין שם לתבנית ושעות התחלה וסיום שונות.')
-      return
-    }
-    if (templates.some((item) => item.id !== editing?.id && item.title === title && item.start === start && item.end === end)) {
-      setError('תבנית עם השם והשעות האלה כבר קיימת.')
-      return
-    }
-
-    setError('')
-    if (await save({ id: editing?.id ?? crypto.randomUUID(), title, start, end })) {
-      if (editing) setEditing(null)
-      else form.reset()
-    }
-  }
-
-  const form = (
-        <form className="prefs-form" onSubmit={submit}>
-          {!editing && <label className="prefs-field">
-            שם התבנית
-            <input name="title" maxLength={120} placeholder="למשל, משמרת לילה" required disabled={busy} />
-          </label>}
-          <div className="prefs-grid prefs-template-times">
-            <label className="prefs-field">
-              שעת התחלה
-              <input name="start" type="time" dir="ltr" defaultValue={editing?.start ?? '08:00'} required disabled={busy} />
-            </label>
-            <label className="prefs-field">
-              שעת סיום
-              <input name="end" type="time" dir="ltr" defaultValue={editing?.end ?? '16:00'} required disabled={busy} />
-            </label>
-          </div>
-          <button type="submit" className="prefs-primary" disabled={busy}>
-            שמירת תבנית
-          </button>
-          {error ? (
-            <p className="prefs-error" role="alert">
-              {error}
-            </p>
-          ) : editing ? feedback : null}
-        </form>
-  )
-
-  return (
-    <>
-      {templates.length > 0 && (
-        <ul className="prefs-template-list" aria-label="תבניות שמורות">
-          {templates.map((template) => (
-            <li key={template.id}>
-              <bdi>{template.title}</bdi>
-              <button type="button" className="question-edit" disabled={busy} aria-label={`עריכת שעות: ${template.title}`} onClick={() => { setError(''); setEditing(template) }}>
-                <TimeRange start={template.start} end={template.end} />
-                {template.end < template.start && ' למחרת'}
-                <span>עריכה</span>
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-      {editing ? <Dialog title={`עריכת שעות · ${editing.title}`} closeDisabled={busy} onClose={() => { setError(''); setEditing(null) }}>{form}</Dialog> : <details className="prefs-details">
-        <summary>הוספת תבנית</summary>
-        {form}
-      </details>}
-      {!editing && feedback}
-    </>
-  )
-}
-
 export function Settings({
   profile,
   payroll,
@@ -514,15 +421,7 @@ export function Settings({
           </section>
         </div>
       </details>
-      <section className="prefs-card">
-        <SectionHeading icon={<Bookmark />}>תבניות משמרת</SectionHeading>
-        <TemplateSettings
-          templates={templates}
-          busy={busy}
-          save={(template) => act('templates', () => onTemplate(template), 'התבנית נשמרה')}
-          feedback={feedback('templates')}
-        />
-      </section>
+      <ShiftTemplates templates={templates} onSave={onTemplate} />
       <section className="prefs-card">
         <SectionHeading icon={<Palette />}>מראה</SectionHeading>
         <div className="prefs-themes" role="group" aria-label="ערכת נושא">

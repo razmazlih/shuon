@@ -1,0 +1,79 @@
+.shift-templates-heading,
+.shift-templates-heading h2,
+.shift-templates-heading button,
+.shift-template-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.shift-templates-heading {
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.shift-templates-heading h2 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.shift-templates-heading h2 svg {
+  color: var(--green);
+}
+
+.shift-template-list {
+  display: grid;
+  gap: 0.45rem;
+  padding: 0;
+  margin: 0.85rem 0 0;
+  list-style: none;
+}
+
+.shift-template-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  width: 100%;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+  background: var(--paper);
+  color: var(--ink);
+  text-align: start;
+  cursor: pointer;
+}
+
+.shift-template-row:hover {
+  background: var(--tint);
+}
+
+.shift-template-copy {
+  display: grid;
+  gap: 0.15rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.shift-template-copy small {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.shift-template-row > svg {
+  flex-shrink: 0;
+  color: var(--green);
+}
+
+.shift-template-dialog {
+  width: min(28rem, calc(100% - 2rem));
+}
+
+.shift-template-actions {
+  margin-top: 0.25rem;
+}
+
+.shift-template-actions .prefs-primary {
+  flex: 1;
+}
