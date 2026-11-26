@@ -13,6 +13,7 @@ import {
   ShieldCheck,
   X,
 } from 'lucide-react'
+import { useAppleCalendarSync } from './lib/useAppleCalendarSync'
 import { auth, login, logout } from './data/firebase'
 import type { ManualShiftWrites } from './data/manual-shifts'
 import {
@@ -105,6 +106,7 @@ function Loading() {
   )
 }
 function WorkspaceApp({ user }: { user: User | null }) {
+  useAppleCalendarSync(user)
   const uid = user?.uid
   const [workspace, setWorkspace] = useState<Workspace | null>(null)
   const [loadError, setLoadError] = useState('')

@@ -1,8 +1,11 @@
-import { useEffect, useState, type FormEvent } from 'react'
-import { getApp } from 'firebase/app'
+import { useCallback, useEffect, useState } from 'react'
 import type { User } from 'firebase/auth'
-import { connectFunctionsEmulator, getFunctions, httpsCallable, type Functions } from 'firebase/functions'
+import { CalendarDays, Check, Cloud, Settings2 } from 'lucide-react'
+import { appleApiConfigured, appleRequest } from '../lib/appleCalendarApi'
+import { AppleCalendarWizard, PasswordGuide, TravelField, appleError, travelLabel, type CalendarSelection } from './AppleCalendarWizard'
+import { Dialog } from './Dialog'
 import { TimeRange } from './TimeRange'
+import './apple-calendar.css'
 
 type EventTimes = { title: string; start: string; end: string }
 type Review = {
@@ -15,31 +18,21 @@ type Review = {
   revision: string | null
 }
 type Status = {
+  calendarName?: string
+  travelMinutes?: number
+  dedicated?: boolean
   connected: boolean
   lastSync?: string
   error?: string
   unsupported?: number
   reviews: Review[]
 }
-const emulated = new WeakSet<Functions>()
 const formatted = new Intl.DateTimeFormat('he-IL', {
   dateStyle: 'short',
   timeStyle: 'short',
   timeZone: 'Asia/Jerusalem',
 })
 
-function callable(name: string, data?: unknown) {
-  const functions = getFunctions(getApp(), 'europe-west1')
-  if (import.meta.env.VITE_FIREBASE_EMULATORS === 'true' && !emulated.has(functions)) {
-    connectFunctionsEmulator(functions, '127.0.0.1', 5001)
-    emulated.add(functions)
-  }
-  return httpsCallable(functions, name, { timeout: 300_000 })(data)
-}
-function errorMessage(error: unknown) {
-  if (error instanceof Error && /[א-ת]/.test(error.message)) return error.message
-  return 'שירות היומן אינו זמין כרגע. אפשר לנסות שוב לאחר בדיקת החיבור.'
-}
 function eventSummary(event: EventTimes | null) {
   return event ? (
     <>
@@ -50,175 +43,163 @@ function eventSummary(event: EventTimes | null) {
     'המשמרת נמחקה'
   )
 }
-function AccountCalendar() {
-  const [status, setStatus] = useState<Status>()
-  const [busy, setBusy] = useState(true)
-  const [error, setError] = useState('')
-  useEffect(() => {
-    let current = true
-    callable('getAppleCalendarStatus')
-      .then((result) => {
-        if (current) setStatus(result.data as Status)
-      })
-      .catch((reason) => {
-        if (current) setError(errorMessage(reason))
-      })
-      .finally(() => {
-        if (current) setBusy(false)
-      })
-    return () => {
-      current = false
-    }
-  }, [])
 
+const demoKey = 'shuon.demo.apple-calendar.v1'
+const disconnected: Status = { connected: false, reviews: [] }
+function readDemo(): Status {
+  try {
+    const value = JSON.parse(localStorage.getItem(demoKey) ?? 'null') as Status | null
+    if (value?.connected && typeof value.calendarName === 'string' && Number.isInteger(value.travelMinutes)) {
+      return { ...disconnected, calendarName: value.calendarName, connected: true, dedicated: value.dedicated,
+        travelMinutes: value.travelMinutes, lastSync: value.lastSync }
+    }
+  } catch { /* Storage can be unavailable in private browsing. */ }
+  return disconnected
+}
+
+export default function AppleCalendar({ user, onSignIn }: { user: User | null; onSignIn: () => void }) {
+  const demo = !user && /^\/demo\/?$/.test(location.pathname)
+  const available = demo || Boolean(user && appleApiConfigured)
+  const [status, setStatus] = useState<Status | undefined>(() => demo ? readDemo() : undefined)
+  const [panel, setPanel] = useState<'wizard' | 'travel' | null>(null)
+  const [minutes, setMinutes] = useState(0)
+  const [busy, setBusy] = useState('')
+  const [error, setError] = useState('')
+  const refresh = useCallback(async () => {
+    if (user) setStatus(await appleRequest<Status>(user, 'getAppleCalendarStatus'))
+  }, [user])
+  useEffect(() => {
+    if (!user || !available) return
+    let current = true
+    let sequence = 0
+    const refreshMounted = () => {
+      const request = ++sequence
+      void appleRequest<Status>(user, 'getAppleCalendarStatus').then(value => {
+        if (current && request === sequence) { setStatus(value); setError('') }
+      }).catch(reason => { if (current && request === sequence) setError(appleError(reason)) })
+    }
+    const onSync = (event: Event) => {
+      if ((event as CustomEvent<{uid?: string}>).detail?.uid === user.uid) refreshMounted()
+    }
+    refreshMounted()
+    window.addEventListener('shuon-apple-sync-complete', onSync)
+    return () => { current = false; window.removeEventListener('shuon-apple-sync-complete', onSync) }
+  }, [user, available])
+
+  function updateDemo(value: Status) {
+    setStatus(value)
+    try { localStorage.setItem(demoKey, JSON.stringify(value)) } catch { /* Keep the in-memory demo usable. */ }
+  }
   async function act(name: string, data?: unknown) {
-    setBusy(true)
+    if (busy) return
     setError('')
+    setBusy('מעדכן את היומן…')
     try {
-      if (name !== 'getAppleCalendarStatus') await callable(name, data)
-      if (name === 'connectAppleCalendar' || name === 'resolveAppleCalendar')
-        await callable('syncAppleCalendar')
-    } catch (reason) {
-      setError(errorMessage(reason))
-    } finally {
-      try {
-        setStatus((await callable('getAppleCalendarStatus')).data as Status)
-      } catch (reason) {
-        setError((previous) => previous || errorMessage(reason))
+      if (user) {
+        await appleRequest(user, name, data)
+        if (name === 'resolveAppleCalendar' || name === 'updateAppleCalendarPreferences') {
+          await appleRequest(user, 'syncAppleCalendar')
+        }
+      } else if (demo) {
+        if (name === 'disconnectAppleCalendar') updateDemo(disconnected)
+        else if (status) updateDemo({ ...status, travelMinutes: name === 'updateAppleCalendarPreferences' ? minutes : status.travelMinutes,
+          lastSync: new Date().toISOString() })
       }
-      setBusy(false)
+      setPanel(null)
+    } catch (reason) { setError(appleError(reason)) }
+    finally {
+      try { await refresh() } catch (reason) { setError(previous => previous || appleError(reason)) }
+      setBusy('')
     }
   }
-  function connect(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    const form = event.currentTarget
-    const values = new FormData(form)
-    const data = { email: values.get('email'), password: values.get('app-password') }
-    const password = form.elements.namedItem('app-password')
-    if (password instanceof HTMLInputElement) password.value = ''
-    void act('connectAppleCalendar', data)
+
+  function activate(selection: CalendarSelection) {
+    setPanel(null)
+    const value = { ...selection, reviews: [], connected: true }
+    if (demo) updateDemo({ ...value, lastSync: new Date().toISOString() })
+    else {
+      setStatus(value)
+      void act('syncAppleCalendar')
+    }
   }
-  return (
-    <>
-      {error && <p role="alert">{error}</p>}
-      {!status &&
-        (busy ? (
-          <p role="status">בודק את החיבור ליומן…</p>
-        ) : (
-          <button type="button" onClick={() => void act('getAppleCalendarStatus')}>
-            בדיקה חוזרת
-          </button>
-        ))}
-      {status && (
-        <>
-          {status.error && status.error !== error && <p role="status">{status.error}</p>}
-          {status.connected ? (
-            <>
-              <p>היומן ״המשמרות שלי״ מחובר. הסנכרון פועל בשני הכיוונים מדי 15 דקות.</p>
-              {status.lastSync && (
-                <p>
-                  סנכרון אחרון ב־<bdi>{formatted.format(new Date(status.lastSync))}</bdi>
-                </p>
-              )}
-              {Boolean(status.unsupported) && (
-                <p>
-                  {status.unsupported} אירועים לא סונכרנו. היומן תומך במשמרות חד־פעמיות עם שעות התחלה וסיום.
-                </p>
-              )}
-              <div className="calendar-actions">
-                <button type="button" disabled={busy} onClick={() => void act('syncAppleCalendar')}>
-                  סנכרון עכשיו
-                </button>
-                <button type="button" disabled={busy} onClick={() => void act('disconnectAppleCalendar')}>
-                  ניתוק החיבור
-                </button>
-              </div>
-              {status.reviews.length > 0 && (
-                <div className="calendar-reviews">
-                  <h3>שינויים הממתינים לאישור</h3>
-                  {status.reviews.map((review) => (
-                    <fieldset key={review.id} disabled={busy}>
-                      <legend>
-                        {review.status === 'completed' ? 'שינוי במשמרת שהושלמה' : 'שינויים בשני הצדדים'}
-                      </legend>
-                      <p>במערכת · {eventSummary(review.left)}</p>
-                      <p>ביומן Apple · {eventSummary(review.right)}</p>
-                      {review.overlap && <p>שעות היומן חופפות למשמרת אחרת. יש לעדכן את השעות ולסנכרן שוב.</p>}
-                      {review.invalidBreaks && (
-                        <p>השעות ביומן אינן כוללות את כל ההפסקות. יש לעדכן אותן לפני האישור.</p>
-                      )}
-                      <div className="calendar-actions">
-                        <button
-                          type="button"
-                          onClick={() => void act('resolveAppleCalendar', { ...review, choice: 'local' })}
-                        >
-                          שמירת הגרסה שבמערכת
-                        </button>
-                        <button
-                          type="button"
-                          disabled={review.invalidBreaks || review.overlap}
-                          onClick={() => void act('resolveAppleCalendar', { ...review, choice: 'remote' })}
-                        >
-                          אישור הגרסה שביומן
-                        </button>
-                      </div>
-                    </fieldset>
-                  ))}
-                </div>
-              )}
-            </>
-          ) : (
-            <form className="calendar-form" onSubmit={connect}>
-              <p>
-                החיבור ייצור ב־iCloud יומן בשם ״המשמרות שלי״. כותרת המשמרת ושעותיה יתעדכנו בשני הכיוונים.
-                אירוע חדש ביומן יתווסף כמשמרת, ומצבה ייקבע לפי שעת הסיום.
-              </p>
-              <label>
-                כתובת Apple Account
-                <input name="email" type="email" dir="ltr" autoComplete="username" required maxLength={254} />
-              </label>
-              <label>
-                סיסמה ייעודית לאפליקציה
-                <input
-                  name="app-password"
-                  type="password"
-                  dir="ltr"
-                  autoComplete="off"
-                  required
-                  placeholder="xxxx-xxxx-xxxx-xxxx"
-                  pattern="[A-Za-z]{4}(-[A-Za-z]{4}){3}"
-                />
-              </label>
-              <p>
-                הסיסמה הייעודית נשמרת מוצפנת לצורך הסנכרון ונמחקת בעת הניתוק.{' '}
-                <a href="https://support.apple.com/he-il/102654" target="_blank" rel="noreferrer">
-                  יצירת סיסמה ייעודית ב־Apple
-                </a>
-              </p>
-              <button type="submit" disabled={busy}>
-                חיבור ליומן Apple
-              </button>
-            </form>
-          )}
-          {busy && <p role="status">מעדכן את החיבור…</p>}
-        </>
-      )}
-    </>
-  )
-}
-export default function AppleCalendar({ user }: { user: User | null }) {
-  const enabled =
-    import.meta.env.VITE_ICLOUD_SYNC_ENABLED === 'true' || import.meta.env.VITE_FIREBASE_EMULATORS === 'true'
   return (
     <section className="apple-calendar" aria-label="יומן Apple" dir="rtl">
       <h2>יומן Apple</h2>
-      {!enabled ? (
-        <p>סנכרון אוטומטי עם iCloud אינו פעיל בגרסה החינמית המתארחת כאן. המשמרות שלך זמינות ביומן שבאתר.</p>
-      ) : user ? (
-        <AccountCalendar key={user.uid} />
-      ) : (
-        <p>סנכרון עם iCloud זמין לאחר כניסה לחשבון ענן. במצב המקומי הנתונים נשמרים במכשיר.</p>
-      )}
+      {!available ? <>
+        <p>{user ? 'שירות החיבור ל־iCloud טרם הוגדר באתר הזה.' : 'היכנסו לשועון כדי לחבר את יומן Apple שלכם.'}</p>
+        <PasswordGuide />
+      </> : !status ? <>
+        {!error && <p role="status">מתחבר לשירות היומן… בפתיחה הראשונה זה עשוי לקחת כדקה.</p>}
+        {error && <button type="button" onClick={() => { setError(''); void refresh().catch(reason => setError(appleError(reason))) }}>בדיקה חוזרת</button>}
+      </> : status.connected ? <>
+        <div className="apple-connected">
+          <span className="apple-connected-icon"><Check size={20} /></span>
+          <div><strong>{status.calendarName || 'המשמרות שלי'}</strong>
+            <small>{demo ? 'חיבור לדוגמה בדפדפן הזה' : 'מחובר ל־iCloud'}</small></div>
+        </div>
+        <dl className="apple-info">
+          <div><dt>זמן נסיעה</dt><dd>{travelLabel(status.travelMinutes ?? 0)}</dd></div>
+          <div><dt>סנכרון אחרון</dt><dd>{status.lastSync ? <bdi>{formatted.format(new Date(status.lastSync))}</bdi> : 'ממתין לסנכרון ראשון'}</dd></div>
+        </dl>
+        <p>{demo ? 'ההדגמה משתמשת בלוחות לדוגמה. לחיבור יומן אישי נכנסים לחשבון בשועון.' : 'המשמרות מתעדכנות בשמירה ובפתיחת האתר. השירות בודק שינויים גם ברקע מדי 15 דקות, בכפוף לזמינות השירות ולמכסה החינמית.'}</p>
+        {Boolean(status.unsupported) && <p>{status.unsupported} אירועים דולגו. נתמכות משמרות חד־פעמיות עם שעות התחלה וסיום.</p>}
+        <div className="apple-actions">
+          <button type="button" disabled={Boolean(busy)} onClick={() => void act('syncAppleCalendar')}><Cloud size={16}/>סנכרון עכשיו</button>
+          <button type="button" disabled={Boolean(busy)} onClick={() => { setMinutes(status.travelMinutes ?? 0); setError(''); setPanel('travel') }}><Settings2 size={16}/>עריכת זמן נסיעה</button>
+          <button type="button" disabled={Boolean(busy)} onClick={() => void act('disconnectAppleCalendar')}>ניתוק החיבור</button>
+        </div>
+        {status.reviews.length > 0 && (
+          <div className="calendar-reviews">
+            <h3>שינויים הממתינים לאישור</h3>
+            {status.reviews.map((review) => (
+              <fieldset key={review.id} disabled={Boolean(busy)}>
+                <legend>
+                  {review.status === 'completed' ? 'שינוי במשמרת שהושלמה' : 'שינויים בשני הצדדים'}
+                </legend>
+                <p>במערכת · {eventSummary(review.left)}</p>
+                <p>ביומן Apple · {eventSummary(review.right)}</p>
+                {review.overlap && <p>שעות היומן חופפות למשמרת אחרת. יש לעדכן את השעות ולסנכרן שוב.</p>}
+                {review.invalidBreaks && (
+                  <p>השעות ביומן אינן כוללות את כל ההפסקות. יש לעדכן אותן לפני האישור.</p>
+                )}
+                <div className="calendar-actions">
+                  <button
+                    type="button"
+                    onClick={() => void act('resolveAppleCalendar', { ...review, choice: 'local' })}
+                  >
+                    שמירת הגרסה שבמערכת
+                  </button>
+                  <button
+                    type="button"
+                    disabled={review.invalidBreaks || review.overlap}
+                    onClick={() => void act('resolveAppleCalendar', { ...review, choice: 'remote' })}
+                  >
+                    אישור הגרסה שביומן
+                  </button>
+                </div>
+              </fieldset>
+            ))}
+          </div>
+        )}
+      </> : <>
+        <p>הוסיפו משמרות ליומן שלכם ב־iCloud ובחרו לאיזה לוח לשייך אותן וכמה זמן להקצות לנסיעה.</p>
+        <div className="apple-actions">
+          <button className="apple-primary" type="button" onClick={() => { setError(''); setPanel('wizard') }}><CalendarDays size={17}/>חיבור ל־iCloud</button>
+          {demo && <button type="button" onClick={onSignIn}>כניסה לחיבור יומן אישי</button>}
+        </div>
+        {demo && <p className="apple-note">בדמו מתנסים עם לוחות לדוגמה.</p>}
+      </>}
+      {(error || status?.error) && panel !== 'travel' && <p role="alert" className="apple-error">{error || status?.error}</p>}
+      {busy && <p role="status">{busy}</p>}
+      {panel === 'wizard' && <AppleCalendarWizard user={user} onClose={() => setPanel(null)} onActivated={activate} />}
+      {panel === 'travel' && <Dialog title="עריכת זמן נסיעה" className="apple-dialog" closeDisabled={Boolean(busy)} onClose={() => setPanel(null)}>
+        <form onSubmit={e => { e.preventDefault(); void act('updateAppleCalendarPreferences', { travelMinutes: minutes }) }}>
+          <p>משך הנסיעה יתעדכן באירועים של משמרות עתידיות.</p>
+          <TravelField value={minutes} onChange={setMinutes} />
+          {error && <p className="apple-error" role="alert">{error}</p>}
+          <div className="apple-actions"><button className="apple-primary" type="submit" disabled={Boolean(busy)}>{busy || 'שמירת זמן נסיעה'}</button></div>
+        </form>
+      </Dialog>}
     </section>
   )
 }

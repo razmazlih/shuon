@@ -479,7 +479,7 @@ export function Settings({
       </section>
       <div className="prefs-card prefs-apple">
         <CalendarDays className="prefs-calendar-icon" aria-hidden="true" />
-        <AppleCalendar user={user} />
+        <AppleCalendar user={user} onSignIn={onSignIn} />
       </div>
     </div>
   )

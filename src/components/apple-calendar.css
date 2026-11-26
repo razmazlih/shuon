@@ -1,0 +1,174 @@
+.apple-calendar .apple-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .55rem;
+  margin-top: .9rem;
+}
+.apple-calendar .apple-primary {
+  background: var(--green);
+  color: var(--on-green);
+  border-color: var(--green);
+}
+.apple-calendar .apple-note,
+.apple-calendar small {
+  color: var(--muted);
+  font-size: .8rem;
+}
+.apple-calendar button:focus-visible,
+.apple-calendar summary:focus-visible,
+.apple-calendar input:focus-visible {
+  outline: 2px solid var(--green);
+  outline-offset: 3px;
+}
+.apple-calendar .apple-error { color: var(--danger); }
+.apple-calendar .apple-dialog {
+  padding: clamp(1rem, 4vw, 1.65rem);
+  width: min(32rem, calc(100vw - 1.5rem));
+}
+.apple-calendar .apple-dialog .modal-header h2 {
+  padding: 0;
+  font-size: 1.28rem;
+}
+.apple-calendar .apple-dialog .modal-header button {
+  min-width: 2.6rem;
+  min-height: 2.6rem;
+  padding: .4rem;
+}
+.apple-steps {
+  display: flex;
+  list-style: none;
+  margin: .5rem 0 1.3rem;
+  padding: 0;
+  border-bottom: 1px solid var(--line);
+}
+.apple-steps li {
+  flex: 1;
+  display: flex;
+  gap: .35rem;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.75rem;
+  font-size: .8rem;
+  border-bottom: 3px solid transparent;
+  color: var(--muted);
+}
+.apple-steps li > span {
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  width: 1.3rem;
+  height: 1.3rem;
+  display: grid;
+  place-items: center;
+  font-size: .72rem;
+}
+.apple-steps li[aria-current='step'] {
+  border-color: var(--green);
+  color: var(--ink);
+  font-weight: 700;
+}
+.apple-steps li[aria-current='step'] > span,
+.apple-steps li[data-done='true'] > span {
+  background: var(--green);
+  border-color: var(--green);
+  color: var(--on-green);
+}
+.apple-dialog h3 { font-size: 1.22rem; letter-spacing: -.025em; }
+.apple-dialog h3:focus { outline: none; }
+.apple-calendar .apple-dialog p { margin: 0; }
+.apple-calendar .apple-dialog form { gap: .85rem; }
+.apple-dialog form > label { font-weight: 600; }
+.apple-guide {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: .72rem;
+  padding: .75rem .85rem;
+}
+.apple-calendar .apple-guide summary {
+  display: flex;
+  align-items: center;
+  gap: .45rem;
+  font-size: .91rem;
+  color: var(--green);
+  list-style: none;
+}
+.apple-guide summary::-webkit-details-marker { display: none; }
+.apple-guide summary svg:last-child { margin-inline-start: auto; }
+.apple-guide[open] summary svg:last-child { transform: rotate(180deg); }
+.apple-guide ol { padding-inline-start: 1.35rem; margin: .8rem 0; }
+.apple-guide li { font-size: .89rem; line-height: 1.6; padding-inline-start: .22rem; }
+.apple-guide li + li { margin-top: .45rem; }
+.apple-guide li::marker { font-weight: 700; color: var(--green); }
+.apple-guide a { color: var(--green); text-decoration: underline; }
+.apple-calendar .apple-guide p { font-size: .82rem; }
+.apple-calendar .apple-dialog .apple-actions {
+  border-top: 1px solid var(--line);
+  padding-top: .85rem;
+  margin-top: .25rem;
+}
+.apple-actions button { min-height: 2.75rem; }
+.apple-choices,
+.apple-travel {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+.apple-choices { display: grid; gap: .5rem; }
+.apple-calendar .apple-choices label,
+.apple-calendar .apple-chips label {
+  display: flex;
+  align-items: center;
+  flex-direction: row;
+  position: relative;
+  gap: .6rem;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--ink);
+  border-radius: .66rem;
+  padding: .6rem .75rem;
+  min-height: 2.75rem;
+  cursor: pointer;
+}
+.apple-calendar .apple-choices input,
+.apple-calendar .apple-chips input {
+  position: absolute;
+  clip-path: inset(50%);
+  width: 1px;
+  height: 1px;
+  min-height: 0;
+  padding: 0;
+  margin: 0;
+}
+.apple-calendar .apple-choices label:has(:checked),
+.apple-calendar .apple-chips label:has(:checked) {
+  border-color: var(--green);
+  box-shadow: inset 0 0 0 1px var(--green);
+  background: var(--tint);
+  font-weight: 650;
+}
+.apple-calendar label:has(input[type='radio']:focus-visible) { outline: 2px solid var(--green); outline-offset: 2px; }
+.apple-choices label > svg { margin-inline-start: auto; color: var(--green); }
+.apple-choice-icon { display: grid; place-items: center; }
+.apple-chips { display: flex; flex-wrap: wrap; gap: .45rem; }
+.apple-travel legend { margin-bottom: .5rem; font-weight: 650; font-size: .9rem; }
+.apple-calendar .apple-custom { margin-top: .65rem; max-width: 10rem; }
+.apple-preview,
+.apple-connected {
+  display: flex;
+  gap: .7rem;
+  align-items: center;
+  margin-top: .45rem;
+}
+.apple-preview { border-radius: .75rem; background: var(--paper); padding: .85rem; }
+.apple-preview > svg,
+.apple-connected-icon { color: var(--green); flex: none; }
+.apple-preview strong,
+.apple-preview small,
+.apple-connected strong,
+.apple-connected small { display: block; }
+.apple-preview small { margin-bottom: .2rem; }
+.apple-preview strong { font-size: .92rem; }
+.apple-connected-icon { display: grid; place-items: center; padding: .45rem; border-radius: 50%; background: var(--tint); }
+.apple-info { margin: .85rem 0; padding-block: .75rem; border-block: 1px solid var(--line); display: flex; gap: 2rem; flex-wrap: wrap; }
+.apple-info dt { font-size: .8rem; color: var(--muted); }
+.apple-info dd { margin: .2rem 0 0; font-size: .92rem; font-weight: 650; }

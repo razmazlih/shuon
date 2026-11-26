@@ -168,7 +168,11 @@ export async function writeShifts(
   deleted: string[],
   previous: WorkShift[],
 ) {
-  if (uid) return writeCloudShifts(db, uid, rows, deleted, previous)
+  if (uid) {
+    await writeCloudShifts(db, uid, rows, deleted, previous)
+    window.dispatchEvent(new CustomEvent('shuon-shifts-written', { detail: uid }))
+    return
+  }
   const change = prepareShiftWrites(rows, deleted, previous)
   return localWrite((data) => {
     change.validate(data.shifts)
