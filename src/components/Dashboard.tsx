@@ -19,7 +19,7 @@ import { Forest } from './Forest'
 import type { ShiftPay } from '../domain/gross'
 import { ShiftGross } from './ShiftGross'
 import { TimeRange } from './TimeRange'
-import { addDays, localDate, localTime, weekday } from '../domain/time'
+import { addDays, HOUR_MS, localDate, localTime } from '../domain/time'
 import { formatWorkDuration, shiftWorkMillis } from '../data/shift-hours'
 import { dateLabel, formatMoney, hourCount, type WorkShift } from '../data/model'
 
@@ -120,14 +120,13 @@ function Clock({ active, scheduled, scheduledGross, busy, foxReaction, onTimer }
   )
 }
 function Weekly({ today, shifts, shiftPayById, onCalendar, onShift }: Pick<Props, 'today' | 'shifts' | 'shiftPayById' | 'onCalendar' | 'onShift'>) {
-  const start = addDays(today, -weekday(today))
-  const end = addDays(start, 6)
+  const start = addDays(today, -6)
   const entries = useMemo(() =>
     shifts
       .map((shift) => ({ shift, date: localDate(shift.start) }))
-      .filter(({ date }) => start <= date && date <= end)
+      .filter(({ date }) => start <= date && date <= today)
       .sort((a, b) => Date.parse(a.shift.start) - Date.parse(b.shift.start)),
-    [shifts, start, end],
+    [shifts, start, today],
   )
   const hasActive = entries.some(({ shift }) => shift.status === 'active')
   const [now, setNow] = useState(Date.now)
@@ -138,9 +137,21 @@ function Weekly({ today, shifts, shiftPayById, onCalendar, onShift }: Pick<Props
     const timer = window.setInterval(refresh, 15_000)
     return () => window.clearInterval(timer)
   }, [hasActive])
-  const rows = entries.map((entry) => ({ ...entry, millis: shiftWorkMillis(entry.shift, now) }))
+  const [metric, setMetric] = useState<'hours' | 'pay'>('hours')
+  const rows = entries.map((entry) => ({
+    ...entry,
+    millis: shiftWorkMillis(entry.shift, now),
+    gross: shiftPayById.get(entry.shift.id)?.gross,
+  }))
+  const columns = Array.from({ length: 7 }, (_, offset) => addDays(today, -offset)).flatMap<{ date: string; row: (typeof rows)[number] | null }>((date) => {
+    const dayRows = rows.filter((row) => row.date === date)
+    return dayRows.length ? dayRows.map((row) => ({ date, row })) : [{ date, row: null }]
+  })
   const total = rows.reduce((sum, row) => sum + row.millis, 0)
-  const longest = rows.reduce((max, row) => Math.max(max, row.millis), 1)
+  const plotValue = (row: (typeof rows)[number]) => metric === 'hours' ? row.millis : row.gross
+  const step = metric === 'hours' ? 2 * HOUR_MS : 100
+  const highest = rows.reduce((max, row) => Math.max(max, plotValue(row) ?? 0), 0)
+  const ceiling = Math.max(step, Math.ceil(highest / step) * step)
   const shortDate = { day: 'numeric', month: 'short' } as const
 
   return (
@@ -157,36 +168,58 @@ function Weekly({ today, shifts, shiftPayById, onCalendar, onShift }: Pick<Props
       <div className="week-sub">
         <b><bdi dir="ltr">{formatWorkDuration(total)}</bdi> שעות</b>
         <span>·</span>
-        {dateLabel(start, shortDate)} עד {dateLabel(end, shortDate)}
+        {dateLabel(start, shortDate)} עד {dateLabel(today, shortDate)}
       </div>
-      {rows.length === 0 ? <p className="week-empty">אין משמרות השבוע.</p> : (
+      <div className="week-graph">
+        <div className="week-graph-toolbar">
+          <div className="week-metric" role="group" aria-label="מדד הגרף">
+            <button type="button" aria-pressed={metric === 'hours'} onClick={() => setMetric('hours')}>שעות</button>
+            <button type="button" aria-pressed={metric === 'pay'} onClick={() => setMetric('pay')}>שכר</button>
+          </div>
+          <span className="week-scale">
+            עד <bdi>{metric === 'hours' ? formatWorkDuration(ceiling) : formatMoney(ceiling)}</bdi>
+          </span>
+        </div>
         <ul className="week-shifts" aria-label="משמרות השבוע">
-          {rows.map(({ shift, date, millis }) => (
-            <li key={shift.id}>
-              <button type="button" className="week-shift" data-status={shift.status} onClick={() => onShift(shift)}>
-                <span className="week-shift-date">
-                  <span className="sr-only">{dateLabel(date, { weekday: 'long', ...shortDate })}</span>
-                  <strong aria-hidden="true">{Number(date.slice(-2))}</strong>
-                  <small aria-hidden="true">{dateLabel(date, { weekday: 'narrow' })}</small>
-                </span>
-                <span className="week-shift-name">
-                  <strong>{shift.title || 'משמרת עבודה'}</strong>
-                  <span className="week-shift-track" aria-hidden="true">
-                    <span style={{ width: (millis / longest) * 100 + '%' }} />
+          {columns.map(({ date, row }) => {
+            const label = dateLabel(date, { weekday: 'short', day: 'numeric' })
+            if (!row) {
+              return (
+                <li className="week-day-off" key={date}>
+                  <button type="button" className="week-shift" onClick={() => onCalendar(date)}>
+                    <span className="week-shift-plot" aria-hidden="true">
+                      <span className="week-off-icon"><Coffee size={15} /></span>
+                    </span>
+                    <span className="week-shift-date">{label}</span>
+                    <span className="week-off-label">יום פנוי</span>
+                  </button>
+                </li>
+              )
+            }
+            const { shift, millis, gross } = row
+            const value = plotValue(row)
+            return (
+              <li key={shift.id}>
+                <button type="button" className="week-shift" data-status={shift.status} onClick={() => onShift(shift)}>
+                  <span className="week-shift-plot" aria-hidden="true">
+                    {value === undefined
+                      ? <span className="week-shift-missing">—</span>
+                      : <span className="week-shift-bar" style={{ height: value / ceiling * 100 + '%' }} />}
                   </span>
-                </span>
-                <span className="week-shift-totals">
-                  <span><bdi dir="ltr">{formatWorkDuration(millis)}</bdi> שעות</span>
-                  {shift.status === 'active'
-                    ? <small>פעילה</small>
-                    : <ShiftGross status={shift.status} gross={shiftPayById.get(shift.id)?.gross} compact />}
-                </span>
-                <ChevronLeft size={15} aria-hidden="true" />
-              </button>
-            </li>
-          ))}
+                  <span className="week-shift-date">{label}</span>
+                  <strong className="week-shift-name">{shift.title || 'משמרת עבודה'}</strong>
+                  <span className="week-shift-totals">
+                    <span><bdi dir="ltr">{formatWorkDuration(millis)}</bdi> שעות</span>
+                    {shift.status === 'active'
+                      ? <small>פעילה</small>
+                      : <ShiftGross status={shift.status} gross={gross} compact />}
+                  </span>
+                </button>
+              </li>
+            )
+          })}
         </ul>
-      )}
+      </div>
     </article>
   )
 }
