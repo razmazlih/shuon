@@ -1,3 +1,4 @@
+import './onboarding.css'
 import { useId, useState, type FormEvent } from 'react'
 import { BriefcaseBusiness, Check, ClipboardList, MoonStar, Pencil, UserRound } from 'lucide-react'
 import type { UserProfile } from '../data/model'
@@ -22,6 +23,8 @@ export type QuestionnaireProps = {
     originalPayroll: PayrollProfile,
   ) => Promise<void>
 }
+
+const onboardingSteps = ['hourlyRate', 'restDay', 'pension'] as const
 
 const sections = [
   { id: 'work', title: 'עבודה ושכר', Icon: BriefcaseBusiness },
@@ -161,14 +164,16 @@ function QuestionnaireForm({
       return { onlyJob: 'yes', ageGroup: 'adult', pension: 'yes', children: 'no', ...saved } as Answers
     if (editSection === 'shifts')
       return { nights: 'no', nightBonus: 'no', ...saved } as Answers
-    return saved
+    return editSection ? saved : { restDay: String(profile.pay.restDay), ...saved }
   })
+  const [step, setStep] = useState(0)
+  const lastStep = step === onboardingSteps.length - 1
   const [expanded, setExpanded] = useState(false)
   const [error, setError] = useState('')
   const [invalidField, setInvalidField] = useState('')
   const [saving, setSaving] = useState(false)
   const section = sections.find((entry) => entry.id === editSection) ?? sections[0]
-  const currentQuestions = visibleQuestions(answers).filter((q) => q.section === section.id)
+  const currentQuestions = visibleQuestions(answers).filter((q) => editSection ? q.section === section.id : q.id === onboardingSteps[step])
   const compact = editSection === 'personal' || editSection === 'shifts'
   const primary = currentQuestions.filter((q) => !compact || q.id === 'sex' || q.id === 'restDay')
   const extra = currentQuestions.filter((q) => !primary.includes(q))
@@ -187,6 +192,10 @@ function QuestionnaireForm({
     }
     setInvalidField('')
     setError('')
+    if (!editSection && !lastStep) {
+      setStep(step + 1)
+      return
+    }
     setSaving(true)
     onBusy?.(true)
     try {
@@ -235,7 +244,8 @@ function QuestionnaireForm({
   }
   return (
     <form className="question-form" onSubmit={submit} noValidate>
-      <fieldset className="question-fields" disabled={saving}>
+      {!editSection && <p className="prefs-hint" aria-live="polite">שאלה {step + 1} מתוך {onboardingSteps.length}</p>}
+      <fieldset key={editSection ?? step} className="question-fields" disabled={saving}>
         <legend className="sr-only">{section.title}</legend>
         {primary.map(renderQuestion)}
         {compact && (
@@ -261,9 +271,10 @@ function QuestionnaireForm({
         </p>
       )}
       <div className="question-actions">
+        {!editSection && step > 0 && <button type="button" className="prefs-secondary" disabled={saving} onClick={() => { setStep(step - 1); setError(''); setInvalidField('') }}>חזרה</button>}
         <button type="submit" className="prefs-primary" disabled={saving}>
-          {saving ? 'בשמירה…' : editSection ? 'שמירת התשובות' : 'שמירה וכניסה ליומן'}
-          {!saving && <Check size={16} />}
+          {saving ? 'בשמירה…' : editSection ? 'שמירת התשובות' : lastStep ? 'שמירה וכניסה ליומן' : 'המשך'}
+          {!saving && (editSection || lastStep) && <Check size={16} />}
         </button>
       </div>
     </form>

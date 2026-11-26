@@ -64,7 +64,7 @@ export function visibleQuestions(a: Answers): Question[] {
     choice(
       'shifts',
       'restDay',
-      'מהו יום המנוחה השבועי שלך?',
+      'מה יום המנוחה שלך?',
       [...days, unsure],
       'אם לא ידוע, האומדן ישתמש בשבת.',
     ),
@@ -225,9 +225,9 @@ export function visibleQuestions(a: Answers): Question[] {
     choice(
       'personal',
       'pension',
-      'יורד לך מהשכר כסף לפנסיה?',
+      'יורדת לך פנסיה מהשכר?',
       pensionOptions,
-      'בתשובה חיובית נשתמש באומדן של 6% מהשכר המבוטח. אפשר לדייק לפי התלוש במסך השכר.',
+      'לאומדן נחשב 6% מהשכר המבוטח.',
     ),
   )
   return qs
