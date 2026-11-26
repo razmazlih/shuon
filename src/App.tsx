@@ -345,7 +345,7 @@ function WorkspaceApp({ user }: { user: User | null }) {
       : page === 'calendar'
         ? 'תכנון חודשי ורישום שעות עבודה'
         : page === 'salary'
-          ? 'ההשוואה בין מה שנצבר לתחזית החודשית'
+          ? 'שכר שנצבר ותחזית חודשית'
           : 'העבודה, המראה והחיבורים שלי'
   return (
     <>
@@ -392,7 +392,7 @@ function WorkspaceApp({ user }: { user: User | null }) {
         </div>
       </header>
       <main className="shell">
-        <div className={page === 'calendar' ? 'page-heading calendar-page-heading' : 'page-heading'}>
+        <div className={`page-heading ${page}-page-heading`}>
           <div>
             <div className="title-row">
               <h1>{title}</h1>

@@ -1137,6 +1137,12 @@ button:not(:disabled):active {
     min-height: 105px;
   }
 }
+@media (max-width: 380px) {
+  .salary-page-heading {
+    flex-wrap: wrap;
+    row-gap: 10px;
+  }
+}
 @media (max-width: 340px) {
   .calendar-page-heading .add-shift {
     flex: 0 0 44px;
