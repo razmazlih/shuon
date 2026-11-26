@@ -286,22 +286,6 @@ export function ShiftEditor({
                 }}
               />
             </label>
-            {!editing && (
-              <div className="se-dates">
-                <button
-                  ref={pickerButtonRef}
-                  className="se-option se-multi"
-                  type="button"
-                  disabled={!day}
-                  onClick={() => setPickingDates(true)}
-                >
-                  <CalendarPlus size={17} aria-hidden="true" />
-                  <span>אותן שעות בתאריכים נוספים</span>
-                  {selections.length > 0 && <span className="se-count">{selections.length}</span>}
-                </button>
-                {changeSummary && <p className="se-change-summary" role="status">{changeSummary}</p>}
-              </div>
-            )}
             <div className="se-grid se-shift-times">
               <ClockField title="שעת התחלה" foldDates={days} value={start} change={setStart} />
               <ClockField
@@ -393,9 +377,25 @@ export function ShiftEditor({
           <>
             {error && <p className="se-error" role="alert">{error}</p>}
             {notice && <p className="sr-only" role="status">{notice}</p>}
-            <button type="submit" className="btn primary se-save" disabled={busy}>
-              {busy ? 'שומר…' : days.length > 1 ? 'שמירת ' + days.length + ' משמרות' : 'שמירת משמרת'}
-            </button>
+            {changeSummary && <p className="se-change-summary" role="status">{changeSummary}</p>}
+            <div className="se-save-actions">
+              <button type="submit" className="btn primary" disabled={busy}>
+                {busy ? 'שומר…' : days.length > 1 ? 'שמירת ' + days.length + ' משמרות' : 'שמירת משמרת'}
+              </button>
+              {!editing && (
+                <button
+                  ref={pickerButtonRef}
+                  className="btn secondary"
+                  type="button"
+                  disabled={busy || !day}
+                  onClick={() => setPickingDates(true)}
+                >
+                  <CalendarPlus size={17} aria-hidden="true" />
+                  <span>{selections.length ? 'עריכת ימים נוספים' : 'בחירת ימים נוספים'}</span>
+                  {selections.length > 0 && <span className="se-count">{selections.length}</span>}
+                </button>
+              )}
+            </div>
           </>
         )}
       </div>
