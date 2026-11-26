@@ -38,6 +38,7 @@ const shortTitles: Record<string, string> = {
   pension: 'הפרשה לפנסיה', sex: 'מין לצורכי מס',
 }
 const shortOptions: Record<string, Record<string, string>> = {
+  nightBonus: { no: 'ללא תוספת', percent: 'אחוז מהשכר', amount: 'סכום לשעה' },
   holidayCalendar: { manual: 'חגים לפי בחירה' },
   taxMode: { saved: 'לפי התלוש', questions: 'לפי הפרטים שלי' },
   pension: { saved: 'לפי התלוש', yes: 'כן (אומדן 6%)' },
@@ -72,12 +73,12 @@ function QuestionField({
     </p>
   )
   const options = question.options ?? []
-  if (question.kind === 'choice' && options.length <= 4 && !compact) {
+  if (question.kind === 'choice' && (compact ? question.id !== 'restDay' : options.length <= 4)) {
     return (
       <fieldset className="question-field" aria-describedby={describedBy} aria-invalid={Boolean(error)}>
         <legend>{question.title}</legend>
         {hint}
-        <div className="question-choices">
+        <div className={compact ? "question-choices question-grid" : "question-choices"} data-count={options.length}>
           {options.map((option) => (
             <label key={option.value} className="question-chip">
               <input
