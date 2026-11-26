@@ -150,7 +150,7 @@ export function AppleCalendarWizard({ user, onClose, onActivated }: {
         </>}
         {error && <p className="apple-error" role="alert">{error}</p>}
         {step === 2 && error && <button type="button" onClick={() => { setError(''); setDiscovery(undefined); setStep(0) }}>חזרה לחיבור החשבון</button>}
-        {busy && <p role="status">מתחבר לשירות היומן… בפתיחה הראשונה זה עשוי לקחת כדקה.</p>}
+        {busy && <p role="status">מתחבר לשירות היומן…</p>}
         <div className="apple-actions">
           <button className="apple-primary" disabled={busy} type="submit">
             {step === 0 ? (user ? 'הצגת לוחות השנה שלי' : 'הצגת לוחות לדוגמה') : step === 1 ? 'המשך לזמן נסיעה' : (user ? 'הפעלת הסנכרון' : 'הפעלת סנכרון לדוגמה')}

@@ -7,6 +7,7 @@ import {
   parseEvent,
   projectShift,
   serializeEvent,
+  serializeTravelTime,
   signature,
 } from './events.js'
 
@@ -39,8 +40,17 @@ function shiftStatus(shift, now) {
   return Date.parse(shift.end) <= now ? 'completed' : 'planned'
 }
 
+async function eventSource(client, event) {
+  if (!event || event.source) return event?.source
+  const original = await client.read(event.url)
+  if (original.etag !== event.etag) throw Error('apple-concurrent')
+  return original.text
+}
+
 export async function syncCalendar(db, uid, connection, client, deadline) {
   const calendar = connection.calendar
+  const personal = connection.dedicated === false
+  const travelMinutes = connection.travelMinutes ?? 0
   const user = db.collection('users').doc(uid)
   const shifts = user.collection('shifts')
   const mappings = user
@@ -54,9 +64,12 @@ export async function syncCalendar(db, uid, connection, client, deadline) {
   ])
   const local = new Map(localDocs.docs.map((doc) => [doc.id, doc.data()]))
   const mapped = new Map(mapDocs.docs.map((doc) => [doc.id, doc.data()]))
-  const byUrl = new Map([...mapped.values()].map((m) => [m.url, m]))
-  const byUid = new Map([...mapped].map(([id, m]) => [m.uid, id]))
-  for (const id of local.keys()) byUid.set(calendarEventId(uid, id), id)
+  const byUrl = new Map([...mapped].map(([id, m]) => [m.url, { ...m, id }]))
+  const byUid = new Map()
+  if (!personal) {
+    for (const [id, m] of mapped) byUid.set(m.uid, id)
+    for (const id of local.keys()) byUid.set(calendarEventId(uid, id), id)
+  }
 
   const remote = new Map()
   const ignoredUrls = new Set()
@@ -67,6 +80,8 @@ export async function syncCalendar(db, uid, connection, client, deadline) {
   for (const [url, tag] of inventory) {
     clock()
     const previous = byUrl.get(url)
+    // A personal calendar may contain private appointments. Never fetch their contents.
+    if (personal && !previous) continue
     let event
     if (previous?.etag === tag && previous.remote) {
       event = { uid: previous.uid, value: previous.remote, etag: tag, url }
@@ -84,7 +99,11 @@ export async function syncCalendar(db, uid, connection, client, deadline) {
       }
       event = { ...parsed, etag: resource.etag, url, source: resource.text }
     }
-    const id = byUid.get(event.uid) || importId(event.uid)
+    if (personal && event.uid !== previous.uid) {
+      ignoredUrls.add(url)
+      continue
+    }
+    const id = personal ? previous.id : byUid.get(event.uid) || importId(event.uid)
     if (remote.has(id)) ignoredIds.add(id)
     remote.set(id, event)
   }
@@ -99,9 +118,10 @@ export async function syncCalendar(db, uid, connection, client, deadline) {
     if (ignoredIds.has(id) || ignoredUrls.has(prior?.url)) continue
     const left = projectShift(current)
     const right = apple?.value ?? null
-    const base = prior?.base ?? null
+    const base = (apple && prior?.pendingCreateBase) || prior?.base || null
     if (!prior && !left && !right) continue
-    const eventUid = prior?.uid || apple?.uid || calendarEventId(uid, id)
+    const eventUid =
+      prior?.uid || apple?.uid || (personal ? randomUUID() + '@personal-shifts' : calendarEventId(uid, id))
     const url = apple?.url || prior?.url || new URL(hash(eventUid) + '.ics', calendar).href
     // A different UID may have reused the old resource name.
     if (!apple && inventory.has(url)) {
@@ -122,7 +142,16 @@ export async function syncCalendar(db, uid, connection, client, deadline) {
     const invalidBreaks = !breaksFit(current?.breaks, right)
     const overlap = overlappingShift(id, local, right)
     if (action === 'remote' && (invalidBreaks || overlap)) action = 'review'
-    const common = { uid: eventUid, url, base, remote: right, etag: apple?.etag ?? null, pending: false }
+    const appliedTravel = prior?.appliedTravel ?? 0
+    const common = {
+      uid: eventUid,
+      url,
+      base,
+      remote: right,
+      etag: apple?.etag ?? null,
+      pending: false,
+      appliedTravel,
+    }
     if (action === 'hold') continue
     if (action === 'review') {
       const review = {
@@ -141,17 +170,31 @@ export async function syncCalendar(db, uid, connection, client, deadline) {
     }
     if (action === 'local') {
       if (left) {
-        const original = apple && !apple.source ? await client.read(url) : null
-        if (original && original.etag !== apple.etag) throw Error('apple-concurrent')
-        const data = serializeEvent(eventUid, left, apple?.source || original?.text)
+        // Reserve ownership before PUT so a lost acknowledgement can be retried without scanning private events.
+        if (personal && !apple && !base) await ref.set({ ...common, pendingCreateBase: signature(left) })
+        const future = Date.parse(left.start) > Date.now()
+        const travel = future && (!apple || travelMinutes !== appliedTravel) ? travelMinutes : undefined
+        const data = serializeEvent(eventUid, left, await eventSource(client, apple), travel)
         const etag = await client.write(url, data, apple?.etag)
         // A missing ETag forces a subsequent read and verification.
-        await ref.set({ ...common, remote: left, base: signature(left), etag: etag ?? null })
+        await ref.set({
+          ...common,
+          remote: left,
+          base: signature(left),
+          etag: etag ?? null,
+          appliedTravel: travel ?? appliedTravel,
+        })
       } else {
         await client.remove(url, apple.etag)
         await ref.set({ ...common, remote: null, base: null, etag: null })
       }
       continue
+    }
+    if (right && Date.parse(right.start) > Date.now() && travelMinutes !== appliedTravel) {
+      const source = await eventSource(client, apple)
+      const data = serializeTravelTime(source, travelMinutes)
+      common.etag = (await client.write(url, data, apple.etag)) ?? null
+      common.appliedTravel = travelMinutes
     }
     if (action === 'remote') {
       const shiftRef = shifts.doc(id)
@@ -200,6 +243,7 @@ export async function syncCalendar(db, uid, connection, client, deadline) {
       prior.base !== signature(left) ||
       prior.url !== url ||
       prior.etag !== common.etag ||
+      appliedTravel !== common.appliedTravel ||
       prior.review ||
       prior.resolution
     ) {

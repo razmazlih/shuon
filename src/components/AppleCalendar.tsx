@@ -129,7 +129,7 @@ export default function AppleCalendar({ user, onSignIn }: { user: User | null; o
         <p>{user ? 'שירות החיבור ל־iCloud טרם הוגדר באתר הזה.' : 'היכנסו לשועון כדי לחבר את יומן Apple שלכם.'}</p>
         <PasswordGuide />
       </> : !status ? <>
-        {!error && <p role="status">מתחבר לשירות היומן… בפתיחה הראשונה זה עשוי לקחת כדקה.</p>}
+        {!error && <p role="status">מתחבר לשירות היומן…</p>}
         {error && <button type="button" onClick={() => { setError(''); void refresh().catch(reason => setError(appleError(reason))) }}>בדיקה חוזרת</button>}
       </> : status.connected ? <>
         <div className="apple-connected">

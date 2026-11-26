@@ -74,7 +74,31 @@ export function parseEvent(source) {
   if (typeof title !== 'string' || title.length > 120) return null
   return { uid, value: { title, start, end } }
 }
-export function serializeEvent(uid, value, source) {
+function updateTravel(event, minutes) {
+  const name = 'x-apple-travel-duration'
+  event.removeAllProperties(name)
+  if (minutes > 0) {
+    const property = new ICAL.Property(name)
+    property.resetType('duration')
+    property.setValue(ICAL.Duration.fromSeconds(minutes * 60))
+    event.addProperty(property)
+  }
+}
+
+function bumpVersion(event) {
+  event.updatePropertyWithValue('dtstamp', ICAL.Time.fromJSDate(new Date(), true))
+  event.updatePropertyWithValue('sequence', (Number(event.getFirstPropertyValue('sequence')) || 0) + 1)
+}
+
+export function serializeTravelTime(source, minutes) {
+  const calendar = new ICAL.Component(ICAL.parse(source))
+  const event = calendar.getFirstSubcomponent('vevent')
+  updateTravel(event, minutes)
+  bumpVersion(event)
+  return calendar.toString()
+}
+
+export function serializeEvent(uid, value, source, travelMinutes) {
   const calendar = source ? new ICAL.Component(ICAL.parse(source)) : new ICAL.Component('vcalendar')
   if (!source) {
     calendar.addPropertyWithValue('version', '2.0')
@@ -84,8 +108,8 @@ export function serializeEvent(uid, value, source) {
     calendar.getFirstSubcomponent('vevent') || calendar.addSubcomponent(new ICAL.Component('vevent'))
   event.updatePropertyWithValue('uid', uid)
   event.updatePropertyWithValue('summary', value.title)
-  event.updatePropertyWithValue('dtstamp', ICAL.Time.fromJSDate(new Date(), true))
-  event.updatePropertyWithValue('sequence', (Number(event.getFirstPropertyValue('sequence')) || 0) + 1)
+  bumpVersion(event)
+  if (travelMinutes !== undefined) updateTravel(event, travelMinutes)
   event.removeAllProperties('duration')
   for (const [name, val] of [
     ['dtstart', value.start],

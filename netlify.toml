@@ -1,0 +1,12 @@
+[build]
+  base = "functions"
+  command = "node --check netlify/calendar-api.mjs"
+  publish = "public"
+  functions = "netlify"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+[functions]
+  node_bundler = "esbuild"
+  external_node_modules = ["firebase-admin", "firebase-functions", "@google-cloud/firestore"]

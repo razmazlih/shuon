@@ -152,6 +152,7 @@ function fixture(t) {
   const objects = new Map()
   let version = 0,
     reads = 0
+  let loseNextWrite = false
   function put(url, text) {
     const etag = '"' + ++version + '"'
     objects.set(url, { etag, text })
@@ -167,7 +168,12 @@ function fixture(t) {
     },
     async write(url, data, tag) {
       assert.equal(objects.get(url)?.etag, tag)
-      return put(url, data)
+      const etag = put(url, data)
+      if (loseNextWrite) {
+        loseNextWrite = false
+        throw Error('lost acknowledgement')
+      }
+      return etag
     },
     async remove(url, tag) {
       assert.equal(objects.get(url).etag, tag)
@@ -185,7 +191,11 @@ function fixture(t) {
     setTimeInNextTransaction(time) {
       transactionTime = time
     },
-    run: () => syncCalendar(db, 'alice', { calendar }, client, Date.now() + 30_000),
+    loseWriteResponse() {
+      loseNextWrite = true
+    },
+    run: (options = {}, uid = 'alice') =>
+      syncCalendar(db, uid, { calendar, ...options }, client, Date.now() + 30_000),
   }
 }
 
@@ -263,6 +273,80 @@ test('bidirectional create, incremental ETags, rename, simultaneous edit, comple
   await f.run()
   assert.ok(!f.objects.has(entry))
   assert.equal((await f.run()).reviews, 0)
+})
+
+test('personal calendars read and edit only mapped resources for the signed-in user', async (t) => {
+  const f = fixture(t)
+  const options = { dedicated: false, travelMinutes: 30 }
+  const path = 'users/alice/shifts/one'
+  const privateUrl = calendar + 'birthday.ics'
+  const privateText = serializeEvent('personal-appointment', { ...original, title: 'פרטי' })
+  f.put(privateUrl, privateText)
+  f.docs.set(path, { ...original, status: 'planned' })
+  f.loseWriteResponse()
+  await assert.rejects(f.run(options), /lost acknowledgement/)
+  assert.equal(f.reads(), 0)
+  await f.run(options)
+  assert.equal(f.objects.size, 2)
+  assert.equal(f.reads(), 1)
+  const [managedUrl, managed] = [...f.objects].find(([url]) => url !== privateUrl)
+  const { uid } = parseEvent(managed.text)
+  const remote = { ...original, title: 'משמרת מעודכנת' }
+  f.put(managedUrl, serializeEvent(uid, remote, managed.text))
+  await f.run(options)
+  assert.equal(f.docs.get(path).title, remote.title)
+  const reads = f.reads()
+  await f.run(options, 'bob')
+  assert.equal(f.reads(), reads)
+  assert.equal([...f.docs.keys()].filter((key) => key.includes('/shifts/')).length, 1)
+  assert.equal(f.objects.get(privateUrl).text, privateText)
+  // Even a mapped resource name can be reused for a private event with a different UID.
+  f.put(managedUrl, privateText)
+  f.docs.delete(path)
+  await f.run(options)
+  assert.equal(f.objects.get(managedUrl).text, privateText)
+  assert.equal([...f.docs.keys()].filter((key) => key.includes('/shifts/')).length, 0)
+})
+
+test('travel duration is native to future events, editable, removable and independent of work duration', async (t) => {
+  const f = fixture(t)
+  const path = 'users/alice/shifts/one'
+  const past = { ...original, start: '2026-10-23T20:00:00.000Z', end: '2026-10-24T04:00:00.000Z' }
+  f.docs.set(path, { ...original, status: 'planned' })
+  f.docs.set('users/alice/shifts/past', { ...past, status: 'completed' })
+  await f.run({ travelMinutes: 30 })
+  const [url, managed] = [...f.objects].find(
+    ([, event]) => parseEvent(event.text).value.start === original.start,
+  )
+  const [pastUrl, pastEvent] = [...f.objects].find(([other]) => other !== url)
+  assert.match(managed.text, /X-APPLE-TRAVEL-DURATION;VALUE=DURATION:PT30M/)
+  assert.doesNotMatch(pastEvent.text, /X-APPLE-TRAVEL/)
+  assert.deepEqual(parseEvent(managed.text).value, original)
+  const withNotes = managed.text.replace('END:VEVENT', 'DESCRIPTION:retain this note\r\nEND:VEVENT')
+  f.put(url, withNotes)
+  await f.run({ travelMinutes: 47 })
+  const edited = f.objects.get(url)
+  assert.match(edited.text, /X-APPLE-TRAVEL-DURATION;VALUE=DURATION:PT47M/)
+  assert.match(edited.text, /DESCRIPTION:retain this note/)
+  await f.run({ travelMinutes: 47 })
+  assert.equal(f.objects.get(url).etag, edited.etag)
+  await f.run({ travelMinutes: 0 })
+  assert.doesNotMatch(f.objects.get(url).text, /X-APPLE-TRAVEL/)
+  assert.deepEqual(parseEvent(f.objects.get(url).text).value, original)
+  assert.equal(f.objects.get(pastUrl).etag, pastEvent.etag)
+  assert.deepEqual(f.docs.get(path), { ...original, status: 'planned' })
+})
+
+test('retry after a lost personal export acknowledgement respects an intervening shift deletion', async (t) => {
+  const f = fixture(t)
+  const path = 'users/alice/shifts/one'
+  f.docs.set(path, { ...original, status: 'planned' })
+  f.loseWriteResponse()
+  await assert.rejects(f.run({ dedicated: false }), /lost acknowledgement/)
+  f.docs.delete(path)
+  await f.run({ dedicated: false })
+  assert.equal(f.objects.size, 0)
+  assert.equal(f.docs.has(path), false)
 })
 
 test('reject invalid dates, all-day, zero-length, and nonexistent Israeli local times', () => {

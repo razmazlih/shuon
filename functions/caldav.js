@@ -2,8 +2,13 @@ import { createHash } from 'node:crypto'
 import { XMLParser, XMLValidator } from 'fast-xml-parser'
 
 const origin = 'https://caldav.icloud.com/'
-const ns = 'xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav"'
-const parser = new XMLParser({ removeNSPrefix: true, parseTagValue: false, trimValues: true })
+const ns = 'xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:A="http://apple.com/ns/ical/"'
+const parser = new XMLParser({
+  removeNSPrefix: true,
+  ignoreAttributes: false,
+  parseTagValue: false,
+  trimValues: true,
+})
 const list = (value) => (value === undefined ? [] : Array.isArray(value) ? value : [value])
 const digest = (value) => createHash('sha256').update(value).digest('hex')
 
@@ -109,15 +114,58 @@ export function createCalendarClient(credentials, transport = fetch) {
     }))
   }
 
+  async function calendarHome() {
+    const [{ url: principalBase, props }] = await properties(origin, 0, '<D:current-user-principal/>')
+    if (!props['current-user-principal']?.href) throw Error('apple-principal')
+    const principal = appleUrl(props['current-user-principal'].href, principalBase)
+    const [account] = await properties(principal, 0, '<C:calendar-home-set/>')
+    if (!account.props['calendar-home-set']?.href) throw Error('apple-home')
+    return appleUrl(account.props['calendar-home-set'].href, account.url).replace(/\/?$/, '/')
+  }
+  const dedicatedAddress = (uid, home) => appleUrl('shift-ledger-' + digest(uid).slice(0, 32) + '/', home)
+
   return {
+    async calendars(uid) {
+      const home = await calendarHome()
+      const dedicated = dedicatedAddress(uid, home)
+      const rows = await properties(
+        home,
+        1,
+        '<D:resourcetype/><D:displayname/><A:calendar-color/><D:current-user-privilege-set/>' +
+          '<C:supported-calendar-component-set/>',
+      )
+      return rows.flatMap(({ url, props }) => {
+        const calendar = url.replace(/\/?$/, '/')
+        if (
+          calendar === dedicated ||
+          calendar === home ||
+          !Object.hasOwn(props.resourcetype ?? {}, 'calendar')
+        )
+          return []
+        const components = props['supported-calendar-component-set']
+        if (components !== undefined && !list(components?.comp).some((c) => c?.['@_name'] === 'VEVENT'))
+          return []
+        const privileges = new Set(
+          list(props['current-user-privilege-set']?.privilege).flatMap((p) => Object.keys(p ?? {})),
+        )
+        if (
+          !privileges.has('all') &&
+          !privileges.has('write') &&
+          !['write-content', 'bind', 'unbind'].every((name) => privileges.has(name))
+        )
+          return []
+        const color = /^#[0-9a-f]{6}([0-9a-f]{2})?$/i.test(props['calendar-color'])
+          ? props['calendar-color'].slice(0, 7)
+          : null
+        const name =
+          typeof props.displayname === 'string' && props.displayname.trim()
+            ? props.displayname.trim()
+            : 'לוח שנה'
+        return [{ id: digest(calendar), name, color, calendar }]
+      })
+    },
     async discover(uid) {
-      const [{ url: principalBase, props }] = await properties(origin, 0, '<D:current-user-principal/>')
-      if (!props['current-user-principal']?.href) throw Error('apple-principal')
-      const principal = appleUrl(props['current-user-principal'].href, principalBase)
-      const [account] = await properties(principal, 0, '<C:calendar-home-set/>')
-      if (!account.props['calendar-home-set']?.href) throw Error('apple-home')
-      const home = appleUrl(account.props['calendar-home-set'].href, account.url)
-      const calendar = appleUrl('shift-ledger-' + digest(uid).slice(0, 32) + '/', home.replace(/\/?$/, '/'))
+      const calendar = dedicatedAddress(uid, await calendarHome())
       let created = false
       try {
         const [existing] = await properties(calendar, 0, '<D:resourcetype/>')
