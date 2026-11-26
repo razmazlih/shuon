@@ -1,4 +1,4 @@
-export function Forest() {
+export function Forest({ alert }: { alert: boolean }) {
   return (
     <svg className="forest" viewBox="0 0 300 232" fill="none" aria-hidden="true">
       <defs>
@@ -60,7 +60,18 @@ export function Forest() {
             fill="#ffebc6"
             strokeWidth="1.4"
           />
-          <path d="M107 126q6 7 12 1m28 0q6 6 12-2" stroke="#4b4034" strokeWidth="2.6" />
+          {alert ? (
+            <g className="forest-fox-eyes" fill="#493e32" stroke="none">
+              <ellipse cx="113" cy="127" rx="3.2" ry="3.9" />
+              <ellipse cx="153" cy="126" rx="3.2" ry="3.9" />
+              <g fill="#fff1d3">
+                <circle cx="114" cy="125.6" r=".95" />
+                <circle cx="154" cy="124.6" r=".95" />
+              </g>
+            </g>
+          ) : (
+            <path d="M107 126q6 7 12 1m28 0q6 6 12-2" stroke="#4b4034" strokeWidth="2.6" />
+          )}
           <path d="m129 143 6 7 7-8q-7-2-13 1Z" fill="#493e32" strokeWidth="1.1" />
           <path d="m136 149-1 4m-15-39 5 3m23-5-4 4" strokeWidth="1.4" />
         </g>

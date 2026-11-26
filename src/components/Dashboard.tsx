@@ -65,7 +65,7 @@ function Clock({ active, scheduled, busy, foxReaction, onTimer }: Pick<Props, 'f
   )
   return (
     <article className="clock-card" data-fox-reaction={foxReaction ?? undefined}>
-      <Forest />
+      <Forest alert={Boolean(displayedShift && !displayedShift.openBreak)} />
       <div className="clock-content">
         <div className="overline">
           <Timer size={17} /> שעון נוכחות
