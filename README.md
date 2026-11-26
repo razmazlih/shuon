@@ -99,6 +99,12 @@ firebase deploy --only hosting --project shuon-shifts-il
 firebase deploy --only firestore:rules --project shuon-shifts-il
 ```
 
+### תצוגת שיתוף
+
+הכותרת והתיאור של הקישור מוגדרים ב־[`index.html`](index.html). כרטיס השיתוף משתמש בתמונת JPEG בגודל 1200×630. כשמחליפים את התמונה, מעדכנים את שם הקובץ ואת כתובת `og:image` כדי שסורקי השיתוף יוכלו לטעון אותה מחדש.
+
+[![כרטיס השיתוף של שועון עם איור השועל והכיתוב יומן משמרות אישי](public/share-card-v1.jpg)](public/share-card-v1.jpg)
+
 ### מפת הקוד
 
 | תיקייה | מה נמצא בה |
