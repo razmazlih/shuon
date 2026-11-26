@@ -409,6 +409,52 @@ button:not(:disabled):active {
     animation: fox-tail-flick 12s ease-in-out infinite;
   }
 }
+@media (prefers-reduced-motion: no-preference) {
+  [data-fox-reaction="start"] .forest-fox {
+    animation: fox-hop 850ms ease-in-out;
+  }
+  [data-fox-reaction="stop"] .forest-fox-head {
+    animation: fox-goodnight 1.1s ease-in-out;
+  }
+}
+@keyframes fox-hop {
+  0%, 68%, 100% { transform: translateY(0); }
+  32% { transform: translateY(-8px); }
+  83% { transform: translateY(-2px); }
+}
+@keyframes fox-goodnight {
+  38%, 55% { transform: translateY(3px) rotate(8deg); }
+}
+.detail-date:has(.sleeping-fox) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.detail-date .sleeping-fox {
+  order: 1;
+  inline-size: 3.4rem;
+  flex-shrink: 0;
+}
+.sleeping-fox {
+  display: block;
+  inline-size: 5.75rem;
+  max-inline-size: 100%;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .sleeping-fox-breath {
+    transform-box: fill-box;
+    transform-origin: center bottom;
+    animation: sleeping-fox-breathe 4.2s ease-in-out infinite;
+  }
+}
+
+@keyframes sleeping-fox-breathe {
+  50% { transform: scaleY(1.045); }
+}
+
 @keyframes fox-listen {
   0%, 44%, 72%, 100% { transform: rotate(0); }
   54%, 61% { transform: rotate(-4deg); }

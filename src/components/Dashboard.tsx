@@ -32,6 +32,7 @@ type Props = {
   workedHours: number | null
   overtimeHours: number | null
   plannedCount: number | null
+  foxReaction: 'start' | 'stop' | null
   busy: boolean
   onTimer: (op: 'start' | 'resume' | 'stop') => void
   onSalary: () => void
@@ -50,7 +51,7 @@ function duration(shift: WorkShift) {
   )
   return Math.max(0, Math.floor((end - Date.parse(shift.start) - breaks) / 1000))
 }
-function Clock({ active, scheduled, busy, onTimer }: Pick<Props, 'active' | 'scheduled' | 'busy' | 'onTimer'>) {
+function Clock({ active, scheduled, busy, foxReaction, onTimer }: Pick<Props, 'foxReaction' | 'active' | 'scheduled' | 'busy' | 'onTimer'>) {
   const displayedShift = active ?? scheduled
   const [, refresh] = useState(0)
   useEffect(() => {
@@ -63,7 +64,7 @@ function Clock({ active, scheduled, busy, onTimer }: Pick<Props, 'active' | 'sch
     String(n).padStart(2, '0'),
   )
   return (
-    <article className="clock-card">
+    <article className="clock-card" data-fox-reaction={foxReaction ?? undefined}>
       <Forest />
       <div className="clock-content">
         <div className="overline">
@@ -208,7 +209,7 @@ export function Dashboard(p: Props) {
   return (
     <>
       <div className="dashboard-top">
-        <Clock active={p.active} scheduled={p.scheduled} busy={p.busy} onTimer={p.onTimer} />
+        <Clock foxReaction={p.foxReaction} active={p.active} scheduled={p.scheduled} busy={p.busy} onTimer={p.onTimer} />
         <article className="income-card">
           <div className="income-contours" aria-hidden="true" />
           <h2 className="overline">

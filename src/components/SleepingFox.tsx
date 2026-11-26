@@ -1,9 +1,9 @@
 export function SleepingFox() {
   return (
-    <svg className="cal-sleeping-fox" viewBox="0 0 112 58" fill="none" aria-hidden="true" focusable="false">
+    <svg className="sleeping-fox" viewBox="0 0 112 58" fill="none" aria-hidden="true" focusable="false">
       <ellipse cx="58" cy="50" rx="47" ry="4" fill="#849769" opacity=".24" />
       <g stroke="#684837" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-        <g className="cal-fox-breath">
+        <g className="sleeping-fox-breath">
           <path d="M28 44c-6-13-1-27 12-32 17-7 36-2 43 12 3 6 3 13 0 20Z" fill="#c8693e" />
           <path d="m45 15 5-2m3 3 4-2" stroke="#e69b5f" />
         </g>

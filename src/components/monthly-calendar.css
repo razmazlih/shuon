@@ -494,25 +494,6 @@
   font-size: 0.92rem;
 }
 
-.cal-sleeping-fox {
-  display: block;
-  inline-size: 5.75rem;
-  max-inline-size: 100%;
-  pointer-events: none;
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .cal-fox-breath {
-    transform-box: fill-box;
-    transform-origin: center bottom;
-    animation: cal-fox-breathe 4.2s ease-in-out infinite;
-  }
-}
-
-@keyframes cal-fox-breathe {
-  50% { transform: scaleY(1.045); }
-}
-
 @media (min-width: 930px) {
   .shift-calendar {
     grid-template-columns: minmax(0, 1.75fr) minmax(20rem, 1fr);

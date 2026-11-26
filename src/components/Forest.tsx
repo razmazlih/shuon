@@ -37,7 +37,7 @@ export function Forest() {
       <path d="M-12 180q43-15 77-8m126-9q42-13 79-6" stroke="#536a4c" strokeWidth="2" strokeLinecap="round" />
       <path d="M-8 191q58-26 150-8 63 13 163-12v70H-8Z" fill="url(#grass-lines)" />
       <ellipse cx="134" cy="192" rx="59" ry="8" fill="#43533b" opacity=".4" />
-      <g stroke="#684837" strokeLinejoin="round" strokeLinecap="round">
+      <g className="forest-fox" stroke="#684837" strokeLinejoin="round" strokeLinecap="round">
         <path d="M109 148q-10 14-15 34-2 8 7 9l39 1q17-1 19-15 1-10-9-33Z" fill="#c8693e" strokeWidth="2.4" />
         <path d="M128 151q8 19 0 39h18q8-15 3-36Z" fill="#f9dfb1" strokeWidth="1.4" />
         <g className="forest-fox-tail">

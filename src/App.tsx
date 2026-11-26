@@ -31,6 +31,7 @@ import { calculateGross, type BandKind } from './domain/gross'
 import { addDays, localDate, localTime, localToInstant } from './domain/time'
 import { estimateSalary, salaryReport } from './domain/net'
 import { Dashboard } from './components/Dashboard'
+import { SleepingFox } from './components/SleepingFox'
 import { TimeRange } from './components/TimeRange'
 const Calendar = lazy(() => import('./components/Calendar').then((m) => ({ default: m.Calendar })))
 const ShiftEditor = lazy(() => import('./components/ShiftEditor').then((m) => ({ default: m.ShiftEditor })))
@@ -108,7 +109,13 @@ function WorkspaceApp({ user }: { user: User | null }) {
   const [day, setDay] = useState(today)
   const [month, setMonth] = useState(today.slice(0, 7))
   const [editor, setEditor] = useState<Editor | null>(null)
-  const [detail, setDetail] = useState<WorkShift | null>(null)
+  const [detail, setDetail] = useState<{ id: string; justFinished?: boolean } | null>(null)
+  const [foxReaction, setFoxReaction] = useState<'start' | 'stop' | null>(null)
+  useEffect(() => {
+    if (!foxReaction) return
+    const timeout = window.setTimeout(() => setFoxReaction(null), 1200)
+    return () => window.clearTimeout(timeout)
+  }, [foxReaction])
   const [message, setMessage] = useState('')
   const [working, setWorking] = useState(false)
   const locked = useRef(false)
@@ -223,7 +230,7 @@ function WorkspaceApp({ user }: { user: User | null }) {
     }
   }, [shifts, pay, workingMonth])
   const showDetail = useCallback((s: WorkShift) => {
-    setDetail(s)
+    setDetail({ id: s.id })
   }, [])
   const run = async (task: () => Promise<void>) => {
     if (locked.current) return
@@ -289,6 +296,7 @@ function WorkspaceApp({ user }: { user: User | null }) {
           updatedAt: now,
         }
         await writeShifts(uid, [shift], [], w.shifts)
+        setFoxReaction('start')
         setMessage('שעון המשמרת התחיל לפעול')
         return
       }
@@ -315,7 +323,7 @@ function WorkspaceApp({ user }: { user: User | null }) {
       await writeShifts(uid, [row], [], w.shifts)
       if (op === 'stop') {
         setStatusTime(Date.now())
-        setDetail(row)
+        setDetail({ id: row.id, justFinished: true })
         setMessage('המשמרת הסתיימה ונשמרה')
       }
     })
@@ -463,6 +471,7 @@ function WorkspaceApp({ user }: { user: User | null }) {
             overtimeHours={wage.issue ? null : wage.actual.overtimeHours}
             plannedCount={wage.issue ? null : count}
             busy={working}
+            foxReaction={foxReaction}
             onTimer={timer}
             onSalary={openPay}
             onCalendar={goCalendar}
@@ -523,9 +532,13 @@ function WorkspaceApp({ user }: { user: User | null }) {
         </Dialog>
       )}
       {picked && !editor && (
-        <Dialog title={picked.title} onClose={() => setDetail(null)}>
+        <Dialog title={picked.title} onClose={() => {
+          if (detail?.justFinished) setFoxReaction('stop')
+          setDetail(null)
+        }}>
           <div className="shift-detail">
             <p className="detail-date">
+              {detail?.justFinished && <SleepingFox />}
               {dateLabel(localDate(picked.start), {
                 weekday: 'long',
                 day: 'numeric',
