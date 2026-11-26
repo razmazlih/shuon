@@ -7,7 +7,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock3,
-  Copy,
   FilePenLine,
   House,
   LogIn,
@@ -41,7 +40,7 @@ const Salary = lazy(() => import('./components/Salary').then((m) => ({ default: 
 import { Dialog } from './components/Dialog'
 
 type Page = 'today' | 'calendar' | 'salary' | 'settings'
-type Editor = { date: string; initial?: WorkShift; duplicate?: boolean }
+type Editor = { date: string; initial?: WorkShift }
 const nav = [
   { id: 'today', label: 'היום', icon: House },
   { id: 'calendar', label: 'יומן', icon: CalendarDays },
@@ -262,14 +261,14 @@ function WorkspaceApp({ user }: { user: User | null }) {
   const setting = <K extends Exclude<keyof Workspace, 'shifts'>>(key: K, value: Workspace[K]) =>
     writeSetting(uid, key, value, w[key])
   const originalsForEditor =
-    editor?.initial && !editor.duplicate
+    editor?.initial
       ? [...w.shifts.filter((s) => s.id !== editor.initial!.id), editor.initial]
       : w.shifts
   const saveRows = async ({ rows, deleted, originals }: ManualShiftWrites) => {
     await writeShifts(uid, rows, deleted, originals)
     setMessage(rows.length === 1 ? 'המשמרת נשמרה' : 'המשמרות נשמרו')
   }
-  const timer = (op: 'start' | 'pause' | 'resume' | 'stop') =>
+  const timer = (op: 'start' | 'resume' | 'stop') =>
     void run(async () => {
       const now = new Date().toISOString()
       if (op === 'start') {
@@ -293,15 +292,9 @@ function WorkspaceApp({ user }: { user: User | null }) {
       }
       if (!active) return
       const row = { ...active, breaks: [...active.breaks] }
-      if (op === 'pause') {
-        if (row.openBreak) return
-        row.openBreak = now
-      }
-      if (op === 'resume' || op === 'stop') {
-        if (row.openBreak && row.openBreak < now)
-          row.breaks.push({ start: row.openBreak, end: now, paid: false })
-        row.openBreak = null
-      }
+      if (row.openBreak && row.openBreak < now)
+        row.breaks.push({ start: row.openBreak, end: now, paid: false })
+      row.openBreak = null
       if (op === 'stop') {
         row.status = 'completed'
         row.end = now
@@ -577,28 +570,16 @@ function WorkspaceApp({ user }: { user: User | null }) {
                   לשעון המשמרת <ArrowLeft size={15} />
                 </button>
               ) : (
-                <>
-                  <button
-                    className="btn primary"
-                    onClick={() => {
-                      setEditor({ initial: picked, date: localDate(picked.start) })
-                      setDetail(null)
-                    }}
-                  >
-                    <FilePenLine size={16} />
-                    עריכה
-                  </button>
-                  <button
-                    className="btn secondary"
-                    onClick={() => {
-                      setEditor({ initial: picked, duplicate: true, date: today })
-                      setDetail(null)
-                    }}
-                  >
-                    <Copy size={16} />
-                    שכפול
-                  </button>
-                </>
+                <button
+                  className="btn primary"
+                  onClick={() => {
+                    setEditor({ initial: picked, date: localDate(picked.start) })
+                    setDetail(null)
+                  }}
+                >
+                  <FilePenLine size={16} />
+                  עריכה
+                </button>
               )}
             </div>
           </div>

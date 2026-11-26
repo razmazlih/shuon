@@ -32,7 +32,7 @@ type Props = {
   overtimeHours: number | null
   plannedCount: number | null
   busy: boolean
-  onTimer: (op: 'start' | 'pause' | 'resume' | 'stop') => void
+  onTimer: (op: 'start' | 'resume' | 'stop') => void
   onSalary: () => void
   onCalendar: (date: string) => void
   onShift: (s: WorkShift) => void
@@ -85,14 +85,12 @@ function Clock({ active, busy, onTimer }: Pick<Props, 'active' | 'busy' | 'onTim
                 <Square size={15} fill="currentColor" />
                 סיום משמרת
               </button>
-              <button
-                className="btn clock-break"
-                disabled={busy}
-                onClick={() => onTimer(active.openBreak ? 'resume' : 'pause')}
-              >
-                <Coffee size={16} />
-                {active.openBreak ? 'חזרה מהפסקה' : 'יציאה להפסקה'}
-              </button>
+              {active.openBreak && (
+                <button className="btn clock-break" disabled={busy} onClick={() => onTimer('resume')}>
+                  <Coffee size={16} />
+                  חזרה מהפסקה
+                </button>
+              )}
             </>
           ) : (
             <button className="btn primary start-button" disabled={busy} onClick={() => onTimer('start')}>

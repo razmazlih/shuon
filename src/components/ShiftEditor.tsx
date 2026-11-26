@@ -20,7 +20,6 @@ import './calendar.css'
 interface ShiftEditorProps {
   initial?: WorkShift
   date: string
-  duplicate?: boolean
   templates: Template[]
   shifts: WorkShift[]
   onSave: (change: ManualShiftWrites) => Promise<void>
@@ -134,16 +133,15 @@ function NoteField({ value, onChange }: { value: string; onChange: (value: strin
 export function ShiftEditor({
   initial,
   date,
-  duplicate = false,
   templates,
   shifts,
   onSave,
   onDelete,
   onClose,
 }: ShiftEditorProps) {
-  const editing = !!initial && !duplicate
+  const editing = !!initial
   const originalDate = initial ? localDate(initial.start) : date
-  const defaultDate = duplicate && date === originalDate ? addDays(date, 1) : editing ? originalDate : date
+  const defaultDate = editing ? originalDate : date
   const [day, setDay] = useState(defaultDate)
   const [start, setStart] = useState(() => (initial ? wallFromInstant(initial.start) : wall('08:00')))
   const [end, setEnd] = useState(() => (initial ? wallFromInstant(initial.end) : wall('16:00')))
@@ -213,7 +211,7 @@ export function ShiftEditor({
     setError('')
     setNotice('')
     try {
-      const change = buildManualShiftWrites({ date: day, start, end, note, initial, duplicate, selections, shifts })
+      const change = buildManualShiftWrites({ date: day, start, end, note, initial, selections, shifts })
       setBusy(true)
       await onSave(change)
       onClose()
@@ -388,7 +386,7 @@ export function ShiftEditor({
 
   return (
     <Dialog
-      title={duplicate ? 'שכפול משמרת' : editing ? 'עריכת משמרת' : 'הוספת משמרת'}
+      title={editing ? 'עריכת משמרת' : 'הוספת משמרת'}
       className="shift-editor-modal"
       closeDisabled={busy}
       onClose={pickingDates ? undefined : onClose}
