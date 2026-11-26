@@ -1,7 +1,7 @@
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { CalendarDays, ChevronLeft, ChevronRight, Plus } from 'lucide-react'
 import type { WorkShift } from '../data/model'
-import { formatWorkDuration, shiftWorkMillis, workMillisOnDay } from '../data/shift-hours'
+import { formatWorkDuration, shiftWorkMillis } from '../data/shift-hours'
 import { addDays, addMonths, dateMs, localDate, localTime, monthDays } from '../domain/time'
 import type { ShiftPay } from '../domain/gross'
 import { ShiftGross } from './ShiftGross'
@@ -143,18 +143,18 @@ export function Calendar({
   const monthHeadingId = useId()
   const agendaHeadingId = useId()
   const pendingFocus = useRef<{ date: string; preventScroll: boolean } | null>(null)
-  const shiftDays = useMemo(
-    () => shifts
-      .map((shift) => ({
-        shift,
-        start: localDate(shift.start),
-        end: shift.status === 'active' ? today : localDate(Date.parse(shift.end) - 1),
-      }))
-      .sort((a, b) => Date.parse(a.shift.start) - Date.parse(b.shift.start)),
-    [shifts, today],
-  )
-  const shiftsOn = (day: string) => shiftDays.filter(({ start, end }) => start <= day && end >= day)
-  const dayShifts = shiftsOn(date)
+  const shiftsByStartDay = useMemo(() => {
+    const byDay = new Map<string, WorkShift[]>()
+    const sorted = [...shifts].sort((a, b) => Date.parse(a.start) - Date.parse(b.start))
+    for (const shift of sorted) {
+      const day = localDate(shift.start)
+      const entries = byDay.get(day) ?? []
+      entries.push(shift)
+      byDay.set(day, entries)
+    }
+    return byDay
+  }, [shifts])
+  const dayShifts = shiftsByStartDay.get(date) ?? []
   const previousMonth = addMonths(date, -1)
   const nextMonth = addMonths(date, 1)
 
@@ -244,12 +244,12 @@ export function Calendar({
                 <div className="cal-row" key={days[index * 7] ?? index} role="row">
                   {days.slice(index * 7, index * 7 + 7).map((day, column) => {
                     if (!day) return <div key={column} role="gridcell" />
-                    const entries = shiftsOn(day)
+                    const entries = shiftsByStartDay.get(day) ?? []
                     const occupied = entries.length > 0
-                    const statuses = statusKeys.filter((status) => entries.some(({ shift }) => shift.status === status))
+                    const statuses = statusKeys.filter((status) => entries.some((shift) => shift.status === status))
                     const dayStatus = statuses.length > 1 ? 'mixed' : statuses[0]
                     const duration = occupied
-                      ? formatWorkDuration(entries.reduce((sum, { shift }) => sum + workMillisOnDay(shift, day, now), 0))
+                      ? formatWorkDuration(entries.reduce((sum, shift) => sum + shiftWorkMillis(shift, now), 0))
                       : ''
                     const count = entries.length === 1 ? 'משמרת אחת' : entries.length + ' משמרות'
                     const summary = occupied
@@ -325,8 +325,9 @@ export function Calendar({
               </div>
             ) : (
               <ul className="cal-list">
-                {dayShifts.map(({ shift, start }) => {
-                  const crossDay = shift.status !== 'active' && start !== localDate(shift.end)
+                {dayShifts.map((shift) => {
+                  const end = shift.status === 'active' ? now : Date.parse(shift.end)
+                  const crossDay = date !== localDate(end)
                   return (
                     <li key={shift.id}>
                       <button
