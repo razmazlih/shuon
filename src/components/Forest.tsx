@@ -3,40 +3,40 @@ export function Forest({ alert }: { alert: boolean }) {
     <svg className="forest" viewBox="0 0 300 232" fill="none" aria-hidden="true">
       <defs>
         <pattern id="print-dots" width="5" height="5" patternUnits="userSpaceOnUse">
-          <circle cx="1" cy="1" r=".65" fill="#826d41" opacity=".32" />
+          <circle cx="1" cy="1" r=".65" fill="var(--forest-moon-texture, #826d41)" opacity=".32" />
         </pattern>
         <pattern id="grass-lines" width="8" height="8" patternUnits="userSpaceOnUse">
-          <path d="m1 6 2-3" stroke="#51643c" strokeWidth=".8" opacity=".55" />
+          <path d="m1 6 2-3" stroke="var(--forest-grass-texture, #51643c)" strokeWidth=".8" opacity=".55" />
         </pattern>
         <g id="fir">
           <path d="m0 0-9 20h4l-10 15h7l-12 18h40L8 35h7L5 20h4Z" />
           <path d="M0 15v46" stroke="currentColor" strokeWidth="2" />
         </g>
       </defs>
-      <circle cx="94" cy="89" r="47" fill="#ecd293" />
+      <circle cx="94" cy="89" r="47" fill="var(--forest-moon, #ecd293)" />
       <circle cx="94" cy="89" r="47" fill="url(#print-dots)" />
-      <g stroke="#bcaa79" strokeWidth="1.5" strokeLinecap="round">
+      <g stroke="var(--forest-sky-detail, #bcaa79)" strokeWidth="1.5" strokeLinecap="round">
         <path d="m89 30-1-6m-23 14-4-5m-15 21-6-3m77-17 3-6m15 19 5-4" />
         <path d="M30 94q4-4 8 0 4-4 8-1m114-35q4-4 8 0 4-5 8-2" />
       </g>
-      <path d="M-15 147q45-47 103-29 46-39 103-6 39 20 94 10v81H-15Z" fill="#c7cda3" />
-      <path d="M-12 152q44 7 96-13 50-18 102 3 47 19 116-6v65H-12Z" fill="#a1b185" />
-      <g fill="#879976" color="#798969">
+      <path d="M-15 147q45-47 103-29 46-39 103-6 39 20 94 10v81H-15Z" fill="var(--forest-hill-far, #c7cda3)" />
+      <path d="M-12 152q44 7 96-13 50-18 102 3 47 19 116-6v65H-12Z" fill="var(--forest-hill-near, #a1b185)" />
+      <g fill="var(--forest-fir-far, #879976)" color="var(--forest-fir-far-trunk, #798969)">
         <use href="#fir" transform="translate(19 80) scale(.95)" />
         <use href="#fir" transform="translate(33 99) scale(.76)" />
         <use href="#fir" transform="translate(233 94) scale(.67)" />
         <use href="#fir" transform="translate(249 81) scale(.88)" />
       </g>
-      <g fill="#566e58" color="#516751">
+      <g fill="var(--forest-fir-near, #566e58)" color="var(--forest-fir-near-trunk, #516751)">
         <use href="#fir" transform="translate(9 104) scale(1.05)" />
         <use href="#fir" transform="translate(48 102) scale(.87)" />
         <use href="#fir" transform="translate(224 117) scale(.75)" />
       </g>
-      <path d="M-13 169q52-32 119-13 47 13 91-2 41-14 110 11v48H-13Z" fill="#849769" />
-      <path d="M-14 184q42-22 99-13 58 11 102-5 59-17 122 8v72H-14Z" fill="#687e56" />
-      <path d="M-12 180q43-15 77-8m126-9q42-13 79-6" stroke="#536a4c" strokeWidth="2" strokeLinecap="round" />
+      <path d="M-13 169q52-32 119-13 47 13 91-2 41-14 110 11v48H-13Z" fill="var(--forest-meadow, #849769)" />
+      <path d="M-14 184q42-22 99-13 58 11 102-5 59-17 122 8v72H-14Z" fill="var(--forest-foreground, #687e56)" />
+      <path d="M-12 180q43-15 77-8m126-9q42-13 79-6" stroke="var(--forest-grass-edge, #536a4c)" strokeWidth="2" strokeLinecap="round" />
       <path d="M-8 191q58-26 150-8 63 13 163-12v70H-8Z" fill="url(#grass-lines)" />
-      <ellipse cx="134" cy="192" rx="59" ry="8" fill="#43533b" opacity=".4" />
+      <ellipse cx="134" cy="192" rx="59" ry="8" fill="var(--forest-shadow, #43533b)" opacity=".4" />
       <g className="forest-fox" stroke="#684837" strokeLinejoin="round" strokeLinecap="round">
         <path d="M109 148q-10 14-15 34-2 8 7 9l39 1q17-1 19-15 1-10-9-33Z" fill="#c8693e" strokeWidth="2.4" />
         <path d="M128 151q8 19 0 39h18q8-15 3-36Z" fill="#f9dfb1" strokeWidth="1.4" />
@@ -78,10 +78,10 @@ export function Forest({ alert }: { alert: boolean }) {
         <path d="M138 174q-1 10-3 15m14-15q2 11 0 16" strokeWidth="1.6" />
         <path d="M132 190q4-2 8 0m2 1q6-2 11 0" strokeWidth="3" />
       </g>
-      <g stroke="#475f46" strokeWidth="1.9" strokeLinecap="round">
+      <g stroke="var(--forest-stems, #475f46)" strokeWidth="1.9" strokeLinecap="round">
         <path d="m25 180-1-6m1 6 4-4m154 12 1-5m0 4 3-3m53-12-1-6m1 5 4-3m-181 25 2-4" />
       </g>
-      <g fill="#ddbf71">
+      <g fill="var(--forest-flowers, #ddbf71)">
         <circle cx="25" cy="173" r="2" />
         <circle cx="241" cy="166" r="2" />
         <circle cx="204" cy="176" r="1.6" />

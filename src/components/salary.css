@@ -55,7 +55,14 @@
   color: #fffefa;
 }
 :root[data-theme='dark'] .salary-figure-forecast {
-  border-color: #587761;
+  --figure-secondary: #e0d3f4;
+  --figure-line: #dac5ff3d;
+  background: linear-gradient(135deg, #4a3969, #312844 76%);
+  border-color: #705c92;
+  color: #f9f1ff;
+}
+:root[data-theme='dark'] .salary-figure-forecast .salary-figure-net strong {
+  color: var(--lavender);
 }
 .salary-figure h2 {
   display: flex;
@@ -165,11 +172,15 @@
 }
 .salary-table thead th:nth-child(2),
 .salary-table tbody td:nth-child(2) {
-  background: color-mix(in srgb, var(--card) 40%, var(--tint));
+  background: var(--salary-forecast-cell, color-mix(in srgb, var(--card) 40%, var(--tint)));
+}
+:root[data-theme='dark'] .salary-table {
+  --salary-forecast-cell: color-mix(in srgb, var(--card) 45%, var(--lavender-tint));
+  --salary-forecast-label: var(--lavender);
 }
 .salary-table thead th:nth-child(2) {
   border-radius: 0.55rem 0.55rem 0 0;
-  color: var(--green);
+  color: var(--salary-forecast-label, var(--green));
 }
 .salary-table .salary-group th {
   padding-block: 0.4rem;
@@ -282,10 +293,7 @@
 .salary-primary {
   background: var(--green, #205543);
   border: 1px solid transparent;
-  color: white;
-}
-:root[data-theme='dark'] .salary-primary {
-  color: var(--paper);
+  color: var(--on-green);
 }
 .salary-secondary {
   background: var(--card, white);

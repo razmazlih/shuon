@@ -114,7 +114,7 @@
 }
 
 :root:not([data-pointer-focus]) .cal-picker:has(input:focus-visible) {
-  outline: 3px solid #d88b49;
+  outline: 3px solid var(--focus);
   outline-offset: 1px;
 }
 

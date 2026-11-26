@@ -228,8 +228,8 @@
 }
 .se-error,
 .se-destructive {
-  color: #82271d;
-  background: #fff0e9;
+  color: var(--danger-strong);
+  background: var(--danger-bg);
 }
 .se-error {
   margin: 0;

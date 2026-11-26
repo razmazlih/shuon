@@ -187,9 +187,9 @@ export function Dashboard(p: Props) {
   const month = dateLabel(p.today, { month: 'long' })
   const lastMonth = dateLabel(p.previousMonth + '-01', { month: 'long', year: 'numeric' })
   const metrics = [
-    { label: 'שעות עבודה', value: p.workedHours, icon: Clock3 },
-    { label: 'מתוכן שעות נוספות', value: p.overtimeHours, icon: ChartNoAxesColumnIncreasing },
-    { label: 'משמרות מתוכננות', value: p.plannedCount, icon: CalendarDays },
+    { kind: 'worked', label: 'שעות עבודה', value: p.workedHours, icon: Clock3 },
+    { kind: 'overtime', label: 'מתוכן שעות נוספות', value: p.overtimeHours, icon: ChartNoAxesColumnIncreasing },
+    { kind: 'planned', label: 'משמרות מתוכננות', value: p.plannedCount, icon: CalendarDays },
   ]
   return (
     <>
@@ -230,8 +230,8 @@ export function Dashboard(p: Props) {
       <section className="summary-strip" aria-labelledby="month-summary-title">
         <h2 id="month-summary-title">המשמרות שלי · {month}</h2>
         <dl className="summary-metrics">
-          {metrics.map(({ label, value, icon: Icon }) => (
-            <div key={label}>
+          {metrics.map(({ kind, label, value, icon: Icon }) => (
+            <div key={kind} data-metric={kind}>
               <dt>
                 <Icon size={16} aria-hidden="true" />
                 {label}

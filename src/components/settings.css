@@ -122,7 +122,7 @@
 }
 .prefs-primary {
   background: var(--green, #246047);
-  color: #fff;
+  color: var(--on-green);
 }
 .prefs-secondary,
 .prefs-apple button {
@@ -269,8 +269,8 @@
   width: 45%;
 }
 .theme-preview-dark {
-  background: #172b25;
-  color: #c4d2be;
+  background: linear-gradient(135deg, #393653, #1b2636);
+  color: #f2b378;
 }
 .theme-preview-sage {
   background: #ccdbcc;
@@ -278,7 +278,7 @@
 }
 .theme-preview-system {
   color: #769080;
-  background: linear-gradient(95deg, #f4f2eb 50%, #233c33 50%);
+  background: linear-gradient(95deg, #f4f2eb 50%, #1b2636 50%);
 }
 .prefs-identity {
   font-size: 0.95rem;
@@ -364,7 +364,7 @@
   font-size: 0.875rem;
 }
 .prefs-error {
-  color: var(--danger, #a54036);
+  color: var(--danger);
 }
 @media (max-width: 900px) {
   .prefs-layout {
@@ -597,9 +597,6 @@
 .question-actions .prefs-primary {
   margin-inline-start: auto;
 }
-:root[data-theme='dark'] .prefs-primary {
-  color: var(--paper);
-}
 .prefs-pay-tools > summary svg {
   vertical-align: middle;
   margin-inline: 0.25rem;
@@ -641,7 +638,7 @@
   justify-content: space-between;
   width: 100%;
   padding: .8rem 1rem;
-  border: 1px solid var(--border, #cfdad2);
+  border: 1px solid var(--line);
   border-radius: .8rem;
   background: transparent;
   color: inherit;
