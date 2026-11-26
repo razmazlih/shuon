@@ -4,7 +4,6 @@ import {
   ArrowLeft,
   CalendarDays,
   ChartNoAxesColumnIncreasing,
-  Check,
   ChevronLeft,
   ChevronRight,
   Clock3,
@@ -18,10 +17,18 @@ import {
   X,
 } from 'lucide-react'
 import { auth, login, logout } from './data/firebase'
-import { dateLabel, defaultPay, formatMoney, hourCount, type WorkShift, type Workspace } from './data/model'
+import {
+  dateLabel,
+  defaultPay,
+  formatMoney,
+  hourCount,
+  shiftStatusAt,
+  type WorkShift,
+  type Workspace,
+} from './data/model'
 import { subscribeWorkspace, writeSetting, writeShifts } from './data/repository'
 import { calculateGross, type BandKind } from './domain/gross'
-import { localDate, localTime } from './domain/time'
+import { addDays, localDate, localTime, localToInstant } from './domain/time'
 import { salaryReport } from './domain/net'
 import { Dashboard } from './components/Dashboard'
 const Calendar = lazy(() => import('./components/Calendar').then((m) => ({ default: m.Calendar })))
@@ -92,10 +99,12 @@ function WorkspaceApp({ user }: { user: User | null }) {
   const [loadError, setLoadError] = useState('')
   const [retry, setRetry] = useState(0)
   const [page, setPage] = useState<Page>(fromHash)
-  const [today, setToday] = useState(() => localDate(Date.now()))
+  const [statusTime, setStatusTime] = useState(Date.now)
+  const today = localDate(statusTime)
   const [day, setDay] = useState(today)
   const [month, setMonth] = useState(today.slice(0, 7))
   const [editor, setEditor] = useState<Editor | null>(null)
+  const [editorBusy, setEditorBusy] = useState(false)
   const [detail, setDetail] = useState<WorkShift | null>(null)
   const [message, setMessage] = useState('')
   const [working, setWorking] = useState(false)
@@ -110,8 +119,16 @@ function WorkspaceApp({ user }: { user: User | null }) {
     return () => window.removeEventListener('hashchange', sync)
   }, [])
   useEffect(() => {
-    const i = setInterval(() => setToday(localDate(Date.now())), 30000)
-    return () => clearInterval(i)
+    const refreshTime = () => setStatusTime(Date.now())
+    const resume = () => {
+      if (document.visibilityState === 'visible') refreshTime()
+    }
+    document.addEventListener('visibilitychange', resume)
+    window.addEventListener('focus', refreshTime)
+    return () => {
+      document.removeEventListener('visibilitychange', resume)
+      window.removeEventListener('focus', refreshTime)
+    }
   }, [])
   useEffect(() => {
     if (!message) return
@@ -140,10 +157,27 @@ function WorkspaceApp({ user }: { user: User | null }) {
     navigate('calendar')
   }
   const workingMonth = page === 'salary' ? month : today.slice(0, 7)
-  const shifts = workspace?.shifts
+  const storedShifts = workspace?.shifts
+  useEffect(() => {
+    let nextUpdate = Date.parse(localToInstant(addDays(today, 1), '00:00'))
+    for (const shift of storedShifts || []) {
+      const end = Date.parse(shift.end)
+      if (shift.status !== 'active' && end > statusTime) nextUpdate = Math.min(nextUpdate, end)
+    }
+    const timer = window.setTimeout(() => setStatusTime(Date.now()), Math.max(0, nextUpdate - Date.now()))
+    return () => window.clearTimeout(timer)
+  }, [storedShifts, statusTime, today])
+  const shifts = useMemo(
+    () =>
+      (storedShifts || []).map((shift) => {
+        const status = shiftStatusAt(shift, statusTime)
+        return shift.status === status ? shift : { ...shift, status }
+      }),
+    [storedShifts, statusTime],
+  )
   const pay = workspace?.profile.pay
   const wage = useMemo(() => {
-    const rows = (shifts || []).filter((s) => s.status !== 'active')
+    const rows = shifts.filter((s) => s.status !== 'active')
     const empty = calculateGross([], defaultPay)
     let actual = empty,
       combined = empty,
@@ -204,7 +238,7 @@ function WorkspaceApp({ user }: { user: User | null }) {
   const w = workspace
   const active = w.shifts.find((s) => s.status === 'active')
   const totals = salaryReport(workingMonth, wage.actual, wage.planned, w.payroll, w.adjustments)
-  const plannedIds = new Set(w.shifts.filter((s) => s.status === 'planned').map((s) => s.id))
+  const plannedIds = new Set(shifts.filter((s) => s.status === 'planned').map((s) => s.id))
   const count = wage.combined.shifts.filter((s) => plannedIds.has(s.id)).length
   const openPay = () => {
     setMonth(today.slice(0, 7))
@@ -225,7 +259,10 @@ function WorkspaceApp({ user }: { user: User | null }) {
       const now = new Date().toISOString()
       if (op === 'start') {
         if (active) return
-        const upcoming = w.shifts.find((s) => s.status === 'planned' && s.start <= now && s.end > now)
+        const nowMs = Date.parse(now)
+        const upcoming = w.shifts.find(
+          (s) => shiftStatusAt(s, nowMs) === 'planned' && Date.parse(s.start) <= nowMs,
+        )
         const shift: WorkShift = {
           id: upcoming?.id || crypto.randomUUID(),
           title: upcoming?.title || 'משמרת עבודה',
@@ -265,12 +302,12 @@ function WorkspaceApp({ user }: { user: User | null }) {
         setMessage('המשמרת הסתיימה ונשמרה')
       }
     })
-  const picked = detail && (w.shifts.find((s) => s.id === detail.id) || detail)
+  const picked = detail && shifts.find((s) => s.id === detail.id)
   let pickedPay = null
   if (picked && picked.status !== 'active') {
     try {
       pickedPay = calculateGross(
-        w.shifts.filter(
+        shifts.filter(
           (s) => s.status === 'completed' || (picked.status === 'planned' && s.status === 'planned'),
         ),
         w.profile.pay,
@@ -397,7 +434,7 @@ function WorkspaceApp({ user }: { user: User | null }) {
         {page === 'today' && (
           <Dashboard
             today={today}
-            shifts={w.shifts}
+            shifts={shifts}
             active={active}
             actual={wage.actual}
             forecastNet={totals.forecast.net}
@@ -414,7 +451,7 @@ function WorkspaceApp({ user }: { user: User | null }) {
         )}
         {page === 'calendar' && (
           <Calendar
-            shifts={w.shifts}
+            shifts={shifts}
             date={day}
             onDate={setDay}
             onEdit={showDetail}
@@ -442,6 +479,8 @@ function WorkspaceApp({ user }: { user: User | null }) {
           <Settings
             profile={w.profile}
             onSave={(v) => setting('profile', v)}
+            templates={w.templates}
+            onTemplate={(t) => setting('templates', [...w.templates, t])}
             user={user}
             onSalary={openPay}
             onSignIn={signIn}
@@ -537,21 +576,6 @@ function WorkspaceApp({ user }: { user: User | null }) {
                     <Copy size={16} />
                     שכפול
                   </button>
-                  {picked.status === 'planned' && Date.parse(picked.end) <= Date.now() && (
-                    <button
-                      className="btn secondary"
-                      disabled={working}
-                      onClick={() =>
-                        void run(async () => {
-                          await saveRows([{ ...picked, status: 'completed' }])
-                          setDetail(null)
-                        })
-                      }
-                    >
-                      <Check size={16} />
-                      סימון כבוצעה
-                    </button>
-                  )}
                 </>
               )}
             </div>
@@ -559,25 +583,27 @@ function WorkspaceApp({ user }: { user: User | null }) {
         </Dialog>
       )}
       {editor && (
-        <Dialog
-          title={editor.duplicate ? 'שכפול משמרת' : editor.initial ? 'עריכת משמרת' : 'הוספת משמרת'}
-          onClose={() => setEditor(null)}
-        >
-          <ShiftEditor
-            {...editor}
-            templates={w.templates}
-            shifts={w.shifts}
-            onSave={saveRows}
-            onDelete={async (id) => {
-              await writeShifts(uid, [], [id], originalsForEditor)
-              setMessage('המשמרת נמחקה')
-            }}
-            onTemplate={async (t) => {
-              await setting('templates', [...w.templates.filter((v) => v.id !== t.id), t])
-            }}
+        <Suspense fallback={null}>
+          <Dialog
+            title={editor.duplicate ? 'שכפול משמרת' : editor.initial ? 'עריכת משמרת' : 'הוספת משמרת'}
+            className="shift-editor-modal"
+            closeDisabled={editorBusy}
             onClose={() => setEditor(null)}
-          />
-        </Dialog>
+          >
+            <ShiftEditor
+              {...editor}
+              templates={w.templates}
+              shifts={w.shifts}
+              onSave={saveRows}
+              onBusyChange={setEditorBusy}
+              onDelete={async (id) => {
+                await writeShifts(uid, [], [id], originalsForEditor)
+                setMessage('המשמרת נמחקה')
+              }}
+              onClose={() => setEditor(null)}
+            />
+          </Dialog>
+        </Suspense>
       )}
       {message && (
         <div className="toast" role="status">

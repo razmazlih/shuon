@@ -185,7 +185,7 @@ function Weekly({ today, shifts, onCalendar }: Pick<Props, 'today' | 'shifts' | 
 }
 export function Dashboard(p: Props) {
   const upcoming = p.shifts
-    .filter((s) => s.status === 'planned' && Date.parse(s.end) > Date.now())
+    .filter((s) => s.status === 'planned')
     .sort((a, b) => a.start.localeCompare(b.start))
     .slice(0, 3)
   const month = dateLabel(p.today, { month: 'long' })

@@ -1,13 +1,23 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { prepareShiftWrites } from '../src/data/shift-writes'
-import type { WorkShift } from '../src/data/model'
+import { shiftStatusAt, type WorkShift } from '../src/data/model'
 
 const now = Date.parse('2026-11-26T15:00:00Z')
 const at = (hour: number) => '2026-11-26T' + String(hour).padStart(2, '0') + ':00:00Z'
 function row(id: string, start: number, end: number, status: WorkShift['status'] = 'planned'): WorkShift {
   return { id, title: id, status, start: at(start), end: at(end), updatedAt: at(6), breaks: [] }
 }
+
+test('ordinary shifts count as worked at their end instant and running timers stay active', () => {
+  const shift = row('overnight', 20, 23)
+  shift.end = '2026-11-27T05:00:00+02:00'
+  const end = Date.parse(shift.end)
+  assert.equal(shiftStatusAt(shift, end - 1), 'planned')
+  assert.equal(shiftStatusAt(shift, end), 'completed')
+  assert.equal(shiftStatusAt({ ...shift, status: 'completed' }, end - 1), 'planned')
+  assert.equal(shiftStatusAt({ ...shift, status: 'active' }, end + 1), 'active')
+})
 
 test('new or moved shifts cannot overlap a concurrently added shift; adjacent periods are valid', () => {
   const other = row('other', 10, 12)

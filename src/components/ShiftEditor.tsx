@@ -1,7 +1,7 @@
-import { useState, type FormEvent } from 'react'
-import { Bookmark, CalendarPlus, Plus, Trash2, X } from 'lucide-react'
+import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
+import { Bookmark, CalendarPlus, ChevronDown, ChevronLeft, ChevronRight, Plus, Trash2 } from 'lucide-react'
 import type { Template, WorkShift } from '../data/model'
-import { addDays, dateMs, localDate, localTime, localToInstant } from '../domain/time'
+import { addDays, dateMs, localDate, localTime, localToInstant, weekday } from '../domain/time'
 import './calendar.css'
 
 interface ShiftEditorProps {
@@ -12,7 +12,7 @@ interface ShiftEditorProps {
   shifts: WorkShift[]
   onSave: (shifts: WorkShift[]) => Promise<void>
   onDelete: (id: string) => Promise<void>
-  onTemplate: (template: Template) => Promise<void>
+  onBusyChange?: (busy: boolean) => void
   onClose: () => void
 }
 
@@ -33,8 +33,12 @@ const dateFormat = new Intl.DateTimeFormat('he-IL', {
   weekday: 'short',
   day: 'numeric',
   month: 'short',
+  year: 'numeric',
   timeZone: 'UTC',
 })
+const monthFormat = new Intl.DateTimeFormat('he-IL', { month: 'long', year: 'numeric', timeZone: 'UTC' })
+const weekdays = ['א׳', 'ב׳', 'ג׳', 'ד׳', 'ה׳', 'ו׳', 'ש׳']
+const formatDate = (day: string) => dateFormat.format(dateMs(day))
 
 function wallFromInstant(instant: string): Wall {
   const date = localDate(instant),
@@ -56,30 +60,56 @@ function resolveClock(date: string, clock: Wall, original?: string) {
   return result
 }
 
+function inferEndOffset(date: string, start: Wall, end: Wall) {
+  if (!start.time || !end.time || end.time >= start.time) return 0
+  try {
+    if (Date.parse(resolveClock(date, end)) > Date.parse(resolveClock(date, start))) return 0
+  } catch {
+    // An invalid wall time is reported when the shift is saved.
+  }
+  return 1
+}
+
+function isAmbiguous(date: string, time: string) {
+  try {
+    return localToInstant(date, time) !== localToInstant(date, time, 'later')
+  } catch {
+    return false
+  }
+}
+
 function ClockField({
   title,
-  date,
+  foldDates,
+  hint,
   value,
   change,
 }: {
   title: string
-  date: string
+  foldDates: string[]
+  hint?: string
   value: Wall
   change: (clock: Wall) => void
 }) {
-  let ambiguous = false
-  try {
-    ambiguous = localToInstant(date, value.time) !== localToInstant(date, value.time, 'later')
-  } catch {
-    /* Missing and skipped times are checked on save. */
-  }
+  const hintId = useId()
   return (
     <div className="se-clock">
       <label className="se-field">
-        <span>{title}</span>
-        <input required type="time" value={value.time} onChange={(e) => change(wall(e.target.value))} />
+        <span className="se-field-label">{title}</span>
+        <input
+          aria-describedby={hint ? hintId : undefined}
+          required
+          type="time"
+          value={value.time}
+          onChange={(e) => change(wall(e.target.value))}
+        />
       </label>
-      {ambiguous && (
+      {hint && (
+        <span className="se-time-hint" id={hintId}>
+          {hint}
+        </span>
+      )}
+      {foldDates.some((d) => isAmbiguous(d, value.time)) && (
         <label className="se-fold">
           {title} במעבר לשעון חורף
           <select value={value.fold} onChange={(e) => change({ ...value, fold: e.target.value as Fold })}>
@@ -89,6 +119,97 @@ function ClockField({
         </label>
       )}
     </div>
+  )
+}
+
+function DatesPicker({
+  primary,
+  selected,
+  onChange,
+}: {
+  primary: string
+  selected: string[]
+  onChange: (selected: string[]) => void
+}) {
+  const headingRef = useRef<HTMLHeadingElement>(null)
+  const [month, setMonth] = useState(primary.slice(0, 7))
+  const first = month + '-01'
+  const firstDay = weekday(first)
+  const year = Number(month.slice(0, 4))
+  const monthIndex = Number(month.slice(5, 7)) - 1
+  const monthEnd = new Date(dateMs(first))
+  monthEnd.setUTCMonth(monthIndex + 1, 0)
+  const headingId = useId()
+
+  useEffect(() => {
+    headingRef.current?.focus()
+  }, [])
+
+  function changeMonth(offset: number) {
+    const next = new Date(dateMs(first))
+    next.setUTCMonth(monthIndex + offset)
+    setMonth(next.toISOString().slice(0, 7))
+  }
+
+  return (
+    <section className="se-date-picker" aria-labelledby={headingId}>
+      <div className="se-picker-intro">
+        <h3 ref={headingRef} id={headingId} tabIndex={-1}>
+          אותן שעות בתאריכים נוספים
+        </h3>
+        <p>בוחרים ימים בלוח כדי לרשום בהם את אותן שעות.</p>
+      </div>
+      <div className="se-month">
+        <button
+          type="button"
+          className="icon-btn"
+          aria-label="לחודש הקודם"
+          disabled={year === 1 && monthIndex === 0}
+          onClick={() => changeMonth(-1)}
+        >
+          <ChevronRight size={18} aria-hidden="true" />
+        </button>
+        <strong aria-live="polite">{monthFormat.format(dateMs(first))}</strong>
+        <button
+          type="button"
+          className="icon-btn"
+          aria-label="לחודש הבא"
+          disabled={year === 9999 && monthIndex === 11}
+          onClick={() => changeMonth(1)}
+        >
+          <ChevronLeft size={18} aria-hidden="true" />
+        </button>
+      </div>
+      <div className="se-month-days" role="group" aria-label="ימי החודש">
+        {weekdays.map((name) => (
+          <span key={name} aria-hidden="true">{name}</span>
+        ))}
+        {Array.from({ length: firstDay }, (_, index) => <span key={index} aria-hidden="true" />)}
+        {Array.from({ length: monthEnd.getUTCDate() }, (_, index) => {
+          const date = addDays(first, index)
+          const chosen = selected.includes(date)
+          if (date === primary)
+            return (
+              <span className="se-primary-day" key={date}>
+                {index + 1}<span className="sr-only">, התאריך הראשי</span>
+              </span>
+            )
+          return (
+            <button
+              key={date}
+              type="button"
+              className="se-month-day"
+              aria-label={formatDate(date)}
+              aria-pressed={chosen}
+              onClick={() => onChange(chosen ? selected.filter((item) => item !== date) : [...selected, date])}
+            >
+              {index + 1}
+            </button>
+          )
+        })}
+      </div>
+      <p className="se-primary-caption"><span aria-hidden="true" /> תאריך ראשי · {formatDate(primary)}</p>
+    </section>
   )
 }
 
@@ -120,66 +241,74 @@ export function ShiftEditor({
   shifts,
   onSave,
   onDelete,
-  onTemplate,
+  onBusyChange,
   onClose,
 }: ShiftEditorProps) {
   const editing = !!initial && !duplicate
   const originalDate = initial ? localDate(initial.start) : date
   const defaultDate = duplicate && date === originalDate ? addDays(date, 1) : editing ? originalDate : date
-  const originalStatus = initial?.status === 'completed' ? 'completed' : 'planned'
-  const [status, setStatus] = useState<'planned' | 'completed'>(() =>
-    duplicate
-      ? 'planned'
-      : initial
-        ? originalStatus
-        : defaultDate < localDate(Date.now())
-          ? 'completed'
-          : 'planned',
-  )
   const [day, setDay] = useState(defaultDate)
-  const [endOffset, setEndOffset] = useState(initial ? dayOffset(originalDate, localDate(initial.end)) : 0)
-  const [start, setStart] = useState(initial ? wallFromInstant(initial.start) : wall('08:00'))
-  const [end, setEnd] = useState(initial ? wallFromInstant(initial.end) : wall('16:00'))
-  const [title, setTitle] = useState(initial?.title || '')
+  const [start, setStart] = useState(() => (initial ? wallFromInstant(initial.start) : wall('08:00')))
+  const [end, setEnd] = useState(() => (initial ? wallFromInstant(initial.end) : wall('16:00')))
+  const [endOffsetOverride, setEndOffsetOverride] = useState<number | null>(() => {
+    if (!initial) return null
+    const originalOffset = dayOffset(originalDate, localDate(initial.end))
+    return originalOffset === inferEndOffset(originalDate, start, end) ? null : originalOffset
+  })
   const [note, setNote] = useState(initial?.note || '')
   const [breaks, setBreaks] = useState<PauseDraft[]>(() => parsePauses(initial))
   const [extraDays, setExtraDays] = useState<string[]>([])
-  const [candidate, setCandidate] = useState(addDays(defaultDate, 1))
-  const [templateName, setTemplateName] = useState('')
+  const [pickerDays, setPickerDays] = useState<string[] | null>(null)
+  const [panel, setPanel] = useState<'details' | 'templates' | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
+  const contentRef = useRef<HTMLDivElement>(null)
+  const pickerButtonRef = useRef<HTMLButtonElement>(null)
+  const restorePickerFocus = useRef(false)
+  const templateButtonRef = useRef<HTMLButtonElement>(null)
+  const detailsId = useId()
+  const templatesId = useId()
+  const offsetFor = (date: string) => endOffsetOverride ?? inferEndOffset(date, start, end)
+  const endOffset = offsetFor(day)
   const endDate = day ? addDays(day, endOffset) : ''
-  const days = [...new Set([day, ...extraDays])].sort()
+  const days = [day, ...extraDays].filter(Boolean).sort()
+  const finishFoldDates = days.flatMap((d) => {
+    const finishDate = addDays(d, offsetFor(d))
+    const couldFinishOnStartDate =
+      endOffsetOverride === null && finishDate !== d && inferEndOffset(d, start, { ...end, fold: 'later' }) === 0
+    return couldFinishOnStartDate ? [d, finishDate] : [finishDate]
+  })
   const message = (reason: unknown) =>
     setError(reason instanceof Error ? reason.message : 'השמירה נכשלה. אפשר לנסות שוב.')
 
-  function updateClock(isStart: boolean, next: Wall) {
-    if (isStart) setStart(next)
-    else setEnd(next)
-    const first = isStart ? next.time : start.time
-    const last = isStart ? end.time : next.time
-    if (first && last && endOffset <= 1 && first !== last) {
-      const repeats =
-        day &&
-        first > last &&
-        (() => {
-          try {
-            return Date.parse(localToInstant(day, last, 'later')) > Date.parse(localToInstant(day, first))
-          } catch {
-            return false
-          }
-        })()
-      setEndOffset(last < first && !repeats ? 1 : 0)
+  const pickingDates = pickerDays !== null
+  useEffect(() => {
+    if (contentRef.current) contentRef.current.scrollTop = 0
+    if (!pickingDates && restorePickerFocus.current) {
+      restorePickerFocus.current = false
+      pickerButtonRef.current?.focus()
     }
+  }, [pickingDates])
+
+  function closeDatesPicker(confirm: boolean) {
+    if (confirm && pickerDays) setExtraDays(pickerDays)
+    restorePickerFocus.current = true
+    setPickerDays(null)
+  }
+
+  function markBusy(value: boolean) {
+    setBusy(value)
+    onBusyChange?.(value)
   }
 
   function applyTemplate(template: Template) {
     setStart(wall(template.start))
     setEnd(wall(template.end))
-    setEndOffset(template.end < template.start ? 1 : 0)
-    setTitle(template.title)
+    setEndOffsetOverride(null)
+    setPanel(null)
+    templateButtonRef.current?.focus()
     setNotice('התבנית הוחלה')
     setError('')
   }
@@ -213,46 +342,62 @@ export function ShiftEditor({
 
   async function submit(event: FormEvent) {
     event.preventDefault()
-    if (busy) return
+    if (busy || pickingDates) return
     setError('')
     setNotice('')
+    if (!day) {
+      setError('יש לבחור תאריך למשמרת.')
+      return
+    }
     try {
       const now = Date.now(),
         updatedAt = new Date(now).toISOString()
       const changes = days.map((d): WorkShift => {
-        const shiftStart = resolveClock(d, start, initial?.start)
-        const shiftEnd = resolveClock(addDays(d, endOffset), end, initial?.end)
+        const resolve = (date: string, clock: Wall, original?: string) => {
+          try {
+            return resolveClock(date, clock, original)
+          } catch (reason) {
+            if (reason instanceof Error) throw new Error(formatDate(d) + ' · ' + reason.message)
+            throw reason
+          }
+        }
+        const shiftStart = resolve(d, start, initial?.start)
+        const shiftEnd = resolve(addDays(d, offsetFor(d)), end, initial?.end)
         const begin = Date.parse(shiftStart),
           finish = Date.parse(shiftEnd)
         if (finish <= begin)
-          throw new Error('שעת הסיום צריכה להיות אחרי שעת ההתחלה. במשמרת לילה יש לבדוק גם את תאריך הסיום.')
-        if (status === 'completed' && finish > now)
-          throw new Error('אפשר לסמן משמרת כבוצעה רק לאחר שעת הסיום שלה.')
-        const pauses = breaks
-          .map((b) => ({
-            start: resolveClock(addDays(d, b.startDay), b.start, b.original?.start),
-            end: resolveClock(addDays(d, b.endDay), b.end, b.original?.end),
-            paid: b.paid,
-          }))
-          .sort((a, b) => Date.parse(a.start) - Date.parse(b.start))
-        let previous = begin
-        for (const b of pauses) {
-          if (
-            Date.parse(b.start) < previous ||
-            Date.parse(b.end) <= Date.parse(b.start) ||
-            Date.parse(b.end) > finish
-          ) {
-            throw new Error('ההפסקות צריכות להיות בתוך המשמרת, בסדר זמנים תקין וללא חפיפה.')
+          throw new Error(formatDate(d) + ' · שעת הסיום צריכה להיות אחרי שעת ההתחלה.')
+        let pauses
+        try {
+          pauses = breaks
+            .map((b) => ({
+              start: resolve(addDays(d, b.startDay), b.start, b.original?.start),
+              end: resolve(addDays(d, b.endDay), b.end, b.original?.end),
+              paid: b.paid,
+            }))
+            .sort((a, b) => Date.parse(a.start) - Date.parse(b.start))
+          let previous = begin
+          for (const b of pauses) {
+            if (
+              Date.parse(b.start) < previous ||
+              Date.parse(b.end) <= Date.parse(b.start) ||
+              Date.parse(b.end) > finish
+            ) {
+              throw new Error(formatDate(d) + ' · ההפסקות צריכות להיות בתוך המשמרת וללא חפיפה.')
+            }
+            previous = Date.parse(b.end)
           }
-          previous = Date.parse(b.end)
+        } catch (reason) {
+          setPanel('details')
+          throw reason
         }
         return {
           ...(editing ? initial : {}),
           id: editing ? initial!.id : crypto.randomUUID(),
-          title: title.trim() || 'משמרת עבודה',
+          title: editing ? initial.title : 'משמרת עבודה',
           start: shiftStart,
           end: shiftEnd,
-          status,
+          status: finish <= now ? 'completed' : 'planned',
           breaks: pauses,
           note: note.trim(),
           updatedAt,
@@ -263,47 +408,24 @@ export function ShiftEditor({
       for (const s of changes) {
         if (existing.some((other) => spanOverlaps(s, other, now))) {
           throw new Error(
-            'המשמרת בתאריך ' + dateFormat.format(dateMs(localDate(s.start))) + ' חופפת למשמרת אחרת.',
+            'המשמרת בתאריך ' + formatDate(localDate(s.start)) + ' חופפת למשמרת אחרת.',
           )
         }
         existing.push(s)
       }
-      setBusy(true)
+      markBusy(true)
       await onSave(changes)
       onClose()
     } catch (reason) {
       message(reason)
     } finally {
-      setBusy(false)
-    }
-  }
-
-  async function saveTemplate() {
-    if (busy) return
-    setError('')
-    setNotice('')
-    const name = templateName.trim() || title.trim()
-    if (!name || !start.time || !end.time || start.time === end.time) {
-      setError('לשמירת תבנית יש להזין שם ושעות התחלה וסיום שונות.')
-      return
-    }
-    setBusy(true)
-    try {
-      const existing = templates.find((t) => t.title === name && t.start === start.time && t.end === end.time)
-      if (!existing)
-        await onTemplate({ id: crypto.randomUUID(), title: name, start: start.time, end: end.time })
-      setNotice('התבנית נשמרה')
-      setTemplateName('')
-    } catch (reason) {
-      message(reason)
-    } finally {
-      setBusy(false)
+      markBusy(false)
     }
   }
 
   async function deleteShift() {
     if (busy || !initial || !editing) return
-    setBusy(true)
+    markBusy(true)
     setError('')
     try {
       await onDelete(initial.id)
@@ -311,7 +433,7 @@ export function ShiftEditor({
     } catch (reason) {
       message(reason)
     } finally {
-      setBusy(false)
+      markBusy(false)
     }
   }
 
@@ -326,242 +448,242 @@ export function ShiftEditor({
     )
 
   return (
-    <form onSubmit={submit} className="se-form">
-      <fieldset disabled={busy} className="se-body">
-        <div className="se-status" role="group" aria-label="מצב המשמרת">
-          <button type="button" aria-pressed={status === 'planned'} onClick={() => setStatus('planned')}>
-            מתוכננת
-          </button>
-          <button type="button" aria-pressed={status === 'completed'} onClick={() => setStatus('completed')}>
-            בוצעה
-          </button>
-        </div>
-        {templates.length > 0 && (
-          <label className="se-field">
-            מילוי מתבנית
-            <select
-              value=""
-              onChange={(e) => {
-                const template = templates.find((t) => t.id === e.target.value)
-                if (template) applyTemplate(template)
-              }}
-            >
-              <option value="">בחירת תבנית</option>
-              {templates.map((t) => (
-                <option value={t.id} key={t.id}>
-                  {t.title} · {t.start}–{t.end}
-                </option>
+    <form
+      noValidate
+      onSubmit={submit}
+      aria-busy={busy}
+      className="se-form"
+      onKeyDown={(event) => {
+        if (event.key === 'Escape' && pickingDates) {
+          event.preventDefault()
+          closeDatesPicker(false)
+        }
+      }}
+    >
+      <div className="se-content" ref={contentRef}>
+        {pickerDays ? (
+          <DatesPicker primary={day} selected={pickerDays} onChange={setPickerDays} />
+        ) : (
+          <fieldset disabled={busy} className="se-body">
+            <label className="se-field">
+              <span className="se-field-label">תאריך המשמרת</span>
+              <input
+                type="date"
+                value={day}
+                required
+                onChange={(event) => {
+                  const value = event.target.value
+                  if (value && value.length !== 10) return
+                  setDay(value)
+                  setExtraDays((dates) => dates.filter((date) => date !== value))
+                }}
+              />
+            </label>
+            {!editing && (
+              <button
+                ref={pickerButtonRef}
+                className="se-option se-multi"
+                type="button"
+                disabled={!day}
+                onClick={() => setPickerDays(extraDays)}
+              >
+                <CalendarPlus size={17} aria-hidden="true" />
+                <span>אותן שעות בתאריכים נוספים</span>
+                {extraDays.length > 0 && <span className="se-count">{extraDays.length}</span>}
+              </button>
+            )}
+            <div className="se-grid se-shift-times">
+              <ClockField title="שעת התחלה" foldDates={days} value={start} change={setStart} />
+              <ClockField
+                title="שעת סיום"
+                foldDates={finishFoldDates}
+                value={end}
+                change={setEnd}
+                hint={endOffset === 1 ? 'למחרת' : endOffset > 1 && endDate ? formatDate(endDate) : undefined}
+              />
+            </div>
+            <div className="se-options">
+              <button
+                type="button"
+                className="se-option"
+                aria-expanded={panel === 'details'}
+                aria-controls={detailsId}
+                onClick={() => setPanel(panel === 'details' ? null : 'details')}
+              >
+                <ChevronDown size={16} aria-hidden="true" />
+                פרטים נוספים
+                {(breaks.length > 0 || note || endOffsetOverride !== null) && (
+                  <span className="se-dot" aria-hidden="true" />
+                )}
+              </button>
+              {templates.length > 0 && (
+                <button
+                  ref={templateButtonRef}
+                  type="button"
+                  className="se-option"
+                  aria-expanded={panel === 'templates'}
+                  aria-controls={templatesId}
+                  onClick={() => setPanel(panel === 'templates' ? null : 'templates')}
+                >
+                  <Bookmark size={15} aria-hidden="true" />
+                  בחירה מתבנית
+                </button>
+              )}
+            </div>
+            <div className="se-templates" id={templatesId} hidden={panel !== 'templates'}>
+              {templates.map((template) => (
+                <button key={template.id} type="button" onClick={() => applyTemplate(template)}>
+                  <span>{template.title}</span>
+                  <bdi dir="ltr">{template.start}–{template.end}</bdi>
+                </button>
               ))}
-            </select>
-          </label>
-        )}
-        <label className="se-field">
-          שם המשמרת
-          <input
-            value={title}
-            placeholder="משמרת עבודה"
-            maxLength={120}
-            onChange={(e) => setTitle(e.target.value)}
-          />
-        </label>
-        <div className="se-grid">
-          <label className="se-field">
-            תאריך התחלה
-            <input type="date" value={day} required onChange={(e) => setDay(e.target.value)} />
-          </label>
-          <ClockField title="שעת התחלה" date={day} value={start} change={(s) => updateClock(true, s)} />
-          <label className="se-field">
-            תאריך סיום
-            <input
-              type="date"
-              value={endDate}
-              min={day}
-              required
-              onChange={(e) => {
-                if (day && e.target.value) setEndOffset(dayOffset(day, e.target.value))
-              }}
-            />
-          </label>
-          <ClockField title="שעת סיום" date={endDate} value={end} change={(s) => updateClock(false, s)} />
-        </div>
-        <details className="se-details" open={breaks.length > 0 || undefined}>
-          <summary>הפסקות{breaks.length > 0 && ' (' + breaks.length + ')'}</summary>
-          <div className="se-details-body">
-            {breaks.map((b, i) => (
-              <div className="se-pause" key={b.id}>
+            </div>
+            <div className="se-details-body" id={detailsId} hidden={panel !== 'details'}>
+              <label className="se-field">
+                <span className="se-field-label">תאריך סיום</span>
+                <input
+                  type="date"
+                  value={endDate}
+                  min={day}
+                  disabled={!day}
+                  onChange={(event) => {
+                    const value = event.target.value
+                    if (value.length === 10 && value >= day)
+                      setEndOffsetOverride(dayOffset(day, value))
+                    else if (!value) setEndOffsetOverride(null)
+                  }}
+                />
+              </label>
+              {endOffsetOverride !== null && (
+                <button className="se-option" type="button" onClick={() => setEndOffsetOverride(null)}>
+                  חזרה לתאריך סיום אוטומטי
+                </button>
+              )}
+              <label className="se-field">
+                <span className="se-field-label">הערה</span>
+                <textarea rows={2} value={note} maxLength={2000} onChange={(e) => setNote(e.target.value)} />
+              </label>
+              <div className="se-breaks">
                 <div className="se-section-row">
-                  <strong>הפסקה {i + 1}</strong>
-                  <button
-                    type="button"
-                    className="icon-btn"
-                    aria-label={'הסרת הפסקה ' + (i + 1)}
-                    onClick={() => setBreaks((items) => items.filter((item) => item.id !== b.id))}
-                  >
-                    <Trash2 size={15} />
+                  <strong>הפסקות</strong>
+                  <button type="button" className="se-option" onClick={addBreak}>
+                    <Plus size={16} aria-hidden="true" />
+                    הוספת הפסקה
                   </button>
                 </div>
-                <div className="se-grid">
-                  <ClockField
-                    title="תחילת הפסקה"
-                    date={day && addDays(day, b.startDay)}
-                    value={b.start}
-                    change={(v) => changeBreak(b.id, { start: v })}
-                  />
-                  <ClockField
-                    title="סיום הפסקה"
-                    date={day && addDays(day, b.endDay)}
-                    value={b.end}
-                    change={(v) => changeBreak(b.id, { end: v })}
-                  />
-                  {endOffset > 0 && day && (
-                    <>
-                      <label className="se-field">
-                        תאריך תחילת הפסקה
-                        <input
-                          type="date"
-                          required
-                          min={day}
-                          max={endDate}
-                          value={addDays(day, b.startDay)}
-                          onChange={(e) => {
-                            if (e.target.value)
-                              changeBreak(b.id, { startDay: dayOffset(day, e.target.value) })
-                          }}
-                        />
-                      </label>
-                      <label className="se-field">
-                        תאריך סיום הפסקה
-                        <input
-                          type="date"
-                          required
-                          min={day}
-                          max={endDate}
-                          value={addDays(day, b.endDay)}
-                          onChange={(e) => {
-                            if (e.target.value) changeBreak(b.id, { endDay: dayOffset(day, e.target.value) })
-                          }}
-                        />
-                      </label>
-                    </>
-                  )}
-                </div>
-                <label className="se-check">
-                  <input
-                    type="checkbox"
-                    checked={b.paid}
-                    onChange={(e) => changeBreak(b.id, { paid: e.target.checked })}
-                  />
-                  הפסקה בתשלום
-                </label>
+                {breaks.map((b, i) => (
+                  <div className="se-pause" key={b.id}>
+                    <div className="se-section-row">
+                      <strong>הפסקה {i + 1}</strong>
+                      <button
+                        type="button"
+                        className="icon-btn"
+                        aria-label={'הסרת הפסקה ' + (i + 1)}
+                        onClick={() => setBreaks((items) => items.filter((item) => item.id !== b.id))}
+                      >
+                        <Trash2 size={15} aria-hidden="true" />
+                      </button>
+                    </div>
+                    <div className="se-grid">
+                      <ClockField
+                        title="תחילת הפסקה"
+                        foldDates={days.map((date) => addDays(date, b.startDay))}
+                        value={b.start}
+                        change={(v) => changeBreak(b.id, { start: v })}
+                      />
+                      <ClockField
+                        title="סיום הפסקה"
+                        foldDates={days.map((date) => addDays(date, b.endDay))}
+                        value={b.end}
+                        change={(v) => changeBreak(b.id, { end: v })}
+                      />
+                      {day && (endOffset > 0 || b.startDay !== 0 || b.endDay !== 0) && (
+                        <>
+                          <label className="se-field">
+                            <span className="se-field-label">תאריך תחילת הפסקה</span>
+                            <input
+                              type="date"
+                              min={day}
+                              max={endDate}
+                              value={addDays(day, b.startDay)}
+                              onChange={(e) => {
+                                if (e.target.value.length === 10 && e.target.value >= day && e.target.value <= endDate)
+                                  changeBreak(b.id, { startDay: dayOffset(day, e.target.value) })
+                              }}
+                            />
+                          </label>
+                          <label className="se-field">
+                            <span className="se-field-label">תאריך סיום הפסקה</span>
+                            <input
+                              type="date"
+                              min={day}
+                              max={endDate}
+                              value={addDays(day, b.endDay)}
+                              onChange={(e) => {
+                                if (e.target.value.length === 10 && e.target.value >= day && e.target.value <= endDate)
+                                  changeBreak(b.id, { endDay: dayOffset(day, e.target.value) })
+                              }}
+                            />
+                          </label>
+                        </>
+                      )}
+                    </div>
+                    <label className="se-check">
+                      <input
+                        type="checkbox"
+                        checked={b.paid}
+                        onChange={(e) => changeBreak(b.id, { paid: e.target.checked })}
+                      />
+                      הפסקה בתשלום
+                    </label>
+                  </div>
+                ))}
               </div>
-            ))}
-            <button type="button" className="btn secondary" onClick={addBreak}>
-              <Plus size={15} />
-              הוספת הפסקה
-            </button>
-          </div>
-        </details>
-        {!editing && (
-          <details className="se-details">
-            <summary>הוספה למספר תאריכים{extraDays.length > 0 && ' (' + days.length + ')'}</summary>
-            <div className="se-details-body">
-              <div className="se-inline">
-                <label className="se-field">
-                  תאריך נוסף
-                  <input type="date" value={candidate} onChange={(e) => setCandidate(e.target.value)} />
-                </label>
-                <button
-                  type="button"
-                  className="btn secondary"
-                  disabled={!candidate || days.includes(candidate)}
-                  onClick={() => {
-                    setExtraDays((items) => [...items, candidate])
-                    setCandidate(addDays(candidate, 1))
-                  }}
-                >
-                  <CalendarPlus size={16} />
-                  הוספה
+              {editing && !confirmDelete && (
+                <button className="se-option se-delete" type="button" onClick={() => setConfirmDelete(true)}>
+                  <Trash2 size={16} aria-hidden="true" />
+                  מחיקת משמרת
                 </button>
-              </div>
-              {extraDays.length > 0 && (
-                <div className="se-chips">
-                  {extraDays.map((d) => (
-                    <button
-                      className="se-chip"
-                      key={d}
-                      type="button"
-                      aria-label={'הסרת ' + d}
-                      onClick={() => setExtraDays((items) => items.filter((v) => v !== d))}
-                    >
-                      {dateFormat.format(dateMs(d))}
-                      <X size={14} />
+              )}
+              {confirmDelete && (
+                <div className="se-confirm" role="group" aria-label="אישור מחיקת המשמרת">
+                  <span>למחוק את המשמרת מהיומן?</span>
+                  <div>
+                    <button type="button" className="btn secondary" onClick={() => setConfirmDelete(false)}>
+                      חזרה
                     </button>
-                  ))}
+                    <button type="button" className="btn se-destructive" onClick={deleteShift}>
+                      כן, למחוק
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
-          </details>
+          </fieldset>
         )}
-        <details className="se-details">
-          <summary>הערה ותבניות</summary>
-          <div className="se-details-body">
-            <label className="se-field">
-              הערה
-              <textarea rows={2} value={note} maxLength={2000} onChange={(e) => setNote(e.target.value)} />
-            </label>
-            <div className="se-inline">
-              <label className="se-field">
-                שם לתבנית
-                <input
-                  value={templateName}
-                  maxLength={120}
-                  placeholder={title.trim() || 'למשל, משמרת בוקר'}
-                  onChange={(e) => setTemplateName(e.target.value)}
-                />
-              </label>
-              <button type="button" className="btn secondary" onClick={saveTemplate}>
-                <Bookmark size={15} />
-                שמירת שעות כתבנית
-              </button>
-            </div>
+      </div>
+      <div className="se-footer">
+        {pickerDays ? (
+          <div className="se-picker-actions">
+            <button type="button" className="btn primary" onClick={() => closeDatesPicker(true)}>
+              {pickerDays.length === 0
+                ? 'אישור תאריכים'
+                : pickerDays.length === 1
+                  ? 'אישור תאריך נוסף'
+                  : 'אישור ' + pickerDays.length + ' תאריכים נוספים'}
+            </button>
+            <button type="button" className="btn secondary" onClick={() => closeDatesPicker(false)}>חזרה</button>
           </div>
-        </details>
-        {error && (
-          <p className="se-error" role="alert">
-            {error}
-          </p>
-        )}
-        {notice && (
-          <p className="se-notice" role="status">
-            {notice}
-          </p>
-        )}
-        <div className="se-actions">
-          <button type="submit" className="btn primary">
-            {busy ? 'שומר…' : days.length > 1 ? 'שמירת ' + days.length + ' משמרות' : 'שמירת משמרת'}
-          </button>
-          <button type="button" className="btn secondary" onClick={onClose}>
-            ביטול
-          </button>
-          {editing && !confirmDelete && (
-            <button type="button" className="se-delete" onClick={() => setConfirmDelete(true)}>
-              <Trash2 size={15} />
-              מחיקה
+        ) : (
+          <>
+            {error && <p className="se-error" role="alert">{error}</p>}
+            {notice && <p className="sr-only" role="status">{notice}</p>}
+            <button type="submit" className="btn primary se-save" disabled={busy}>
+              {busy ? 'שומר…' : days.length > 1 ? 'שמירת ' + days.length + ' משמרות' : 'שמירת משמרת'}
             </button>
-          )}
-        </div>
-        {confirmDelete && (
-          <div className="se-confirm" role="group" aria-label="אישור מחיקת המשמרת">
-            <span>למחוק את המשמרת מהיומן?</span>
-            <button type="button" className="btn secondary" onClick={() => setConfirmDelete(false)}>
-              חזרה
-            </button>
-            <button type="button" className="btn se-destructive" onClick={deleteShift}>
-              כן, למחוק
-            </button>
-          </div>
+          </>
         )}
-      </fieldset>
+      </div>
     </form>
   )
 }

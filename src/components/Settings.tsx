@@ -2,6 +2,7 @@ import { useState, type FormEvent, type ReactNode } from 'react'
 import type { User } from 'firebase/auth'
 import {
   Banknote,
+  Bookmark,
   CalendarDays,
   ChevronLeft,
   Clock3,
@@ -14,7 +15,7 @@ import {
   Sun,
   UserRound,
 } from 'lucide-react'
-import type { UserProfile } from '../data/model'
+import type { Template, UserProfile } from '../data/model'
 import type { PaySettings } from '../domain/gross'
 import { dateMs, localDate, localTime, localToInstant } from '../domain/time'
 import AppleCalendar from './AppleCalendar'
@@ -24,6 +25,8 @@ type SaveProfile = (profile: UserProfile) => Promise<void>
 type SettingsProps = {
   profile: UserProfile
   onSave: SaveProfile
+  templates: Template[]
+  onTemplate: (template: Template) => Promise<void>
   user: User | null
   onSalary: () => void
   onSignIn: () => void
@@ -452,7 +455,97 @@ function RateSettings({ pay, busy, save }: { pay: PaySettings; busy: boolean; sa
   )
 }
 
-export function Settings({ profile, onSave, user, onSalary, onSignIn, onSignOut }: SettingsProps) {
+function TemplateSettings({
+  templates,
+  busy,
+  save,
+  feedback,
+}: {
+  templates: Template[]
+  busy: boolean
+  save: (template: Template) => Promise<boolean>
+  feedback: ReactNode
+}) {
+  const [error, setError] = useState('')
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (busy) return
+    const form = event.currentTarget
+    const values = new FormData(form)
+    const title = read(values, 'title').trim()
+    const start = read(values, 'start')
+    const end = read(values, 'end')
+
+    if (!title || !start || !end || start === end) {
+      setError('יש להזין שם לתבנית ושעות התחלה וסיום שונות.')
+      return
+    }
+    if (templates.some((item) => item.title === title && item.start === start && item.end === end)) {
+      setError('תבנית עם השם והשעות האלה כבר קיימת.')
+      return
+    }
+
+    setError('')
+    if (await save({ id: crypto.randomUUID(), title, start, end })) form.reset()
+  }
+
+  return (
+    <>
+      {templates.length > 0 && (
+        <ul className="prefs-template-list" aria-label="תבניות שמורות">
+          {templates.map((template) => (
+            <li key={template.id}>
+              <bdi>{template.title}</bdi>
+              <span>
+                <bdi dir="ltr">{template.start}–{template.end}</bdi>
+                {template.end < template.start && ' למחרת'}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+      <details className="prefs-details">
+        <summary>הוספת תבנית</summary>
+        <form className="prefs-form" onSubmit={submit}>
+          <label className="prefs-field">
+            שם התבנית
+            <input name="title" maxLength={120} placeholder="למשל, משמרת לילה" required disabled={busy} />
+          </label>
+          <div className="prefs-grid prefs-template-times">
+            <label className="prefs-field">
+              שעת התחלה
+              <input name="start" type="time" dir="ltr" defaultValue="08:00" required disabled={busy} />
+            </label>
+            <label className="prefs-field">
+              שעת סיום
+              <input name="end" type="time" dir="ltr" defaultValue="16:00" required disabled={busy} />
+            </label>
+          </div>
+          <button type="submit" className="prefs-primary" disabled={busy}>
+            שמירת תבנית
+          </button>
+          {error ? (
+            <p className="prefs-error" role="alert">
+              {error}
+            </p>
+          ) : feedback}
+        </form>
+      </details>
+    </>
+  )
+}
+
+export function Settings({
+  profile,
+  onSave,
+  templates,
+  onTemplate,
+  user,
+  onSalary,
+  onSignIn,
+  onSignOut,
+}: SettingsProps) {
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState({ area: '', text: '', error: false })
   async function act(section: string, fn: () => Promise<void>, message: string) {
@@ -492,6 +585,15 @@ export function Settings({ profile, onSave, user, onSalary, onSignIn, onSignOut 
           save={savePay}
         />
         {feedback('time')}
+      </section>
+      <section className="prefs-card">
+        <SectionHeading icon={<Bookmark />}>תבניות משמרת</SectionHeading>
+        <TemplateSettings
+          templates={templates}
+          busy={busy}
+          save={(template) => act('templates', () => onTemplate(template), 'התבנית נשמרה')}
+          feedback={feedback('templates')}
+        />
       </section>
       <section className="prefs-card">
         <SectionHeading icon={<Palette />}>מראה</SectionHeading>

@@ -9,6 +9,12 @@ export interface WorkShift extends Shift {
   updatedAt: string
   openBreak?: string | null
 }
+
+export function shiftStatusAt(shift: WorkShift, now: number): WorkShift['status'] {
+  if (shift.status === 'active') return 'active'
+  return Date.parse(shift.end) <= now ? 'completed' : 'planned'
+}
+
 export type Theme = 'light' | 'dark' | 'sage' | 'system'
 export interface UserProfile {
   pay: PaySettings
