@@ -17,14 +17,12 @@
 .cal-jump,
 .cal-list > li,
 .cal-entry,
-.cal-length,
-.se-section-row {
+.cal-length {
   display: flex;
   align-items: center;
   gap: 0.6rem;
 }
-.cal-toolbar,
-.se-section-row {
+.cal-toolbar {
   justify-content: space-between;
 }
 .cal-toolbar h2 {
@@ -219,8 +217,7 @@
   margin: 0 1rem 0.8rem;
 }
 .se-body,
-.se-details-body,
-.se-breaks {
+.se-details-body {
   display: grid;
   min-width: 0;
   gap: 0.65rem;
@@ -276,6 +273,12 @@
 .se-shift-times input {
   background: var(--paper);
 }
+.se-field .se-note {
+  line-height: 1.4;
+  max-height: calc(5.6em + 1rem + 2px);
+  resize: none;
+  overflow-y: auto;
+}
 .se-time-hint {
   color: var(--green);
   font-size: 0.8rem;
@@ -283,7 +286,6 @@
 }
 .se-options,
 .se-option,
-.se-picker-actions,
 .se-confirm > div {
   display: flex;
   align-items: center;
@@ -311,8 +313,17 @@
 .se-option[aria-expanded='true'] .lucide-chevron-down {
   transform: rotate(180deg);
 }
-.se-multi {
+.se-dates {
+  display: grid;
+  gap: 0.25rem;
   margin-block: -0.45rem -0.2rem;
+}
+.se-change-summary {
+  color: var(--ink);
+  background: var(--tint);
+  border-radius: 0.45rem;
+  padding: 0.3rem 0.55rem;
+  font-size: 0.82rem;
 }
 .se-count {
   display: inline-grid;
@@ -329,19 +340,36 @@
   border-radius: 50%;
   background: currentColor;
 }
-.se-options + .se-templates,
-.se-details-body {
-  margin-block-start: -0.35rem;
+.se-panels {
+  margin-block-start: -0.65rem;
+}
+.se-disclosure {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition: grid-template-rows 0.2s ease, opacity 0.16s ease;
+}
+.se-disclosure[data-open='true'] {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+.se-disclosure-clip {
+  min-height: 0;
+  overflow: hidden;
+}
+.se-disclosure-clip > * {
+  margin: 0.3rem 3px 3px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .se-disclosure {
+    transition: none;
+  }
 }
 .se-templates {
   display: grid;
   border: 1px solid var(--line);
   border-radius: 0.65rem;
   overflow: hidden;
-}
-.se-templates[hidden],
-.se-details-body[hidden] {
-  display: none;
 }
 .se-templates button {
   display: flex;
@@ -356,8 +384,7 @@
 .se-templates button:hover {
   background: var(--tint);
 }
-.se-templates button:focus-visible,
-.se-month-day:focus-visible {
+.se-templates button:focus-visible {
   outline-offset: -3px;
 }
 .se-templates button + button {
@@ -371,7 +398,6 @@
   white-space: nowrap;
   font-size: 0.8rem;
 }
-.se-pause,
 .se-confirm {
   display: grid;
   gap: 0.5rem;
@@ -379,20 +405,7 @@
   border: 1px solid var(--line);
   background: var(--paper);
   border-radius: 0.65rem;
-}
-.se-section-row strong,
-.se-confirm {
   font-size: 0.9rem;
-}
-.se-check {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  font-size: 0.88rem;
-  min-height: 32px;
-}
-.se-check input {
-  accent-color: var(--green);
 }
 .se-option.se-delete {
   color: var(--accent);
@@ -419,75 +432,8 @@
   min-height: 44px;
   justify-content: center;
 }
-.se-save,
-.se-picker-actions .primary {
+.se-save {
   width: 100%;
-}
-.se-picker-actions .secondary {
-  flex-shrink: 0;
-}
-.se-date-picker {
-  display: grid;
-  gap: 0.35rem;
-}
-.se-picker-intro h3 {
-  font-size: 1.02rem;
-  font-weight: 700;
-}
-.se-picker-intro p,
-.se-primary-caption {
-  color: var(--muted);
-  font-size: 0.85rem;
-}
-.se-month {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-.se-month-days {
-  display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 0.13rem;
-  text-align: center;
-  align-items: center;
-}
-.se-month-days > span:not(.se-primary-day) {
-  color: var(--muted);
-  font-size: 0.8rem;
-}
-.se-month-day,
-.se-primary-day {
-  display: grid;
-  place-items: center;
-  min-height: 44px;
-  border-radius: 0.55rem;
-  border: 1px solid transparent;
-  background: var(--paper);
-  color: var(--ink);
-  font-weight: 600;
-}
-.se-month-day:hover {
-  border-color: var(--line);
-}
-.se-month-day[aria-pressed='true'] {
-  background: var(--hero-ink);
-  color: var(--card);
-}
-.se-primary-day,
-.se-primary-caption > span {
-  border: 1px solid var(--green);
-  background: var(--tint);
-}
-.se-primary-caption {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-  margin-block-start: 0.35rem;
-}
-.se-primary-caption > span {
-  width: 0.65rem;
-  height: 0.65rem;
-  border-radius: 0.18rem;
 }
 @media (max-width: 580px) {
   .cal-toolbar {

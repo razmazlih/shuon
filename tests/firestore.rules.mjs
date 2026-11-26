@@ -152,6 +152,39 @@ test('two signed-in devices serialize overlapping creates, adjacent writes and s
   assert.equal((await getDocs(collectionRef)).size, 2)
 })
 
+test('a mixed shift transaction applies every change together and rejects a stale deletion without partial writes', async () => {
+  const { writeCloudShifts } = await import('../src/data/shift-writes.ts')
+  const user = 'mixed-shifts-' + randomUUID()
+  const deviceA = env.authenticatedContext(user).firestore()
+  const deviceB = env.authenticatedContext(user).firestore()
+  const shifts = collection(deviceA, 'users', user, 'shifts')
+  const marker = doc(deviceA, 'users', user, 'settings', 'shiftWrite')
+  const readShifts = async () => (await getDocs(shifts)).docs.map((snap) => snap.data())
+  const old = { ...shift, id: 'remove', start: shift.end, end: '2026-11-26T18:00:00.000Z' }
+  await writeCloudShifts(deviceA, user, [{ ...shift, id: 'edit' }, old], [], [])
+
+  const originals = await readShifts()
+  const edited = { ...originals.find((row) => row.id === 'edit'), note: 'תיקון משמרת' }
+  const replacement = { ...old, id: 'add' }
+  const modifiedElsewhere = { ...originals.find((row) => row.id === old.id), note: 'עדכון ממכשיר אחר' }
+  await writeCloudShifts(deviceB, user, [modifiedElsewhere], [], originals)
+
+  const latest = await readShifts()
+  const markerBefore = (await getDoc(marker)).data()
+  await assert.rejects(writeCloudShifts(deviceA, user, [edited, replacement], [old.id], originals), /השתנתה/)
+  assert.deepEqual(await readShifts(), latest)
+  assert.deepEqual((await getDoc(marker)).data(), markerBefore)
+
+  await writeCloudShifts(deviceA, user, [edited, replacement], [old.id], latest)
+  const result = new Map((await readShifts()).map((row) => [row.id, row]))
+  assert.equal(result.size, 2)
+  assert.equal(result.get(edited.id)?.note, edited.note)
+  assert.equal(result.get(replacement.id)?.start, replacement.start)
+  assert.equal(result.get(replacement.id)?.end, replacement.end)
+  assert.equal(result.has(old.id), false)
+  assert.notDeepEqual((await getDoc(marker)).data(), markerBefore)
+})
+
 test('only one of two concurrently opened timers can commit, without losing the other device’s revision', async () => {
   const { writeCloudShifts } = await import('../src/data/shift-writes.ts')
   const user = 'timers-' + randomUUID()

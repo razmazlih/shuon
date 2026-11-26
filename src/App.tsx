@@ -17,6 +17,7 @@ import {
   X,
 } from 'lucide-react'
 import { auth, login, logout } from './data/firebase'
+import type { ManualShiftWrites } from './data/manual-shifts'
 import {
   dateLabel,
   defaultPay,
@@ -250,8 +251,8 @@ function WorkspaceApp({ user }: { user: User | null }) {
     editor?.initial && !editor.duplicate
       ? [...w.shifts.filter((s) => s.id !== editor.initial!.id), editor.initial]
       : w.shifts
-  const saveRows = async (rows: WorkShift[]) => {
-    await writeShifts(uid, rows, [], originalsForEditor)
+  const saveRows = async ({ rows, deleted, originals }: ManualShiftWrites) => {
+    await writeShifts(uid, rows, deleted, originals)
     setMessage(rows.length === 1 ? 'המשמרת נשמרה' : 'המשמרות נשמרו')
   }
   const timer = (op: 'start' | 'pause' | 'resume' | 'stop') =>
