@@ -77,6 +77,9 @@ textarea:focus-visible {
   outline: 3px solid #d88b49;
   outline-offset: 3px;
 }
+[data-pointer-focus] :focus {
+  outline: none;
+}
 button {
   border: 0;
 }

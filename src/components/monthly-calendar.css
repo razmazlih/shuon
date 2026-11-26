@@ -103,7 +103,7 @@
   cursor: pointer;
 }
 
-.cal-picker:focus-within {
+:root:not([data-pointer-focus]) .cal-picker:has(input:focus-visible) {
   outline: 3px solid #d88b49;
   outline-offset: 1px;
 }
