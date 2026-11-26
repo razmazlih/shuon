@@ -649,43 +649,53 @@ button:not(:disabled):active {
   margin: 0;
 }
 .income-estimates {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  align-items: stretch;
-  gap: 8px;
-  margin-top: 2px;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  align-items: center;
+  gap: clamp(10px, 2vw, 18px);
+  margin-top: 6px;
 }
-.income-estimates > div {
+.income-earned,
+.income-forecast {
   display: grid;
-  align-content: space-between;
-  gap: 2px;
-  padding: 6px 9px;
-  border: 1px solid #d5e4d426;
-  border-radius: 9px;
+  gap: 4px;
+  min-width: 0;
 }
-.income-estimates > div:last-child {
-  background: #d5e4d41a;
+.income-earned {
+  padding: 9px 10px;
+  border: 1px solid #d5e4d43d;
+  border-radius: 12px;
+  background: #d5e4d418;
+}
+.income-forecast {
+  border-inline-start: 1px solid #d5e4d438;
+  padding-inline-start: clamp(9px, 2vw, 15px);
 }
 :root[data-theme='dark'] .income-card .overline,
-:root[data-theme='dark'] .income-estimates > div:first-child dd {
+:root[data-theme='dark'] .income-earned dd {
   color: var(--green);
-}
-:root[data-theme='dark'] .income-estimates > div:last-child {
-  background: var(--lavender-tint);
-  border-color: color-mix(in srgb, var(--lavender) 24%, var(--card));
-}
-:root[data-theme='dark'] .income-estimates > div:last-child dd {
-  color: var(--lavender);
 }
 .income-estimates dt {
   font-size: 12px;
-  line-height: 1.3;
-  color: #e1ebda;
+  line-height: 1.35;
+}
+.income-earned dt {
+  font-weight: 650;
 }
 .income-estimates dd {
   margin: 0;
-  font-size: 19px;
-  font-weight: 700;
-  line-height: 1.3;
+  line-height: 1.1;
+  overflow-wrap: anywhere;
+}
+.income-earned dd {
+  font-size: clamp(23px, 5.8vw, 34px);
+  font-weight: 750;
+}
+.income-forecast {
+  color: #d2dfd1;
+}
+.income-forecast dd {
+  font-size: 16px;
+  font-weight: 600;
 }
 .summary-strip {
   background: var(--card);

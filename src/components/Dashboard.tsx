@@ -220,13 +220,13 @@ export function Dashboard(p: Props) {
               </button>
             </div>
             <dl className="income-estimates">
-              <div>
+              <div className="income-earned">
                 <dt>נצבר עד כה</dt>
-                <dd>{p.currentNet === null ? '—' : formatMoney(p.currentNet)}</dd>
+                <dd><bdi>{p.currentNet === null ? '—' : formatMoney(p.currentNet)}</bdi></dd>
               </div>
-              <div>
+              <div className="income-forecast">
                 <dt>צפוי כולל משמרות מתוכננות</dt>
-                <dd>{p.forecastNet === null ? '—' : formatMoney(p.forecastNet)}</dd>
+                <dd><bdi>{p.forecastNet === null ? '—' : formatMoney(p.forecastNet)}</bdi></dd>
               </div>
             </dl>
           </div>
