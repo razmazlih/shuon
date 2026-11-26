@@ -1,7 +1,12 @@
 .shift-calendar {
-  --calendar-planned: #805f22;
-  --calendar-completed: var(--green);
-  --calendar-active: var(--accent);
+  --calendar-planned: #86520f;
+  --calendar-completed: #1c6546;
+  --calendar-active: #9d412d;
+  --calendar-mixed: #65468e;
+  --calendar-planned-fill: #fff0cc;
+  --calendar-completed-fill: #d9f1df;
+  --calendar-active-fill: #ffe1d7;
+  --calendar-mixed-fill: #eee4fa;
 
   display: grid;
   align-items: start;
@@ -11,7 +16,14 @@
 }
 
 :root[data-theme='dark'] .shift-calendar {
-  --calendar-planned: #d9bd76;
+  --calendar-planned: #f2ca77;
+  --calendar-completed: #a2dfb4;
+  --calendar-active: #ffb196;
+  --calendar-mixed: #d6bafa;
+  --calendar-planned-fill: #4a381c;
+  --calendar-completed-fill: #234936;
+  --calendar-active-fill: #573127;
+  --calendar-mixed-fill: #453354;
 }
 
 .cal-month,
@@ -189,25 +201,29 @@
 
 .cal-day[data-work-status] {
   --calendar-tone: var(--calendar-completed);
-  background: color-mix(in srgb, var(--calendar-tone) 11%, var(--card));
-  border-color: color-mix(in srgb, var(--calendar-tone) 28%, var(--card));
+  --calendar-fill: var(--calendar-completed-fill);
+  background: var(--calendar-fill);
+  border-color: color-mix(in srgb, var(--calendar-tone) 26%, var(--calendar-fill));
+  color: var(--calendar-tone);
 }
 
 .cal-day[data-work-status='planned'] {
   --calendar-tone: var(--calendar-planned);
+  --calendar-fill: var(--calendar-planned-fill);
 }
 
 .cal-day[data-work-status='active'] {
   --calendar-tone: var(--calendar-active);
+  --calendar-fill: var(--calendar-active-fill);
 }
 
 .cal-day[data-work-status='mixed'] {
-  --calendar-tone: color-mix(in srgb, var(--calendar-completed), var(--calendar-planned));
+  --calendar-tone: var(--calendar-mixed);
+  --calendar-fill: var(--calendar-mixed-fill);
 }
 
 .cal-day[data-outside='true'][data-work-status] {
-  background: color-mix(in srgb, var(--calendar-tone) 5%, var(--card));
-  border-color: color-mix(in srgb, var(--calendar-tone) 15%, var(--card));
+  background: color-mix(in srgb, var(--calendar-fill) 62%, var(--card));
 }
 
 .cal-day:hover {
@@ -222,7 +238,12 @@
 }
 
 .cal-cell[aria-selected='true'] .cal-day[data-work-status] {
-  background: color-mix(in srgb, var(--calendar-tone) 19%, var(--card));
+  background: var(--calendar-fill);
+  color: var(--calendar-tone);
+}
+
+.cal-day[data-work-status]:hover {
+  border-color: var(--calendar-tone);
 }
 
 .cal-day:focus-visible {
@@ -297,45 +318,50 @@
 }
 
 .cal-indicator[data-status='mixed'] {
-  background: linear-gradient(135deg, var(--calendar-completed) 50%, var(--calendar-planned) 50%);
-}
-
-.cal-legend-wrap,
-.cal-legend-label {
-  display: flex;
-  align-items: center;
-  gap: 0.36rem;
+  background: var(--calendar-mixed);
+  border-radius: 0.1rem;
 }
 
 .cal-legend-wrap {
-  flex-wrap: wrap;
+  display: flex;
+  align-items: center;
   justify-content: space-between;
-  column-gap: 0.95rem;
-  margin-block-start: 0.75rem;
+  gap: 0.35rem;
+  margin-block-start: 0.55rem;
+  padding: 0.3rem 0.45rem;
+  border-radius: 0.55rem;
+  background: var(--paper);
+  line-height: 1.2;
+  font-size: clamp(0.66rem, 2.4vw, 0.76rem);
 }
 
 .cal-legend-label {
   color: var(--ink);
   white-space: nowrap;
-  font-size: 0.8rem;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .cal-legend {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.25rem 0.85rem;
+  justify-content: end;
+  gap: 0.2rem clamp(0.22rem, 1.35vw, 0.6rem);
   padding: 0;
   margin: 0;
   list-style: none;
   color: var(--muted);
-  font-size: 0.8rem;
 }
 
 .cal-legend li {
   display: flex;
   align-items: center;
-  gap: 0.35rem;
+  gap: 0.22rem;
+  white-space: nowrap;
+}
+
+.cal-legend .cal-indicator {
+  width: 0.38rem;
+  height: 0.38rem;
 }
 
 .cal-agenda-heading h2 {

@@ -35,7 +35,7 @@ const weekdays = [
 ]
 const statusLabels = { planned: 'מתוכננת', completed: 'בוצעה', active: 'פעילה' }
 const statusKeys = ['planned', 'completed', 'active'] as const
-const legendLabels = { ...statusLabels, mixed: 'שילוב מצבים' }
+const legendLabels = { ...statusLabels, mixed: 'משולב' }
 const arrowSteps: Record<string, number> = { ArrowLeft: 1, ArrowRight: -1, ArrowUp: -7, ArrowDown: 7 }
 const earliestDate = '0001-01-01'
 const latestDate = '9999-12-31'
@@ -287,7 +287,7 @@ export function Calendar({
           </div>
         </div>
         <div className="cal-legend-wrap">
-          <span className="cal-legend-label"><Clock3 size={14} aria-hidden="true" /> סך שעות העבודה ביום</span>
+          <span className="cal-legend-label" title="סך שעות העבודה ביום">שעות עבודה</span>
           <ul className="cal-legend" aria-label="מצבי משמרות">
             {([...statusKeys, 'mixed'] as const).map((status) => (
               <li key={status}>
