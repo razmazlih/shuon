@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { User } from 'firebase/auth'
-import { CalendarDays, Check, Cloud, Settings2 } from 'lucide-react'
+import { CalendarDays, Cloud, Settings2 } from 'lucide-react'
 import { appleApiConfigured, appleRequest } from '../lib/appleCalendarApi'
 import { AppleCalendarWizard, PasswordGuide, TravelField, appleError, travelLabel, type CalendarSelection } from './AppleCalendarWizard'
 import { Dialog } from './Dialog'
@@ -132,22 +132,22 @@ export default function AppleCalendar({ user, onSignIn }: { user: User | null; o
         {!error && <p role="status">מתחבר לשירות היומן…</p>}
         {error && <button type="button" onClick={() => { setError(''); void refresh().catch(reason => setError(appleError(reason))) }}>בדיקה חוזרת</button>}
       </> : status.connected ? <>
-        <div className="apple-connected">
-          <span className="apple-connected-icon"><Check size={20} /></span>
-          <div><strong>{status.calendarName || 'המשמרות שלי'}</strong>
-            <small>{demo ? 'חיבור לדוגמה בדפדפן הזה' : 'מחובר ל־iCloud'}</small></div>
+        <div className="apple-summary">
+          <div className="apple-status-row">
+            <div><small>{demo ? 'לוח לדוגמה' : 'הלוח המחובר'}</small><strong>{status.calendarName || 'המשמרות שלי'}</strong></div>
+            <button type="button" disabled={Boolean(busy)} onClick={() => void act('disconnectAppleCalendar')}>ניתוק החיבור</button>
+          </div>
+          <div className="apple-status-row">
+            <div><small>זמן נסיעה למשמרת</small><strong>{travelLabel(status.travelMinutes ?? 0)}</strong></div>
+            <button type="button" aria-label="עריכת זמן נסיעה" disabled={Boolean(busy)} onClick={() => { setMinutes(status.travelMinutes ?? 0); setError(''); setPanel('travel') }}><Settings2 size={15}/>עריכה</button>
+          </div>
+          <div className="apple-status-row">
+            <div><small>סנכרון אחרון</small><strong>{status.lastSync ? <bdi dir="ltr">{formatted.format(new Date(status.lastSync))}</bdi> : 'ממתין לסנכרון ראשון'}</strong></div>
+            <button type="button" disabled={Boolean(busy)} onClick={() => void act('syncAppleCalendar')}><Cloud size={15}/>סנכרון עכשיו</button>
+          </div>
         </div>
-        <dl className="apple-info">
-          <div><dt>זמן נסיעה</dt><dd>{travelLabel(status.travelMinutes ?? 0)}</dd></div>
-          <div><dt>סנכרון אחרון</dt><dd>{status.lastSync ? <bdi>{formatted.format(new Date(status.lastSync))}</bdi> : 'ממתין לסנכרון ראשון'}</dd></div>
-        </dl>
-        <p>{demo ? 'ההדגמה משתמשת בלוחות לדוגמה. לחיבור יומן אישי נכנסים לחשבון בשועון.' : 'המשמרות מתעדכנות בשמירה ובפתיחת האתר. השירות בודק שינויים גם ברקע מדי 15 דקות, בכפוף לזמינות השירות ולמכסה החינמית.'}</p>
+        {demo ? <button type="button" className="text-button" onClick={onSignIn}>כניסה לחיבור היומן האישי</button> : <small>סנכרון אוטומטי מדי 15 דקות</small>}
         {Boolean(status.unsupported) && <p>{status.unsupported} אירועים דולגו. נתמכות משמרות חד־פעמיות עם שעות התחלה וסיום.</p>}
-        <div className="apple-actions">
-          <button type="button" disabled={Boolean(busy)} onClick={() => void act('syncAppleCalendar')}><Cloud size={16}/>סנכרון עכשיו</button>
-          <button type="button" disabled={Boolean(busy)} onClick={() => { setMinutes(status.travelMinutes ?? 0); setError(''); setPanel('travel') }}><Settings2 size={16}/>עריכת זמן נסיעה</button>
-          <button type="button" disabled={Boolean(busy)} onClick={() => void act('disconnectAppleCalendar')}>ניתוק החיבור</button>
-        </div>
         {status.reviews.length > 0 && (
           <div className="calendar-reviews">
             <h3>שינויים הממתינים לאישור</h3>

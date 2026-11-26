@@ -172,3 +172,12 @@
 .apple-info { margin: .85rem 0; padding-block: .75rem; border-block: 1px solid var(--line); display: flex; gap: 2rem; flex-wrap: wrap; }
 .apple-info dt { font-size: .8rem; color: var(--muted); }
 .apple-info dd { margin: .2rem 0 0; font-size: .92rem; font-weight: 650; }
+
+.apple-summary { margin-block: .35rem; }
+.apple-status-row { display: flex; align-items: center; justify-content: space-between; gap: .6rem; padding-block: .45rem; }
+.apple-status-row + .apple-status-row { border-block-start: 1px solid var(--line); }
+.apple-status-row > div { min-width: 0; }
+.apple-status-row small, .apple-status-row strong { display: block; }
+.apple-status-row small { color: var(--muted); font-size: .8rem; }
+.apple-status-row strong { overflow-wrap: anywhere; font-size: .98rem; }
+.apple-status-row button { flex: none; display: inline-flex; align-items: center; gap: .3rem; min-height: 40px; }
