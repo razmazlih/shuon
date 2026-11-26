@@ -3,7 +3,6 @@
   gap: 1rem;
   color: var(--ink, #193c31);
 }
-.salary-section-head,
 .salary-actions,
 .salary-sources {
   display: flex;
@@ -23,7 +22,6 @@
   cursor: pointer;
 }
 .salary-primary,
-.salary-secondary,
 .salary-link {
   font: inherit;
 }
@@ -120,7 +118,6 @@
   font-size: 0.9rem;
 }
 .salary-help,
-.salary-items small,
 .salary-method p {
   color: var(--muted);
   font-size: 0.875rem;
@@ -209,13 +206,6 @@
   font-size: 0.8rem;
   font-weight: 400;
 }
-.salary-items > li {
-  display: flex;
-  align-items: center;
-  gap: 0.65rem;
-  padding: 0.68rem 0;
-  border-bottom: 1px solid var(--line);
-}
 .salary-form {
   display: grid;
   gap: 0.95rem;
@@ -223,8 +213,7 @@
 .salary-settings[open] > summary {
   margin-bottom: 0.9rem;
 }
-.salary-help,
-.salary-live {
+.salary-help {
   margin: 0.55rem 0 0;
 }
 .salary-form .salary-help {
@@ -250,8 +239,7 @@
   font-size: 0.9rem;
   min-width: 0;
 }
-.salary-field input,
-.salary-field select {
+.salary-field input {
   padding: 0.63rem 0.7rem;
   font: inherit;
   color: var(--ink);
@@ -274,26 +262,17 @@
 .salary-sources {
   justify-content: flex-start;
 }
-.salary-actions span,
-.salary-live {
+.salary-actions span {
   font-size: 0.875rem;
 }
-.salary-primary,
-.salary-secondary {
+.salary-primary {
   border-radius: 0.6rem;
   padding: 0.5rem 0.85rem;
   font-weight: 650;
   font-size: 0.9rem;
-}
-.salary-primary {
   background: var(--green, #205543);
   border: 1px solid transparent;
   color: var(--on-green);
-}
-.salary-secondary {
-  background: var(--card, white);
-  border: 1px solid var(--line, #c9d0c5);
-  color: var(--ink);
 }
 .salary-link {
   padding: 0.15rem 0;
@@ -313,27 +292,6 @@
   color: var(--green, #205543);
   text-decoration: underline;
   text-underline-offset: 0.18em;
-}
-.salary-items {
-  padding: 0;
-  margin: 0.5rem 0 0;
-  list-style: none;
-}
-.salary-items li > div {
-  flex: 1;
-  overflow-wrap: anywhere;
-}
-.salary-items strong,
-.salary-items small {
-  display: block;
-}
-.salary-adjust-form {
-  border-top: 1px solid var(--line, #dde0d6);
-  margin-top: 0.9rem;
-  padding-top: 0.9rem;
-}
-.salary-live:empty {
-  display: none;
 }
 @media (max-width: 580px) {
   .salary-card,

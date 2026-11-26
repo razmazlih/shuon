@@ -494,7 +494,6 @@ function WorkspaceApp({ user }: { user: User | null }) {
               profile={w.payroll}
               adjustments={w.adjustments}
               onProfileChange={(v) => setting('payroll', v)}
-              onAdjustmentsChange={(v) => setting('adjustments', v)}
             />
           </>
         )}

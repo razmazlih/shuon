@@ -3,7 +3,6 @@ import type { FormEvent, ReactNode } from 'react'
 import { CalendarCheck, Wallet } from 'lucide-react'
 import { payrollRules2026, salaryReport } from '../domain/net'
 import type {
-  AdjustmentKind,
   PayrollAdjustment,
   PayrollMonth,
   PayrollProfile,
@@ -23,7 +22,6 @@ type SalaryProps = {
   profile: PayrollProfile
   adjustments: PayrollAdjustment[]
   onProfileChange: (profile: PayrollProfile) => Promise<void>
-  onAdjustmentsChange: (items: PayrollAdjustment[]) => Promise<void>
 }
 
 const shekels = new Intl.NumberFormat('he-IL', {
@@ -37,24 +35,6 @@ const monthLabel = (month: string) =>
   new Intl.DateTimeFormat('he-IL', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(
     new Date(month + '-15T12:00:00Z'),
   )
-const types: Record<AdjustmentKind, string> = {
-  wage: 'תוספת שכר מבוטחת',
-  absence: 'דמי חופשה, מחלה או חג',
-  taxable: 'תוספת חייבת ללא פנסיה',
-  benefit: 'שווי הטבה לצורכי מס',
-  reimbursement: 'החזר הוצאות פטור',
-  deduction: 'ניכוי מהנטו',
-}
-const explanations: Record<AdjustmentKind, string> = {
-  wage: 'הסכום מצטרף לברוטו ולבסיס ההפרשה לפנסיה.',
-  absence:
-    'יש להזין את השכר עבור ההיעדרות לפי הזכאות או התלוש, ולוודא שהשעות אינן רשומות גם כעבודה. הזכאות לחג תלויה בוותק ובימי העבודה, ולמחלה ביתרה הצבורה וברצף ההיעדרות.',
-  taxable: 'הסכום מתווסף לברוטו וחייב במס ובדמי ביטוח. אפשר לרשום כאן נסיעות החייבות במס.',
-  benefit: 'לדוגמה, שווי ארוחות או רכב. הסכום מגדיל את הבסיס למס ולדמי ביטוח בלבד.',
-  reimbursement: 'להחזר שמופיע בתלוש כפטור ממס ומדמי ביטוח. הוא מתווסף ישירות לנטו.',
-  deduction: 'לדוגמה, החזר מקדמה, חלק העובד בקרן השתלמות או דמי ועד. הסכום יורד ישירות מהנטו.',
-}
-
 function PayslipForm({
   month,
   profile,
@@ -156,163 +136,6 @@ function PayslipForm({
         <span role="status">{status}</span>
       </div>
     </form>
-  )
-}
-
-function Adjustments({
-  month,
-  adjustments,
-  onAdjustmentsChange,
-}: Pick<SalaryProps, 'month' | 'adjustments' | 'onAdjustmentsChange'>) {
-  const [editing, setEditing] = useState<PayrollAdjustment | 'new' | null>(null)
-  const [kind, setKind] = useState<AdjustmentKind>('wage')
-  const [busy, setBusy] = useState(false)
-  const [status, setStatus] = useState('')
-  const labelInput = useRef<HTMLInputElement>(null)
-  const rows = adjustments.filter((item) => item.month === month)
-  const old = editing && editing !== 'new' ? editing : null
-  function edit(row: PayrollAdjustment | 'new') {
-    setKind(row === 'new' ? 'wage' : row.kind)
-    setEditing(row)
-    setStatus('')
-    requestAnimationFrame(() => labelInput.current?.focus())
-  }
-  async function persist(next: PayrollAdjustment[], message: string) {
-    setBusy(true)
-    setStatus('')
-    try {
-      await onAdjustmentsChange(next)
-      setEditing(null)
-      setStatus(message)
-    } catch {
-      setStatus('שמירת השינוי נכשלה. אפשר לנסות שוב.')
-    } finally {
-      setBusy(false)
-    }
-  }
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    const data = new FormData(event.currentTarget)
-    const label = String(data.get('label')).trim()
-    if (!label) {
-      setStatus('יש להזין שם לרכיב השכר')
-      labelInput.current?.focus()
-      return
-    }
-    const row: PayrollAdjustment = {
-      id: old?.id ?? crypto.randomUUID(),
-      month,
-      label,
-      amount: Number(data.get('amount')),
-      kind,
-      planned: data.has('planned'),
-    }
-    const next = old ? adjustments.map((item) => (item.id === row.id ? row : item)) : [...adjustments, row]
-    await persist(next, 'רכיב השכר נשמר')
-  }
-  return (
-    <section className="salary-card">
-      <div className="salary-section-head">
-        <h2>רכיבי שכר נוספים</h2>
-        <button type="button" className="salary-secondary" disabled={busy} onClick={() => edit('new')}>
-          + הוספת רכיב
-        </button>
-      </div>
-      {rows.length === 0 && !editing && (
-        <p className="salary-help">כאן אפשר להוסיף דמי חג, החזרי נסיעות, בונוסים וניכויים מהתלוש.</p>
-      )}
-      {rows.length > 0 && (
-        <ul className="salary-items">
-          {rows.map((row) => (
-            <li key={row.id}>
-              <div>
-                <strong>{row.label}</strong>
-                <small>
-                  {types[row.kind]} · {row.planned ? 'מתוכנן' : 'בפועל'}
-                </small>
-              </div>
-              <bdi>{money(row.amount)}</bdi>
-              <button
-                type="button"
-                className="salary-link"
-                disabled={busy}
-                aria-label={'עריכת ' + row.label}
-                onClick={() => edit(row)}
-              >
-                עריכה
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-      {editing && (
-        <form key={old?.id ?? 'new'} onSubmit={submit} className="salary-form salary-adjust-form">
-          <div className="salary-grid">
-            <label className="salary-field">
-              שם הרכיב
-              <input
-                ref={labelInput}
-                autoComplete="off"
-                name="label"
-                required
-                maxLength={80}
-                defaultValue={old?.label}
-                placeholder="למשל, דמי חג"
-              />
-            </label>
-            <label className="salary-field">
-              סוג הרכיב
-              <select name="kind" value={kind} onChange={(e) => setKind(e.target.value as AdjustmentKind)}>
-                {Object.entries(types).map(([value, text]) => (
-                  <option key={value} value={value}>
-                    {text}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-          <p className="salary-help">{explanations[kind]}</p>
-          <div className="salary-grid">
-            <NumberField name="amount" title="סכום (₪)" min={0.01} value={old?.amount} required />
-            <label className="salary-check">
-              <input type="checkbox" name="planned" defaultChecked={old?.planned ?? false} /> רכיב מתוכנן
-              לתחזית בלבד
-            </label>
-          </div>
-          <div className="salary-actions">
-            <button disabled={busy} className="salary-primary">
-              שמירת רכיב
-            </button>
-            <button
-              type="button"
-              className="salary-secondary"
-              disabled={busy}
-              onClick={() => setEditing(null)}
-            >
-              ביטול
-            </button>
-            {old && (
-              <button
-                type="button"
-                className="salary-link"
-                disabled={busy}
-                onClick={() =>
-                  void persist(
-                    adjustments.filter((row) => row.id !== old.id),
-                    'רכיב השכר הוסר',
-                  )
-                }
-              >
-                הסרת רכיב
-              </button>
-            )}
-          </div>
-        </form>
-      )}
-      <p className="salary-live" role="status">
-        {status}
-      </p>
-    </section>
   )
 }
 
@@ -494,7 +317,6 @@ export function Salary(props: SalaryProps) {
           onProfileChange={props.onProfileChange}
         />
       </details>
-      <Adjustments key={month} {...props} />
       {bands.length > 0 && (
         <SalaryComparison title="השעות המרכיבות את הברוטו">
           <tbody>
@@ -517,7 +339,7 @@ export function Salary(props: SalaryProps) {
         </p>
         <p>
           מס הכנסה מחושב במדרגות, בניכוי נקודות זיכוי וזיכוי להפקדה מוכרת לפנסיה. בסיס הפנסיה האוטומטי כולל
-          שכר יסוד של שעות רגילות ורכיבים מבוטחים שהוספת. בנתוני התלוש אפשר לשנות את הבסיס לפי ההסכם האישי.
+          שכר יסוד של שעות רגילות ורכיבים מבוטחים שנשמרו בעבר. בנתוני התלוש אפשר לשנות את הבסיס לפי ההסכם האישי.
         </p>
         <p>
           לשכר משתנה אפשר להזין נתונים מצטברים מהתלוש הקודם. במשרה נוספת, בתיאום מס, בזכאות להטבת מס למשמרות
