@@ -9,3 +9,8 @@ firebase-debug*.log
 .DS_Store
 .playwright-cli/
 output/
+
+# Local Netlify folder
+.netlify
+
+!.env.production

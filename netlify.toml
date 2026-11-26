@@ -1,8 +1,7 @@
 [build]
-  base = "functions"
-  command = "node --check netlify/calendar-api.mjs"
-  publish = "public"
-  functions = "netlify"
+  command = "npm ci --prefix functions && node --check functions/netlify/calendar-api.mjs"
+  publish = "functions/public"
+  functions = "functions/netlify"
 
 [build.environment]
   NODE_VERSION = "22"
