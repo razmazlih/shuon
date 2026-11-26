@@ -95,7 +95,9 @@ npm run test:rules          # הרשאות Firestore עם אמולטור זמנ�
 npm test --prefix functions # פונקציות יומן Apple
 ```
 
-בונים את האתר ופורסים אותו ל־Firebase Hosting.
+כל `push` ל־`main` מפעיל את [תהליך הפריסה ב־GitHub Actions](https://github.com/razmazlih/shuon/actions/workflows/firebase-hosting.yml). התהליך מריץ בדיקות, בונה את האתר ומפרסם אותו ל־Firebase Hosting באמצעות אימות OIDC. בהיסטוריית הפריסות של Firebase מופיע מזהה הקומיט שפורסם.
+
+אפשר גם לפרוס את האתר ידנית.
 
 ```sh
 npm run build

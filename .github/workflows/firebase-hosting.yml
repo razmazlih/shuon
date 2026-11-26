@@ -1,0 +1,51 @@
+name: Deploy Firebase Hosting
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: firebase-hosting-live
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out the pushed commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            functions/package-lock.json
+
+      - name: Install, test, and build
+        run: |
+          npm ci
+          npm ci --prefix functions
+          npm test
+          npm run build
+
+      - name: Install Firebase CLI
+        run: npm install --global firebase-tools@15.37.0
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
+        with:
+          workload_identity_provider: projects/866501882738/locations/global/workloadIdentityPools/github-hosting/providers/github-main
+          service_account: shuon-hosting-ci@shuon-shifts-il.iam.gserviceaccount.com
+
+      - name: Publish to Firebase Hosting
+        run: firebase deploy --only hosting --project shuon-shifts-il --non-interactive --message "$GITHUB_SHA"
