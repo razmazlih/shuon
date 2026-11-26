@@ -1,5 +1,5 @@
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
-import { CalendarDays, ChevronLeft, ChevronRight, Clock3, Copy, Plus } from 'lucide-react'
+import { CalendarDays, ChevronLeft, ChevronRight, Plus } from 'lucide-react'
 import type { WorkShift } from '../data/model'
 import { formatWorkDuration, shiftWorkMillis, workMillisOnDay } from '../data/shift-hours'
 import { addDays, addMonths, dateMs, localDate, localTime, monthDays } from '../domain/time'
@@ -13,7 +13,6 @@ interface CalendarProps {
   onDate: (date: string) => void
   onEdit: (shift: WorkShift) => void
   onAdd: (date: string) => void
-  onDuplicate: (shift: WorkShift) => void
 }
 
 const dateLabel = new Intl.DateTimeFormat('he-IL', {
@@ -114,7 +113,6 @@ export function Calendar({
   onDate,
   onEdit,
   onAdd,
-  onDuplicate,
 }: CalendarProps) {
   const [now, setNow] = useState(Date.now)
   const hasActive = shifts.some((shift) => shift.status === 'active')
@@ -326,38 +324,37 @@ export function Calendar({
                   const crossDay = shift.status !== 'active' && start !== localDate(shift.end)
                   return (
                     <li key={shift.id}>
-                      <button className="cal-entry" type="button" onClick={() => onEdit(shift)}>
-                        <span className="cal-mark" data-status={shift.status} aria-hidden="true" />
+                      <button
+                        className="cal-entry"
+                        data-status={shift.status}
+                        type="button"
+                        onClick={() => onEdit(shift)}
+                      >
                         <span className="cal-entry-main">
-                          <strong>{shift.title || 'משמרת עבודה'}</strong>
-                          <span>
+                          <span className="cal-entry-time">
                             <TimeRange
                               start={localTime(shift.start)}
-                              end={shift.status === 'active' ? undefined : localTime(shift.end)}
+                              end={shift.status === 'active' ? '…' : localTime(shift.end)}
                             />
-                            {crossDay && <small> · חוצה חצות</small>}
-                            {shift.status === 'active' && ' · במשמרת'}
+                          </span>
+                          <span className="cal-entry-caption">
+                            <strong>{shift.title || 'משמרת עבודה'}</strong>
+                            {crossDay && <small>חוצה חצות</small>}
                           </span>
                         </span>
-                        {shift.status !== 'active' && (
-                          <span className="cal-length">
-                            <Clock3 size={14} aria-hidden="true" />
-                            <bdi dir="ltr">{formatWorkDuration(shiftWorkMillis(shift, now))}</bdi> שעות
+                        <span className="cal-entry-meta">
+                          <span className="cal-status">
+                            <i className="cal-indicator" data-status={shift.status} aria-hidden="true" />
+                            {statusLabels[shift.status]}
                           </span>
-                        )}
-                        <span className="cal-status">{statusLabels[shift.status]}</span>
+                          {shift.status !== 'active' && (
+                            <span className="cal-length">
+                              <bdi dir="ltr">{formatWorkDuration(shiftWorkMillis(shift, now))}</bdi> שעות
+                            </span>
+                          )}
+                        </span>
+                        <ChevronLeft className="cal-entry-arrow" size={16} aria-hidden="true" />
                       </button>
-                      {shift.status !== 'active' && (
-                        <button
-                          className="icon-btn"
-                          type="button"
-                          aria-label={'שכפול ' + (shift.title || 'משמרת עבודה')}
-                          title="שכפול משמרת"
-                          onClick={() => onDuplicate(shift)}
-                        >
-                          <Copy size={16} aria-hidden="true" />
-                        </button>
-                      )}
                     </li>
                   )
                 })}

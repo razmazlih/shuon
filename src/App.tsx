@@ -474,7 +474,6 @@ function WorkspaceApp({ user }: { user: User | null }) {
             onDate={setDay}
             onEdit={showDetail}
             onAdd={(date) => setEditor({ date })}
-            onDuplicate={(s) => setEditor({ initial: s, duplicate: true, date: day })}
           />
         )}
         {page === 'salary' && !wage.issue && (
