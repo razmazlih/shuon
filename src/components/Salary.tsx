@@ -78,6 +78,7 @@ function NumberField({
       <span>{title}</span>
       <input
         type="number"
+        key={value ?? ''}
         name={name}
         min={min ?? undefined}
         max={max}
@@ -102,7 +103,8 @@ export function PayrollSettings({
   onProfileChange,
 }: Pick<SalaryProps, 'month' | 'profile' | 'onProfileChange'>) {
   const monthData = profile.months?.[month] || {}
-  const [usePrior, setUsePrior] = useState(Boolean(monthData.prior))
+  const [priorDraft, setUsePrior] = useState<boolean | null>(null)
+  const usePrior = priorDraft ?? Boolean(monthData.prior)
   const [saving, setSaving] = useState(false)
   const [status, setStatus] = useState('')
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -131,6 +133,7 @@ export function PayrollSettings({
         capPension: data.has('capPension'),
         months: { ...profile.months, [month]: settings },
       })
+      setUsePrior(null)
       setStatus('פרטי השכר נשמרו')
     } catch {
       setStatus('שמירת פרטי השכר נכשלה. אפשר לנסות שוב.')
@@ -139,7 +142,7 @@ export function PayrollSettings({
     }
   }
   return (
-    <form key={JSON.stringify(profile)} className="salary-form" onSubmit={submit}>
+    <form className="salary-form" onSubmit={submit}>
       <p className="salary-help">
         שאלון השכר בהגדרות משמש לאומדן הראשוני. אם בתלוש מופיעים ערכים אחרים, אפשר לעדכן אותם כאן לכל החודשים.
       </p>
@@ -154,7 +157,7 @@ export function PayrollSettings({
         />
       </div>
       <label className="salary-check">
-        <input type="checkbox" name="capPension" defaultChecked={profile.capPension} /> החלת תקרת פנסיית חובה
+        <input key={String(profile.capPension)} type="checkbox" name="capPension" defaultChecked={profile.capPension} /> החלת תקרת פנסיית חובה
         (13,769 ₪ בחודש בשנת 2026)
       </label>
       <details className="salary-inner-details">

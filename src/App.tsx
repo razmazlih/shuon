@@ -1,4 +1,4 @@
-import { Fragment, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { onAuthStateChanged, type User } from 'firebase/auth'
 import {
   ArrowLeft,
@@ -33,10 +33,9 @@ import { SleepingFox } from './components/SleepingFox'
 import { SalaryMonthPicker } from './components/SalaryMonthPicker'
 import { TimeRange } from './components/TimeRange'
 import { ShiftEditor } from './components/ShiftEditor'
-const Calendar = lazy(() => import('./components/Calendar').then((m) => ({ default: m.Calendar })))
-const Onboarding = lazy(() => import('./components/Settings').then((m) => ({ default: m.Onboarding })))
-const Settings = lazy(() => import('./components/Settings').then((m) => ({ default: m.Settings })))
-const Salary = lazy(() => import('./components/Salary').then((m) => ({ default: m.Salary })))
+import { Calendar } from './components/Calendar'
+import { Onboarding, Settings } from './components/Settings'
+import { Salary } from './components/Salary'
 import { Dialog } from './components/Dialog'
 
 type Page = 'today' | 'calendar' | 'salary' | 'settings'
@@ -77,9 +76,7 @@ export default function App() {
   const [identity, setIdentity] = useState<{ user: User | null } | null>(null)
   useEffect(() => onAuthStateChanged(auth, (user) => setIdentity({ user })), [])
   return identity ? (
-    <Suspense fallback={<Loading />}>
-      <WorkspaceApp key={identity.user?.uid || 'demo'} user={identity.user} />
-    </Suspense>
+    <WorkspaceApp key={identity.user?.uid || 'demo'} user={identity.user} />
   ) : (
     <Loading />
   )
@@ -118,7 +115,11 @@ function WorkspaceApp({ user }: { user: User | null }) {
     return subscribeWorkspace(uid, setWorkspace, (e) => setLoadError(errText(e)))
   }, [uid, retry])
   useEffect(() => {
-    const sync = () => setPage(fromHash())
+    const sync = () => {
+      setPage(fromHash())
+      setDetail(null)
+      setEditor(null)
+    }
     window.addEventListener('hashchange', sync)
     return () => window.removeEventListener('hashchange', sync)
   }, [])
@@ -149,12 +150,14 @@ function WorkspaceApp({ user }: { user: User | null }) {
     media.addEventListener('change', apply)
     return () => media.removeEventListener('change', apply)
   }, [theme])
+  useLayoutEffect(() => {
+    window.scrollTo({ top: 0 })
+  }, [page])
   const navigate = (next: Page) => {
     location.hash = next
     setPage(next)
     setDetail(null)
     setEditor(null)
-    window.scrollTo({ top: 0 })
   }
   const goCalendar = (date: string) => {
     setDay(date)

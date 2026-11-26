@@ -67,7 +67,7 @@ function DayField({ title, name, value }: { title: string; name: string; value: 
   return (
     <label className="prefs-field">
       {title}
-      <select name={name} defaultValue={value}>
+      <select key={value} name={name} defaultValue={value}>
         {days.map((day, index) => (
           <option key={day} value={index}>
             {day}
@@ -95,6 +95,7 @@ function ClockField({
       <input
         dir="ltr"
         type="text"
+        key={value}
         name={name}
         defaultValue={value}
         maxLength={5}
@@ -121,16 +122,14 @@ type HolidayRange = { id: string; start: string; end: string }
 type SavePay = (pay: PaySettings, section: string, message: string) => Promise<boolean>
 
 function TimeSettings({ pay, busy, save }: { pay: PaySettings; busy: boolean; save: SavePay }) {
-  const [holidays, setHolidays] = useState<HolidayDate[]>(() =>
-    (pay.holidays ?? []).map((date, index) => ({ id: String(index), date })),
-  )
-  const [ranges, setRanges] = useState<HolidayRange[]>(() =>
-    (pay.holidayWindows ?? []).map((range, index) => ({
-      id: String(index),
-      start: dateTimeValue(range.start),
-      end: dateTimeValue(range.end),
-    })),
-  )
+  const [holidayDraft, setHolidays] = useState<HolidayDate[] | null>(null)
+  const [rangeDraft, setRanges] = useState<HolidayRange[] | null>(null)
+  const holidays = holidayDraft ?? (pay.holidays ?? []).map((date, index) => ({ id: String(index), date }))
+  const ranges = rangeDraft ?? (pay.holidayWindows ?? []).map((range, index) => ({
+    id: String(index),
+    start: dateTimeValue(range.start),
+    end: dateTimeValue(range.end),
+  }))
   const [error, setError] = useState('')
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -150,7 +149,7 @@ function TimeSettings({ pay, busy, save }: { pay: PaySettings; busy: boolean; sa
       })
       const newHolidays = [...new Set(holidays.map((row) => row.date))].sort()
       newHolidays.forEach(dateMs)
-      await save(
+      const saved = await save(
         {
           ...pay,
           restStartDay,
@@ -165,6 +164,10 @@ function TimeSettings({ pay, busy, save }: { pay: PaySettings; busy: boolean; sa
         'time',
         'הגדרות שבוע העבודה נשמרו',
       )
+      if (saved) {
+        setHolidays(null)
+        setRanges(null)
+      }
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'יש לבדוק את הגדרות השעות.')
     }
@@ -192,7 +195,7 @@ function TimeSettings({ pay, busy, save }: { pay: PaySettings; busy: boolean; sa
           <div className="prefs-grid">
             <label className="prefs-field">
               שעות רגילות בערב חג
-              <select name="holidayEveHours" defaultValue={pay.holidayEveHours ?? 7}>
+              <select key={pay.holidayEveHours} name="holidayEveHours" defaultValue={pay.holidayEveHours ?? 7}>
                 <option value={7}>7 שעות</option>
                 <option value={8}>8 שעות</option>
               </select>
@@ -491,7 +494,7 @@ export function Settings({
           </section>
           <section>
             <h3>שעות ותאריכים מיוחדים</h3>
-            <TimeSettings key={JSON.stringify(profile.pay)} pay={profile.pay} busy={busy} save={savePay} />
+            <TimeSettings pay={profile.pay} busy={busy} save={savePay} />
             {feedback('time')}
           </section>
         </div>

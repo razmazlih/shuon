@@ -284,6 +284,9 @@
   border: 1px solid transparent;
   color: white;
 }
+:root[data-theme='dark'] .salary-primary {
+  color: var(--paper);
+}
 .salary-secondary {
   background: var(--card, white);
   border: 1px solid var(--line, #c9d0c5);
