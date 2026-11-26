@@ -139,18 +139,30 @@ function QuestionnaireForm({
   onBusy?: (busy: boolean) => void
 }) {
   const [baseline] = useState(() => ({ profile, payroll }))
-  const [answers, setAnswers] = useState(() => initialAnswers(baseline.profile, baseline.payroll))
+  const [answers, setAnswers] = useState(() => {
+    const saved = initialAnswers(baseline.profile, baseline.payroll)
+    if (editSection === 'personal')
+      return { onlyJob: 'yes', ageGroup: 'adult', pension: 'yes', children: 'no', ...saved } as Answers
+    if (editSection === 'shifts')
+      return { nights: 'no', nightBonus: 'no', ...saved } as Answers
+    return saved
+  })
+  const [expanded, setExpanded] = useState(false)
   const [error, setError] = useState('')
   const [invalidField, setInvalidField] = useState('')
   const [saving, setSaving] = useState(false)
   const section = sections.find((entry) => entry.id === editSection) ?? sections[0]
   const currentQuestions = visibleQuestions(answers).filter((q) => q.section === section.id)
+  const compact = editSection === 'personal' || editSection === 'shifts'
+  const primary = currentQuestions.filter((q) => !compact || q.id === 'sex' || q.id === 'restDay')
+  const extra = currentQuestions.filter((q) => !primary.includes(q))
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (saving) return
     for (const q of currentQuestions) {
       const message = answerError(q, answers)
       if (message) {
+        if (extra.includes(q)) setExpanded(true)
         setInvalidField(q.id)
         setError(message)
         event.currentTarget.querySelector<HTMLElement>(`[name="${q.id}"]`)?.focus()
@@ -177,11 +189,7 @@ function QuestionnaireForm({
     }
   }
 
-  return (
-    <form className="question-form" onSubmit={submit} noValidate>
-      <fieldset className="question-fields" disabled={saving}>
-        <legend className="sr-only">{section.title}</legend>
-        {currentQuestions.map((q) => (
+  const renderQuestion = (q: Question) => (
           <QuestionField
             key={q.id}
             question={q}
@@ -192,7 +200,28 @@ function QuestionnaireForm({
               setError('')
             }}
           />
-        ))}
+  )
+  return (
+    <form className="question-form" onSubmit={submit} noValidate>
+      <fieldset className="question-fields" disabled={saving}>
+        <legend className="sr-only">{section.title}</legend>
+        {primary.map(renderQuestion)}
+        {compact && (
+          <>
+            <button type="button" className="question-disclosure" aria-expanded={expanded}
+              onClick={() => setExpanded(!expanded)}>
+              {editSection === 'shifts' ? 'חגים ותוספת לילה' : 'עבודה, פנסיה וזיכויים'}
+              <span aria-hidden="true">{expanded ? '−' : '+'}</span>
+            </button>
+            {expanded ? <div className="question-extra">{extra.map(renderQuestion)}</div> :
+              <p className="prefs-hint">{editSection === 'shifts'
+                ? [answers.holidayCalendar === 'manual' ? 'לוח חגים אישי' : 'חגי ישראל',
+                   answers.nights === 'yes' && answers.nightBonus === 'percent' && answers.nightPercent ? 'תוספת לילה ' + answers.nightPercent + '%' :
+                   answers.nights === 'yes' && answers.nightBonus === 'amount' && answers.nightAmount ? 'תוספת לילה ' + answers.nightAmount + ' ₪ לשעה' : 'ללא תוספת לילה מיוחדת'].join(' · ')
+                : extra.filter(q => ['onlyJob', 'ageGroup', 'children', 'pension'].includes(q.id))
+                    .map(q => ({ onlyJob: 'עבודה יחידה', ageGroup: 'גיל', children: 'ילדים', pension: 'פנסיה' }[q.id] + ' · ' + answerLabel(q, answers))).join(' | ')}</p>}
+          </>
+        )}
       </fieldset>
       {error && !invalidField && (
         <p className="prefs-error" role="alert">
@@ -272,7 +301,7 @@ export function QuestionnaireSettings(props: QuestionnaireProps) {
               </header>
               <dl>
                 {questions
-                  .filter((q) => q.section === id)
+                  .filter((q) => q.section === id && (id === 'work' || ['restDay', 'holidayCalendar', 'sex', 'pension'].includes(q.id)))
                   .map((q) => (
                     <div key={q.id}>
                       <dt>{q.title}</dt>

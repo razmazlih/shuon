@@ -634,3 +634,28 @@
     font-size: 0.9rem;
   }
 }
+
+.question-disclosure {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: .8rem 1rem;
+  border: 1px solid var(--border, #cfdad2);
+  border-radius: .8rem;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.question-extra { display: grid; gap: 1rem; }
+@media (prefers-reduced-motion: no-preference) {
+  .question-extra, .questionnaire-card dialog[open] {
+    animation: question-reveal .2s ease-out;
+  }
+  @keyframes question-reveal {
+    from { opacity: 0; translate: 0 5px; }
+    to { opacity: 1; translate: 0 0; }
+  }
+}
