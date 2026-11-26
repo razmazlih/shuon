@@ -31,13 +31,28 @@ const sections = [
 
 type Section = Question['section']
 
+const shortTitles: Record<string, string> = {
+  restDay: 'יום מנוחה', holidayCalendar: 'לוח חגים', nightBonus: 'תוספת לילה',
+  nightAmount: 'תוספת לשעה', nightPercent: 'תוספת באחוזים', taxMode: 'נקודות זיכוי',
+  onlyJob: 'עבודה יחידה', ageGroup: 'קבוצת גיל', children: 'ילדים עד גיל 18',
+  pension: 'הפרשה לפנסיה', sex: 'מין לצורכי מס',
+}
+const shortOptions: Record<string, Record<string, string>> = {
+  holidayCalendar: { manual: 'חגים לפי בחירה' },
+  taxMode: { saved: 'לפי התלוש', questions: 'לפי הפרטים שלי' },
+  pension: { saved: 'לפי התלוש', yes: 'כן (אומדן 6%)' },
+  ageGroup: { adult: '18 עד גיל פרישה' },
+}
+
 function QuestionField({
   question,
+  compact = false,
   value,
   error,
   onChange,
 }: {
   question: Question
+  compact?: boolean
   value: string
   error?: string
   onChange: (value: string) => void
@@ -57,7 +72,7 @@ function QuestionField({
     </p>
   )
   const options = question.options ?? []
-  if (question.kind === 'choice' && options.length <= 4) {
+  if (question.kind === 'choice' && options.length <= 4 && !compact) {
     return (
       <fieldset className="question-field" aria-describedby={describedBy} aria-invalid={Boolean(error)}>
         <legend>{question.title}</legend>
@@ -81,7 +96,7 @@ function QuestionField({
     )
   }
   return (
-    <div className="question-field">
+    <div className={compact ? "question-field question-row" : "question-field"}>
       <label htmlFor={id}>{question.title}</label>
       {hint}
       {question.kind === 'choice' ? (
@@ -189,18 +204,34 @@ function QuestionnaireForm({
     }
   }
 
-  const renderQuestion = (q: Question) => (
-          <QuestionField
-            key={q.id}
-            question={q}
-            value={answers[q.id] ?? ''}
-            error={invalidField === q.id ? error : undefined}
-            onChange={(value) => {
-              setAnswers((current) => ({ ...current, [q.id]: value }))
-              setError('')
-            }}
-          />
-  )
+  const renderQuestion = (q: Question) => {
+    if (compact && q.id === 'nightBonus') return null
+    const night = compact && q.id === 'nights'
+    const field = night
+      ? visibleQuestions({ ...answers, nights: 'yes' }).find(item => item.id === 'nightBonus')!
+      : q
+    const short = compact && !!shortTitles[field.id]
+    return (
+      <QuestionField
+        key={q.id}
+        compact={compact}
+        question={short ? {
+          ...field, title: shortTitles[field.id], hint: undefined,
+          options: field.options?.map(option => ({
+            ...option, label: shortOptions[field.id]?.[option.value] ?? option.label,
+          })),
+        } : field}
+        value={night && answers.nights !== 'yes' ? (answers.nights === 'unknown' ? 'unknown' : 'no') : answers[field.id] ?? ''}
+        error={invalidField === field.id ? error : undefined}
+        onChange={value => {
+          setAnswers(current => night
+            ? { ...current, nights: 'yes', nightBonus: value }
+            : { ...current, [field.id]: value })
+          setError('')
+        }}
+      />
+    )
+  }
   return (
     <form className="question-form" onSubmit={submit} noValidate>
       <fieldset className="question-fields" disabled={saving}>
