@@ -78,3 +78,15 @@
   margin-top: .35rem;
   padding-inline: .75rem;
 }
+
+.onboarding-content .question-choices:has(input[name="pension"]) {
+  display: grid;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+}
+.onboarding-content .question-chip:has(input[name="pension"]) {
+  justify-content: center;
+  min-height: 44px;
+  padding-inline: .35rem;
+  text-align: center;
+}
