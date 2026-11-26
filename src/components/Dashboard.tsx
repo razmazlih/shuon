@@ -45,7 +45,7 @@ export function shiftIcon(s: WorkShift) {
 function duration(shift: WorkShift) {
   const end = shift.openBreak ? Date.parse(shift.openBreak) : Date.now()
   const breaks = shift.breaks.reduce(
-    (sum, b) => sum + (b.paid ? 0 : Date.parse(b.end) - Date.parse(b.start)),
+    (sum, b) => sum + (b.paid ? 0 : Math.max(0, Math.min(end, Date.parse(b.end)) - Date.parse(b.start))),
     0,
   )
   return Math.max(0, Math.floor((end - Date.parse(shift.start) - breaks) / 1000))
@@ -76,10 +76,12 @@ function Clock({ active, scheduled, busy, onTimer }: Pick<Props, 'active' | 'sch
           <i>:</i>
           <span>{parts[2]}</span>
         </div>
-        <div className="clock-state">
-          <span className={'status-light ' + (active ? 'running' : '')} />
-          {active ? (active.openBreak ? 'בהפסקה' : 'המשמרת בפעילות') : scheduled ? 'משמרת מתוכננת עכשיו' : 'אין משמרת פעילה'}
-        </div>
+        {(active || !scheduled) && (
+          <div className="clock-state">
+            <span className={'status-light ' + (active ? 'running' : '')} />
+            {active ? (active.openBreak ? 'בהפסקה' : 'המשמרת בפעילות') : 'אין משמרת פעילה'}
+          </div>
+        )}
         {!active && scheduled && (
           <div className="clock-scheduled">
             <strong>{scheduled.title}</strong>
@@ -87,13 +89,13 @@ function Clock({ active, scheduled, busy, onTimer }: Pick<Props, 'active' | 'sch
           </div>
         )}
         <div className="timer-actions">
-          {active ? (
+          {displayedShift ? (
             <>
               <button className="btn primary" disabled={busy} onClick={() => onTimer('stop')}>
                 <Square size={15} fill="currentColor" />
                 סיום משמרת
               </button>
-              {active.openBreak && (
+              {active?.openBreak && (
                 <button className="btn clock-break" disabled={busy} onClick={() => onTimer('resume')}>
                   <Coffee size={16} />
                   חזרה מהפסקה

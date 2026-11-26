@@ -278,11 +278,10 @@ function WorkspaceApp({ user }: { user: User | null }) {
     void run(async () => {
       const now = new Date().toISOString()
       if (op === 'start') {
-        if (active) return
-        const upcoming = scheduledShiftAt(w.shifts, Date.parse(now))
+        if (active || scheduledShiftAt(w.shifts, Date.parse(now))) return
         const shift: WorkShift = {
-          id: upcoming?.id || crypto.randomUUID(),
-          title: upcoming?.title || 'משמרת עבודה',
+          id: crypto.randomUUID(),
+          title: 'משמרת עבודה',
           status: 'active',
           start: now,
           end: now,
@@ -293,8 +292,14 @@ function WorkspaceApp({ user }: { user: User | null }) {
         setMessage('שעון המשמרת התחיל לפעול')
         return
       }
-      if (!active) return
-      const row = { ...active, breaks: [...active.breaks] }
+      const shift = active ?? (op === 'stop' ? scheduledShiftAt(w.shifts, Date.parse(now)) : undefined)
+      if (!shift || Date.parse(now) <= Date.parse(shift.start)) return
+      const row = { ...shift, breaks: [...shift.breaks] }
+      if (!active) {
+        row.breaks = row.breaks
+          .filter((pause) => Date.parse(pause.start) < Date.parse(now))
+          .map((pause) => Date.parse(pause.end) > Date.parse(now) ? { ...pause, end: now } : pause)
+      }
       if (row.openBreak && row.openBreak < now)
         row.breaks.push({ start: row.openBreak, end: now, paid: false })
       row.openBreak = null
@@ -309,6 +314,7 @@ function WorkspaceApp({ user }: { user: User | null }) {
       }
       await writeShifts(uid, [row], [], w.shifts)
       if (op === 'stop') {
+        setStatusTime(Date.now())
         setDetail(row)
         setMessage('המשמרת הסתיימה ונשמרה')
       }
