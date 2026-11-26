@@ -390,6 +390,7 @@ button:not(:disabled):active {
   padding-inline: 8px;
 }
 .forest {
+  pointer-events: none;
   position: absolute;
   width: 51%;
   height: auto;
@@ -397,6 +398,25 @@ button:not(:disabled):active {
   left: 0;
   z-index: -1;
   mask-image: linear-gradient(to right, #000 68%, transparent 100%);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .forest-fox-head {
+    transform-origin: 134px 155px;
+    animation: fox-listen 12s ease-in-out infinite;
+  }
+  .forest-fox-tail {
+    transform-origin: 118px 180px;
+    animation: fox-tail-flick 12s ease-in-out infinite;
+  }
+}
+@keyframes fox-listen {
+  0%, 44%, 72%, 100% { transform: rotate(0); }
+  54%, 61% { transform: rotate(-4deg); }
+}
+@keyframes fox-tail-flick {
+  0%, 57%, 80%, 100% { transform: rotate(0); }
+  65% { transform: rotate(5deg); }
+  72% { transform: rotate(-2deg); }
 }
 .income-card {
   isolation: isolate;

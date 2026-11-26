@@ -4,6 +4,7 @@ import type { WorkShift } from '../data/model'
 import { formatWorkDuration, shiftWorkMillis, workMillisOnDay } from '../data/shift-hours'
 import { addDays, addMonths, dateMs, localDate, localTime, monthDays } from '../domain/time'
 import { TimeRange } from './TimeRange'
+import { SleepingFox } from './SleepingFox'
 import './monthly-calendar.css'
 
 interface CalendarProps {
@@ -315,7 +316,7 @@ export function Calendar({
             </div>
             {dayShifts.length === 0 ? (
               <div className="cal-empty">
-                <CalendarDays aria-hidden="true" size={26} />
+                <SleepingFox />
                 <p>אין משמרות ביום הזה</p>
               </div>
             ) : (

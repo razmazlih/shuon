@@ -1,4 +1,3 @@
-/** The fox and its watch are the same illustration used in the app's visual identity. */
 export function Forest() {
   return (
     <svg className="forest" viewBox="0 0 300 232" fill="none" aria-hidden="true">
@@ -41,26 +40,30 @@ export function Forest() {
       <g stroke="#684837" strokeLinejoin="round" strokeLinecap="round">
         <path d="M109 148q-10 14-15 34-2 8 7 9l39 1q17-1 19-15 1-10-9-33Z" fill="#c8693e" strokeWidth="2.4" />
         <path d="M128 151q8 19 0 39h18q8-15 3-36Z" fill="#f9dfb1" strokeWidth="1.4" />
-        <path
-          d="M104 157q-15 6-22 1-9-6-7-23-23 12-17 33 6 23 39 23 21 1 29-11 6-8-2-13-8-4-20-10Z"
-          fill="#df8145"
-          strokeWidth="2.4"
-        />
-        <path d="M75 135q-17 9-18 25l7-4 2 8 7-3 3 6q4-4 7-9-10-7-8-23Z" fill="#fce8bf" strokeWidth="1.5" />
-        <path
-          d="m100 112-4-27q0-3 3-1l24 17q10-3 20 0l23-19q3-2 4 2l-2 30q8 16-2 27-12 13-31 20-23-5-36-21-8-13 1-28Z"
-          fill="#da7d45"
-          strokeWidth="2.4"
-        />
-        <path d="m102 92 4 18 11-7zm61-1-13 13 12 5Z" fill="#84523f" strokeWidth="1.4" />
-        <path
-          d="M96 126q15-3 29 12l9 10 9-11q14-15 29-14-5 23-37 37-27-8-39-34Z"
-          fill="#ffebc6"
-          strokeWidth="1.4"
-        />
-        <path d="M107 126q6 7 12 1m28 0q6 6 12-2" stroke="#4b4034" strokeWidth="2.6" />
-        <path d="m129 143 6 7 7-8q-7-2-13 1Z" fill="#493e32" strokeWidth="1.1" />
-        <path d="m136 149-1 4m-15-39 5 3m23-5-4 4" strokeWidth="1.4" />
+        <g className="forest-fox-tail">
+          <path
+            d="M104 157q-15 6-22 1-9-6-7-23-23 12-17 33 6 23 39 23 21 1 29-11 6-8-2-13-8-4-20-10Z"
+            fill="#df8145"
+            strokeWidth="2.4"
+          />
+          <path d="M75 135q-17 9-18 25l7-4 2 8 7-3 3 6q4-4 7-9-10-7-8-23Z" fill="#fce8bf" strokeWidth="1.5" />
+        </g>
+        <g className="forest-fox-head">
+          <path
+            d="m100 112-4-27q0-3 3-1l24 17q10-3 20 0l23-19q3-2 4 2l-2 30q8 16-2 27-12 13-31 20-23-5-36-21-8-13 1-28Z"
+            fill="#da7d45"
+            strokeWidth="2.4"
+          />
+          <path d="m102 92 4 18 11-7zm61-1-13 13 12 5Z" fill="#84523f" strokeWidth="1.4" />
+          <path
+            d="M96 126q15-3 29 12l9 10 9-11q14-15 29-14-5 23-37 37-27-8-39-34Z"
+            fill="#ffebc6"
+            strokeWidth="1.4"
+          />
+          <path d="M107 126q6 7 12 1m28 0q6 6 12-2" stroke="#4b4034" strokeWidth="2.6" />
+          <path d="m129 143 6 7 7-8q-7-2-13 1Z" fill="#493e32" strokeWidth="1.1" />
+          <path d="m136 149-1 4m-15-39 5 3m23-5-4 4" strokeWidth="1.4" />
+        </g>
         <path d="M138 174q-1 10-3 15m14-15q2 11 0 16" strokeWidth="1.6" />
         <path d="M132 190q4-2 8 0m2 1q6-2 11 0" strokeWidth="3" />
       </g>
