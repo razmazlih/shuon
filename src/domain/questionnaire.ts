@@ -57,8 +57,8 @@ const numeric = (
 // The salary engine currently supports the 2026 tax year.
 const taxYear = 2026
 export function visibleQuestions(a: Answers): Question[] {
-  const qs = [
-    numeric('work', 'hourlyRate', 'כמה משלמים לך לשעה רגילה לפני ניכויים?', 0.01, 0.01, '₪'),
+  const qs: Question[] = [
+    { ...numeric('work', 'hourlyRate', 'מה השכר שלך לשעה?', 0.01, 0.01, '₪'), hint: 'שכר ברוטו, לפני תוספות.' },
   ]
   qs.push(
     choice(
