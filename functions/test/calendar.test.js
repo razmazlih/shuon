@@ -101,7 +101,10 @@ test('iCalendar round-trip supports Hebrew, UTC and overnight Israeli DST, retai
   assert.equal(parseEvent(ics.replace('END:VEVENT', 'RRULE:FREQ=DAILY\r\nEND:VEVENT')), null)
 })
 
-function fixture() {
+function fixture(t) {
+  let now = Date.parse(original.start) - 1
+  let transactionTime
+  t.mock.method(Date, 'now', () => now)
   const docs = new Map()
   function collection(path) {
     return {
@@ -130,6 +133,10 @@ function fixture() {
   const db = {
     collection,
     async runTransaction(job) {
+      if (transactionTime !== undefined) {
+        now = transactionTime
+        transactionTime = undefined
+      }
       return await job({
         get: async (ref) => (ref.get ? ref.get() : { data: () => structuredClone(docs.get(ref.key)) }),
         create: (ref, v) => {
@@ -172,12 +179,18 @@ function fixture() {
     objects,
     put,
     reads: () => reads,
+    setTime(time) {
+      now = time
+    },
+    setTimeInNextTransaction(time) {
+      transactionTime = time
+    },
     run: () => syncCalendar(db, 'alice', { calendar }, client, Date.now() + 30_000),
   }
 }
 
-test('bidirectional create, incremental ETags, rename, simultaneous edit, completed review, retries, tombstones and imports', async () => {
-  const f = fixture()
+test('bidirectional create, incremental ETags, rename, simultaneous edit, completed review, retries, tombstones and imports', async (t) => {
+  const f = fixture(t)
   const path = 'users/alice/shifts/one'
   f.docs.set(path, { ...original, id: 'one', breaks: [], status: 'planned', notes: 'private', holiday: true })
   f.docs.set('users/alice/shifts/live', {
@@ -202,6 +215,7 @@ test('bidirectional create, incremental ETags, rename, simultaneous edit, comple
   assert.equal(f.docs.get(path).notes, 'private')
   assert.equal(f.docs.get(path).holiday, true)
   assert.equal(f.objects.size, 1)
+  f.setTime(Date.parse(original.end))
   const localValue = { ...original, title: 'מקומי' }
   f.docs.set(path, { ...f.docs.get(path), ...localValue, status: 'completed' })
   const otherValue = { ...original, title: 'אפל' }
@@ -244,7 +258,7 @@ test('bidirectional create, incremental ETags, rename, simultaneous edit, comple
   f.put(entry, serializeEvent('external-uid', original))
   await f.run()
   const imported = [...f.docs].find(([key]) => key.includes('shifts/apple-'))
-  assert.equal(imported[1].status, 'planned')
+  assert.equal(imported[1].status, 'completed')
   f.docs.delete(imported[0])
   await f.run()
   assert.ok(!f.objects.has(entry))
@@ -262,8 +276,8 @@ test('reject invalid dates, all-day, zero-length, and nonexistent Israeli local 
     assert.equal(parseEvent(invalid), null)
 })
 
-test('incoming overlaps, invalid break windows, open clocks and adjacent boundaries', async () => {
-  const f = fixture()
+test('incoming overlaps, invalid break windows, open clocks and adjacent boundaries', async (t) => {
+  const f = fixture(t)
   f.docs.set('users/alice/shifts/local', { ...original, id: 'local', status: 'completed', breaks: [] })
   const url = calendar + 'other.ics'
   const uid = 'another'
@@ -277,6 +291,7 @@ test('incoming overlaps, invalid break windows, open clocks and adjacent boundar
   assert.equal((await f.run()).reviews, 0)
   const imported = [...f.docs.keys()].find((key) => key.startsWith('users/alice/shifts/apple-'))
   const shift = f.docs.get(imported)
+  assert.equal(shift.status, 'planned')
   f.docs.set(imported, {
     ...shift,
     breaks: [{ start: '2026-10-25T08:00:00.000Z', end: '2026-10-25T08:30:00.000Z' }],
@@ -285,6 +300,7 @@ test('incoming overlaps, invalid break windows, open clocks and adjacent boundar
   assert.equal((await f.run()).reviews, 1)
   assert.equal(f.docs.get(marker).review.invalidBreaks, true)
   assert.equal(f.docs.get(imported).end, adjacent.end)
+  f.setTime(Date.parse(adjacent.start) + 1)
   f.docs.set('users/alice/shifts/clock', {
     id: 'clock',
     title: 'פעילה',
@@ -297,9 +313,10 @@ test('incoming overlaps, invalid break windows, open clocks and adjacent boundar
   assert.equal(f.docs.get(marker).review.overlap, true)
 })
 
-test('a new local revision invalidates a previously approved deletion of a completed shift', async () => {
-  const f = fixture(),
+test('a new local revision invalidates a previously approved deletion of a completed shift', async (t) => {
+  const f = fixture(t),
     id = 'users/alice/shifts/one'
+  f.setTime(Date.parse(original.end))
   f.docs.set(id, { ...original, id: 'one', status: 'completed', updatedAt: 'old', breaks: [] })
   await f.run()
   f.objects.clear()
@@ -321,8 +338,31 @@ test('a new local revision invalidates a previously approved deletion of a compl
   assert.equal(f.docs.get(id).note, 'new note')
 })
 
-test('partial outbound success is idempotent when a cloud write succeeded before its response was lost', async () => {
-  const f = fixture(),
+test('an Apple deletion needs review when the shift ends during the incoming transaction', async (t) => {
+  const f = fixture(t)
+  const id = 'users/alice/shifts/one'
+  f.docs.set(id, { ...original, id: 'one', status: 'planned', updatedAt: 'stored', breaks: [] })
+  await f.run()
+  f.objects.clear()
+  const end = Date.parse(original.end)
+  f.setTime(end - 1)
+  f.setTimeInNextTransaction(end)
+  await assert.rejects(f.run(), /apple-concurrent/)
+  assert.equal(f.docs.get(id).status, 'planned')
+  assert.equal((await f.run()).reviews, 1)
+  const marker = [...f.docs.keys()].find((key) => key.includes('appleSyncScopes'))
+  assert.deepEqual(f.docs.get(marker).review, {
+    left: original,
+    right: null,
+    status: 'completed',
+    revision: 'stored',
+    invalidBreaks: false,
+    overlap: false,
+  })
+})
+
+test('partial outbound success is idempotent when a cloud write succeeded before its response was lost', async (t) => {
+  const f = fixture(t),
     id = 'users/alice/shifts/one'
   f.docs.set(id, { ...original, id: 'one', status: 'planned', breaks: [] })
   await f.run()

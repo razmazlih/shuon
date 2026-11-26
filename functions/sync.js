@@ -33,6 +33,12 @@ export function overlappingShift(id, rows, event, now = Date.now()) {
   return false
 }
 
+function shiftStatus(shift, now) {
+  if (!shift) return null
+  if (shift.status === 'active') return 'active'
+  return Date.parse(shift.end) <= now ? 'completed' : 'planned'
+}
+
 export async function syncCalendar(db, uid, connection, client, deadline) {
   const calendar = connection.calendar
   const user = db.collection('users').doc(uid)
@@ -103,11 +109,12 @@ export async function syncCalendar(db, uid, connection, client, deadline) {
       continue
     }
     const ref = mappings.doc(id)
+    const expectedStatus = shiftStatus(current, Date.now())
     let action = decide({
       base,
       local: left,
       remote: right,
-      status: current?.status,
+      status: expectedStatus,
       exists: !!current,
       revision: current?.updatedAt ?? null,
       resolution: prior?.resolution,
@@ -115,7 +122,6 @@ export async function syncCalendar(db, uid, connection, client, deadline) {
     const invalidBreaks = !breaksFit(current?.breaks, right)
     const overlap = overlappingShift(id, local, right)
     if (action === 'remote' && (invalidBreaks || overlap)) action = 'review'
-    const expectedStatus = current?.status ?? null
     const common = { uid: eventUid, url, base, remote: right, etag: apple?.etag ?? null, pending: false }
     if (action === 'hold') continue
     if (action === 'review') {
@@ -165,17 +171,19 @@ export async function syncCalendar(db, uid, connection, client, deadline) {
           )
             throw Error('apple-concurrent')
         }
+        const now = Date.now()
         if (
           signature(projectShift(latest)) !== signature(left) ||
-          (latest?.status ?? null) !== expectedStatus ||
+          latest?.status !== current?.status ||
+          shiftStatus(latest, now) !== expectedStatus ||
           (latest?.updatedAt ?? null) !== (current?.updatedAt ?? null) ||
           !breaksFit(latest?.breaks, right)
         )
           throw Error('apple-concurrent')
         let next = null
         if (right) {
-          const fields = { ...right, updatedAt: new Date().toISOString() }
-          next = latest ? { ...latest, ...fields } : { ...fields, id, status: 'planned', breaks: [] }
+          const fields = { ...right, status: shiftStatus(right, now), updatedAt: new Date(now).toISOString() }
+          next = latest ? { ...latest, ...fields } : { ...fields, id, breaks: [] }
           if (latest) tx.update(shiftRef, fields)
           else tx.create(shiftRef, next)
         } else tx.delete(shiftRef)

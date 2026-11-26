@@ -171,7 +171,7 @@ function AccountCalendar() {
             <form className="calendar-form" onSubmit={connect}>
               <p>
                 החיבור ייצור ב־iCloud יומן בשם ״המשמרות שלי״. כותרת המשמרת ושעותיה יתעדכנו בשני הכיוונים.
-                אירוע חדש ביומן יתווסף כמשמרת מתוכננת.
+                אירוע חדש ביומן יתווסף כמשמרת, ומצבה ייקבע לפי שעת הסיום.
               </p>
               <label>
                 כתובת Apple Account

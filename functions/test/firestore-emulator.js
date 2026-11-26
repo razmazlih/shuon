@@ -23,9 +23,9 @@ test('Firestore transactions, conflict review and per-user callable isolation', 
   const initial = {
     id: ref.id,
     title: 'משמרת לילה',
-    status: 'completed',
-    start: '2026-12-01T20:00:00.000Z',
-    end: '2026-12-02T04:00:00.000Z',
+    status: 'planned',
+    start: '2026-01-01T20:00:00.000Z',
+    end: '2026-01-02T04:00:00.000Z',
     updatedAt: 'one',
     breaks: [],
     note: 'private',
@@ -54,6 +54,7 @@ test('Firestore transactions, conflict review and per-user callable isolation', 
   const state = await status()
   assert.equal(state.reviews.length, 1)
   const review = state.reviews[0]
+  assert.equal(review.status, 'completed')
   await assert.rejects(
     resolveAppleCalendar.run(as(uid, { ...review, choice: 'remote', revision: 'wrong' })),
     { code: 'aborted' },
