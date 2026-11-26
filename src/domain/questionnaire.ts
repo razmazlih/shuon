@@ -59,16 +59,6 @@ const taxYear = 2026
 export function visibleQuestions(a: Answers): Question[] {
   const qs = [
     numeric('work', 'hourlyRate', 'כמה משלמים לך לשעה רגילה לפני ניכויים?', 0.01, 0.01, '₪'),
-    choice(
-      'work',
-      'workDays',
-      'כמה ימים יש בשבוע עבודה מלא במקום העבודה שלך?',
-      [
-        ['5', '5 ימים'],
-        ['6', '6 ימים'],
-      ],
-      'גם במשרה חלקית, בוחרים לפי שבוע העבודה של משרה מלאה.',
-    ),
   ]
   qs.push(
     choice(
@@ -342,7 +332,6 @@ export function initialAnswers(
   const a: Answers = { ...saved }
   if (profile.onboarded || saved) {
     a.hourlyRate = String(currentRate(profile, today))
-    a.workDays = String(profile.pay.workDays)
     a.restDay ??= String(profile.pay.restDay)
     a.holidayCalendar ??= profile.pay.holidayCalendar ?? 'manual'
     if (!saved && profile.pay.nightPremiumPercent) {
@@ -383,7 +372,6 @@ export function applyAnswers(
       ].sort((a, b) => a.from.localeCompare(b.from))
     } else pay.hourlyRate = Number(answers.hourlyRate)
   }
-  if (answers.workDays) pay.workDays = Number(answers.workDays) as 5 | 6
   if (answers.restDay) {
     const day = answers.restDay === 'unknown' ? 6 : Number(answers.restDay)
     if (day !== pay.restDay) delete pay.restStartDay

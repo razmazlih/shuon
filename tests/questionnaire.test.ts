@@ -16,7 +16,6 @@ const { profile, payroll } = freshWorkspace()
 const today = '2026-11-12'
 const basic: Answers = {
   hourlyRate: '50',
-  workDays: '6',
   restDay: '6',
   holidayCalendar: 'israel-jewish',
   nights: 'no',
@@ -32,6 +31,7 @@ const ids = (a: Answers) => visibleQuestions(a).map((q) => q.id)
 
 test('asks only relevant questions and does not guess a new employee’s pay or circumstances', () => {
   assert.deepEqual(initialAnswers(profile, payroll), {})
+  assert.ok(!ids(basic).includes('workDays'))
   assert.ok(!ids(basic).includes('shortDay'))
   assert.ok(!ids(basic).includes('nightBonus'))
   assert.ok(!ids(basic).includes('childCount'))
@@ -70,12 +70,14 @@ test('child credits use age during the tax year; unsupported circumstances prese
 })
 
 test('keeps legacy and manually corrected payslip values on unrelated changes', () => {
-  const existing = { ...profile, onboarded: true }
+  const existing = { ...profile, onboarded: true, pay: { ...profile.pay, workDays: 6 as const } }
   const saved = { ...payroll, pensionPercent: 7, creditPoints: 5.25 }
   const answers = initialAnswers(existing, saved, today)
   assert.equal(answers.taxMode, 'saved')
   assert.equal(answers.pension, 'saved')
-  assert.deepEqual(applyAnswers(existing, saved, { ...answers, workDays: '6' }, today).payroll, saved)
+  const updated = applyAnswers(existing, saved, { ...answers, workDays: '5' }, today)
+  assert.deepEqual(updated.payroll, saved)
+  assert.equal(updated.profile.pay.workDays, 6)
   const configured = apply(basic)
   const manual = { ...configured.payroll, pensionPercent: null, creditPoints: null }
   assert.deepEqual(
@@ -168,7 +170,7 @@ test('manual tax overrides keep family answers editable and survive unrelated sa
 })
 
 test('legacy employees can enter insurance and family facts while retaining existing manual credits', () => {
-  const existing = { ...profile, onboarded: true }
+  const existing = { ...profile, onboarded: true, pay: { ...profile.pay, workDays: 6 as const } }
   const manual = { ...payroll, creditPoints: 8 }
   const initial = initialAnswers(existing, manual, today)
   assert.ok(ids(initial).includes('onlyJob'))
