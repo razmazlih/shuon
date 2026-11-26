@@ -97,3 +97,27 @@ test('manual shifts infer an overnight end and respect the repeated hour', () =>
     /המעבר לשעון קיץ/,
   )
 })
+
+test('Israeli clock changes preserve overnight wall times, elapsed pay and Apple calendar instants', async () => {
+  const { calculateGross } = await import('../src/domain/gross')
+  const { projectShift, serializeEvent, parseEvent } = await import('../functions/events.js')
+  const { localTime } = await import('../src/domain/time')
+  const settings = { hourlyRate: 50, workDays: 5, restDay: 6, shortDay: 4,
+    restStart: '12:00', restEnd: '20:00' } as const
+  for (const [date, next, startUtc, endUtc, hours, gross] of [
+    ['2026-03-26', '2026-03-27', '20260326T200000Z', '20260327T030000Z', 7, 350],
+    ['2026-10-24', '2026-10-25', '20261024T190000Z', '20261025T040000Z', 9, 475],
+  ] as const) {
+    const { rows: [shift] } = buildManualShiftWrites({ ...draft, date, selections: [], shifts: [],
+      start: wall('22:00'), end: wall('06:00') })
+    const pay = calculateGross([shift], settings)
+    assert.equal(pay.hours, hours)
+    assert.equal(pay.gross, gross)
+    const ics = serializeEvent(shift.id, projectShift(shift))
+    assert.ok(ics.includes('DTSTART:' + startUtc))
+    assert.ok(ics.includes('DTEND:' + endUtc))
+    const { value } = parseEvent(ics)
+    assert.deepEqual([localDate(value.start), localTime(value.start), localDate(value.end), localTime(value.end)],
+      [date, '22:00', next, '06:00'])
+  }
+})
