@@ -17,7 +17,7 @@
 | מסך | מה עושים בו |
 | --- | --- |
 | **היום שלי** | מתחילים ומסיימים משמרת, רושמים הפסקות ורואים שעות ושכר לכל משמרת ברשימה השבועית. לכל משמרת מתוכננת מוצג השכר הצפוי. לצד השעון מופיעים הברוטו של החודש הקודם, אומדן הנטו שנצבר החודש, שמוצג בהבלטה, והתחזית לסופו. |
-| **יומן המשמרות** | בודקים מה עבדתם ומה מתוכנן, מזינים שעות בדיעבד ומחילים אותן שעות על כמה ימים. בכל שורה מופיע השכר למשמרת כולה או השכר הצפוי למשמרת מתוכננת. משמרת שחוצה חצות מופיעה ביומן ביום שבו התחילה, עם כל שעות העבודה והשכר שלה. בטופס המשמרת אפשר למלא את השעות בלחיצה על תבנית ולהוסיף הערה ישירות. בעריכת משמרת קיימת אפשר למחוק אותה אחרי אישור מפורש. |
+| **יומן המשמרות** | בודקים מה עבדתם ומה מתוכנן, מזינים שעות בדיעבד ומחילים אותן שעות על כמה ימים. בכל שורה מופיע השכר למשמרת כולה או השכר הצפוי למשמרת מתוכננת. משמרת שחוצה חצות מופיעה ביומן ביום שבו התחילה, עם כל שעות העבודה והשכר שלה. בטופס המשמרת מוצגות כברירת מחדל שעות ידניות. אפשר לעבור לבחירה מתבנית ולהוסיף הערה ישירות. בעריכת משמרת קיימת אפשר למחוק אותה אחרי אישור מפורש. |
 | **השכר שלי** | בוחרים חודש ומשווים בין מה שנצבר בפועל לבין התחזית הכוללת משמרות מתוכננות. הדוח מפרט ברוטו, נטו משוער, ניכויים ושעות נוספות. אפשר להזין נתוני תלוש לחודש שנבחר, כולל חודשים קודמים. |
 | **הגדרות** | מעדכנים את שאלון השכר, נקודות זיכוי, הגדרות פנסיה, תעריפים לפי תאריך, ימי מנוחה וחגים ותבניות משמרת. לחיצה על תבנית פותחת עריכה של השם ושעות המשמרת בחלון קצר. אפשר לבחור מראה בהיר, כהה, מרווה או התאמה למכשיר. |
 
@@ -42,7 +42,7 @@
 
 - **ניהול משמרת** · [שעון נוכחות פעיל](docs/screenshots/clock-active-fox.png) · [סיכום משמרת](docs/screenshots/shift-finished-mobile.png) · [פרטי משמרת](docs/screenshots/shift-detail-mobile.png)
 - **תבניות משמרת** · [רשימת תבניות בנייד](docs/screenshots/shift-templates-mobile.png) · [עריכת תבנית](docs/screenshots/shift-template-edit-mobile.png)
-- **תכנון ועריכה** · [הוספת משמרת](docs/screenshots/shift-editor-mobile.png) · [עריכת משמרת](docs/screenshots/shift-edit-actions-mobile.png) · [אישור מחיקה](docs/screenshots/shift-delete-confirm-mobile.png) · [בחירת ימים נוספים](docs/screenshots/shift-day-picker-mobile.png) · [בחירת חודש ושנה בדוח](docs/screenshots/salary-month-picker.png)
+- **תכנון ועריכה** · [הוספת משמרת בשעות ידניות](docs/screenshots/shift-editor-mobile.png) · [בחירת תבנית](docs/screenshots/shift-editor-template-mobile.png) · [עריכת משמרת](docs/screenshots/shift-edit-actions-mobile.png) · [אישור מחיקה](docs/screenshots/shift-delete-confirm-mobile.png) · [בחירת ימים נוספים](docs/screenshots/shift-day-picker-mobile.png) · [בחירת חודש ושנה בדוח](docs/screenshots/salary-month-picker.png)
 - **חשבון** · [מסך היום בנייד](docs/screenshots/today-mobile.png) · [תשובות לשאלון השכר](docs/screenshots/pay-questionnaire-settings.png) · [פרטי שכר וניכויים בהגדרות](docs/screenshots/payroll-settings-mobile.png)
 - **מצב כהה** · [מסך היום](docs/screenshots/today-dark.png) · [יומן המשמרות](docs/screenshots/calendar-dark.png) · [דוח השכר בנייד](docs/screenshots/salary-dark-mobile.png)
 

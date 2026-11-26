@@ -138,19 +138,32 @@
   padding-inline: 0.2rem;
   background: var(--tint);
 }
-.se-template-picker {
+.se-time-mode {
   display: grid;
-  gap: 0.4rem;
-  min-width: 0;
-  font-size: 0.875rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.25rem;
+  padding: 0.2rem;
+  border: 1px solid var(--line);
+  border-radius: 0.7rem;
+  background: var(--paper);
 }
-.se-template-picker > .se-field-label {
+.se-time-mode button {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 0.35rem;
+  min-height: 44px;
+  border: 1px solid transparent;
+  border-radius: 0.5rem;
+  background: transparent;
+  color: var(--muted);
+  font-weight: 650;
+  cursor: pointer;
 }
-.se-template-picker > .se-field-label svg {
-  color: var(--green);
+.se-time-mode button[aria-pressed='true'] {
+  border-color: var(--line);
+  background: var(--card);
+  color: var(--ink);
 }
 .se-templates {
   display: flex;

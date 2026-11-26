@@ -153,6 +153,7 @@ export function ShiftEditor({
   const [selections, setSelections] = useState<DaySelection[]>([])
   const [pickingDates, setPickingDates] = useState(false)
   const [pickerFooter, setPickerFooter] = useState<HTMLDivElement | null>(null)
+  const [timeMode, setTimeMode] = useState<'manual' | 'template'>('manual')
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -163,7 +164,8 @@ export function ShiftEditor({
   const deleteButtonRef = useRef<HTMLButtonElement>(null)
   const cancelDeleteRef = useRef<HTMLButtonElement>(null)
   const restoreDeleteFocus = useRef(false)
-  const templateLabelId = useId()
+  const useTemplate = timeMode === 'template' && templates.length > 0
+  const needsTemplate = useTemplate && !templates.some((template) => template.id === selectedTemplateId)
 
   const days = [day, ...selections.map((selection) => selection.date)].filter(Boolean)
   const endOffset = day ? manualEndOffset(day, start, end, editing ? initial : undefined) : 0
@@ -223,7 +225,7 @@ export function ShiftEditor({
 
   async function submit(event: FormEvent) {
     event.preventDefault()
-    if (busy || pickingDates || confirmDelete) return
+    if (busy || pickingDates || confirmDelete || needsTemplate) return
     setError('')
     try {
       const change = buildManualShiftWrites({ date: day, start, end, note, initial, selections, shifts })
@@ -284,45 +286,51 @@ export function ShiftEditor({
               />
             </label>
             {templates.length > 0 && (
-              <div className="se-template-picker">
-                <span className="se-field-label" id={templateLabelId}>
-                  <Bookmark size={15} aria-hidden="true" /> תבניות משמרת
-                </span>
-                <div className="se-templates" role="group" aria-labelledby={templateLabelId}>
-                  {templates.map((template) => (
-                    <button key={template.id} type="button" aria-pressed={selectedTemplateId === template.id} onClick={() => applyTemplate(template)}>
-                      <span>{template.title}</span>
-                      <small>
-                        <TimeRange start={template.start} end={template.end} />
-                        {template.end < template.start && ' · למחרת'}
-                      </small>
-                      <Check size={15} className="se-template-check" aria-hidden="true" />
-                    </button>
-                  ))}
-                </div>
+              <div className="se-time-mode" role="group" aria-label="אופן בחירת שעות">
+                <button type="button" aria-pressed={!useTemplate} onClick={() => setTimeMode('manual')}>
+                  שעות ידניות
+                </button>
+                <button type="button" aria-pressed={useTemplate} onClick={() => setTimeMode('template')}>
+                  <Bookmark size={15} aria-hidden="true" /> מתבנית
+                </button>
               </div>
             )}
-            <div className="se-grid se-shift-times">
-              <ClockField
-                title="שעת התחלה"
-                foldDates={days}
-                value={start}
-                change={(value) => {
-                  setStart(value)
-                  setSelectedTemplateId(null)
-                }}
-              />
-              <ClockField
-                title="שעת סיום"
-                foldDates={finishFoldDates}
-                value={end}
-                change={(value) => {
-                  setEnd(value)
-                  setSelectedTemplateId(null)
-                }}
-                hint={finishHint}
-              />
-            </div>
+            {useTemplate ? (
+              <div className="se-templates" role="group" aria-label="תבניות משמרת">
+                {templates.map((template) => (
+                  <button key={template.id} type="button" aria-pressed={selectedTemplateId === template.id} onClick={() => applyTemplate(template)}>
+                    <span>{template.title}</span>
+                    <small>
+                      <TimeRange start={template.start} end={template.end} />
+                      {template.end < template.start && ' · למחרת'}
+                    </small>
+                    <Check size={15} className="se-template-check" aria-hidden="true" />
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="se-grid se-shift-times">
+                <ClockField
+                  title="שעת התחלה"
+                  foldDates={days}
+                  value={start}
+                  change={(value) => {
+                    setStart(value)
+                    setSelectedTemplateId(null)
+                  }}
+                />
+                <ClockField
+                  title="שעת סיום"
+                  foldDates={finishFoldDates}
+                  value={end}
+                  change={(value) => {
+                    setEnd(value)
+                    setSelectedTemplateId(null)
+                  }}
+                  hint={finishHint}
+                />
+              </div>
+            )}
             <NoteField value={note} onChange={setNote} />
           </fieldset>
         )}
@@ -347,7 +355,7 @@ export function ShiftEditor({
               </div>
             ) : (
               <div className="se-save-actions">
-                <button type="submit" className="btn primary" disabled={busy}>
+                <button type="submit" className="btn primary" disabled={busy || needsTemplate}>
                   {busy ? 'שומר…' : days.length > 1 ? 'שמירת ' + days.length + ' משמרות' : 'שמירת משמרת'}
                 </button>
                 {editing ? (
@@ -363,7 +371,7 @@ export function ShiftEditor({
                     ref={pickerButtonRef}
                     className="btn secondary"
                     type="button"
-                    disabled={busy || !day}
+                    disabled={busy || !day || needsTemplate}
                     onClick={() => setPickingDates(true)}
                   >
                     <CalendarPlus size={17} aria-hidden="true" />
