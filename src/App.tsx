@@ -106,7 +106,6 @@ function WorkspaceApp({ user }: { user: User | null }) {
   const [day, setDay] = useState(today)
   const [month, setMonth] = useState(today.slice(0, 7))
   const [editor, setEditor] = useState<Editor | null>(null)
-  const [editorBusy, setEditorBusy] = useState(false)
   const [detail, setDetail] = useState<WorkShift | null>(null)
   const [message, setMessage] = useState('')
   const [working, setWorking] = useState(false)
@@ -346,7 +345,7 @@ function WorkspaceApp({ user }: { user: User | null }) {
       : page === 'calendar'
         ? 'תכנון חודשי ורישום שעות עבודה'
         : page === 'salary'
-          ? 'תחזית חודשית ופירוט הניכויים'
+          ? 'ההשוואה בין מה שנצבר לתחזית החודשית'
           : 'העבודה, המראה והחיבורים שלי'
   return (
     <>
@@ -608,25 +607,17 @@ function WorkspaceApp({ user }: { user: User | null }) {
       )}
       {editor && (
         <Suspense fallback={null}>
-          <Dialog
-            title={editor.duplicate ? 'שכפול משמרת' : editor.initial ? 'עריכת משמרת' : 'הוספת משמרת'}
-            className="shift-editor-modal"
-            closeDisabled={editorBusy}
+          <ShiftEditor
+            {...editor}
+            templates={w.templates}
+            shifts={w.shifts}
+            onSave={saveRows}
+            onDelete={async (id) => {
+              await writeShifts(uid, [], [id], originalsForEditor)
+              setMessage('המשמרת נמחקה')
+            }}
             onClose={() => setEditor(null)}
-          >
-            <ShiftEditor
-              {...editor}
-              templates={w.templates}
-              shifts={w.shifts}
-              onSave={saveRows}
-              onBusyChange={setEditorBusy}
-              onDelete={async (id) => {
-                await writeShifts(uid, [], [id], originalsForEditor)
-                setMessage('המשמרת נמחקה')
-              }}
-              onClose={() => setEditor(null)}
-            />
-          </Dialog>
+          />
         </Suspense>
       )}
       {message && (

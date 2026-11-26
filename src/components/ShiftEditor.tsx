@@ -12,6 +12,7 @@ import {
 } from '../data/manual-shifts'
 import type { Template, WorkShift } from '../data/model'
 import { addDays, dateMs, localDate, localToInstant } from '../domain/time'
+import { Dialog } from './Dialog'
 import { ShiftDatesPicker } from './ShiftDatesPicker'
 import { TimeRange } from './TimeRange'
 import './calendar.css'
@@ -24,7 +25,6 @@ interface ShiftEditorProps {
   shifts: WorkShift[]
   onSave: (change: ManualShiftWrites) => Promise<void>
   onDelete: (id: string) => Promise<void>
-  onBusyChange?: (busy: boolean) => void
   onClose: () => void
 }
 
@@ -139,7 +139,6 @@ export function ShiftEditor({
   shifts,
   onSave,
   onDelete,
-  onBusyChange,
   onClose,
 }: ShiftEditorProps) {
   const editing = !!initial && !duplicate
@@ -195,11 +194,6 @@ export function ShiftEditor({
     setPickingDates(false)
   }
 
-  function markBusy(value: boolean) {
-    setBusy(value)
-    onBusyChange?.(value)
-  }
-
   function reportError(reason: unknown) {
     setError(reason instanceof Error ? reason.message : 'השמירה נכשלה. אפשר לנסות שוב.')
   }
@@ -220,19 +214,19 @@ export function ShiftEditor({
     setNotice('')
     try {
       const change = buildManualShiftWrites({ date: day, start, end, note, initial, duplicate, selections, shifts })
-      markBusy(true)
+      setBusy(true)
       await onSave(change)
       onClose()
     } catch (reason) {
       reportError(reason)
     } finally {
-      markBusy(false)
+      setBusy(false)
     }
   }
 
   async function deleteShift() {
     if (busy || !editing) return
-    markBusy(true)
+    setBusy(true)
     setError('')
     try {
       await onDelete(initial.id)
@@ -240,21 +234,11 @@ export function ShiftEditor({
     } catch (reason) {
       reportError(reason)
     } finally {
-      markBusy(false)
+      setBusy(false)
     }
   }
 
-  if (editing && initial.status === 'active')
-    return (
-      <div className="se-form">
-        <p>המשמרת פעילה. אפשר לסיים אותה בשעון הנוכחות ולערוך את הפרטים לאחר מכן.</p>
-        <button type="button" className="btn secondary" onClick={onClose}>
-          סגירה
-        </button>
-      </div>
-    )
-
-  return (
+  const form = (
     <form noValidate onSubmit={submit} aria-busy={busy} className="se-form">
       <div className="se-content" ref={contentRef}>
         {pickingDates ? (
@@ -400,5 +384,24 @@ export function ShiftEditor({
         )}
       </div>
     </form>
+  )
+
+  return (
+    <Dialog
+      title={duplicate ? 'שכפול משמרת' : editing ? 'עריכת משמרת' : 'הוספת משמרת'}
+      className="shift-editor-modal"
+      closeDisabled={busy}
+      onClose={pickingDates ? undefined : onClose}
+      onBack={pickingDates ? closeDatesPicker : undefined}
+    >
+      {editing && initial.status === 'active' ? (
+        <div className="se-form">
+          <p>המשמרת פעילה. אפשר לסיים אותה בשעון הנוכחות ולערוך את הפרטים לאחר מכן.</p>
+          <button type="button" className="btn secondary" onClick={onClose}>
+            סגירה
+          </button>
+        </div>
+      ) : form}
+    </Dialog>
   )
 }

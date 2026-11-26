@@ -3,12 +3,14 @@ import { X } from 'lucide-react'
 export function Dialog({
   title,
   onClose,
+  onBack,
   children,
   className,
   closeDisabled = false,
 }: {
   title: string
   onClose?: () => void
+  onBack?: () => void
   children: ReactNode
   className?: string
   closeDisabled?: boolean
@@ -35,7 +37,7 @@ export function Dialog({
       className={className ? 'modal ' + className : 'modal'}
       onCancel={(e) => {
         e.preventDefault()
-        if (!closeDisabled) onClose?.()
+        if (!closeDisabled) (onBack ?? onClose)?.()
       }}
       onClick={(e) => {
         if (!closeDisabled && e.target === ref.current) {
@@ -52,7 +54,12 @@ export function Dialog({
     >
       <div className="modal-header">
         <h2 id={titleId}>{title}</h2>
-        {onClose && (
+        {onBack && (
+          <button type="button" className="btn secondary" disabled={closeDisabled} onClick={onBack}>
+            חזרה לטופס
+          </button>
+        )}
+        {onClose && !onBack && (
           <button className="icon-btn" aria-label="סגירה" disabled={closeDisabled} onClick={onClose}>
             <X size={20} />
           </button>
