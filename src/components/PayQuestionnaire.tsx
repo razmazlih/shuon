@@ -1,5 +1,5 @@
-import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
-import { ArrowLeft, BriefcaseBusiness, Check, ClipboardList, MoonStar, Pencil, UserRound } from 'lucide-react'
+import { useId, useState, type FormEvent } from 'react'
+import { BriefcaseBusiness, Check, ClipboardList, MoonStar, Pencil, UserRound } from 'lucide-react'
 import type { UserProfile } from '../data/model'
 import type { PayrollProfile } from '../domain/net'
 import {
@@ -140,22 +140,11 @@ function QuestionnaireForm({
 }) {
   const [baseline] = useState(() => ({ profile, payroll }))
   const [answers, setAnswers] = useState(() => initialAnswers(baseline.profile, baseline.payroll))
-  const [step, setStep] = useState(0)
   const [error, setError] = useState('')
   const [invalidField, setInvalidField] = useState('')
   const [saving, setSaving] = useState(false)
-  const heading = useRef<HTMLHeadingElement>(null)
-  const prevStep = useRef(step)
-  const section = sections.find((entry) => entry.id === editSection) ?? sections[step]
+  const section = sections.find((entry) => entry.id === editSection) ?? sections[0]
   const currentQuestions = visibleQuestions(answers).filter((q) => q.section === section.id)
-  const last = editSection !== undefined || step === sections.length - 1
-  useEffect(() => {
-    if (step !== prevStep.current) {
-      heading.current?.focus()
-      prevStep.current = step
-    }
-  }, [step])
-
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (saving) return
@@ -170,10 +159,6 @@ function QuestionnaireForm({
     }
     setInvalidField('')
     setError('')
-    if (!last) {
-      setStep(step + 1)
-      return
-    }
     setSaving(true)
     onBusy?.(true)
     try {
@@ -194,23 +179,6 @@ function QuestionnaireForm({
 
   return (
     <form className="question-form" onSubmit={submit} noValidate>
-      {!editSection && (
-        <div className="question-progress" aria-label={`שלב ${step + 1} מתוך ${sections.length}`}>
-          <div className="question-progress-bars" aria-hidden="true">
-            {sections.map((s, index) => (
-              <span key={s.id} data-active={index <= step} />
-            ))}
-          </div>
-          <span>
-            שלב {step + 1} מתוך {sections.length}
-          </span>
-        </div>
-      )}
-      {!editSection && (
-        <h3 ref={heading} tabIndex={-1} className="question-step-title">
-          {section.title}
-        </h3>
-      )}
       <fieldset className="question-fields" disabled={saving}>
         <legend className="sr-only">{section.title}</legend>
         {currentQuestions.map((q) => (
@@ -232,22 +200,9 @@ function QuestionnaireForm({
         </p>
       )}
       <div className="question-actions">
-        {!editSection && step > 0 && (
-          <button
-            className="prefs-secondary"
-            type="button"
-            onClick={() => {
-              setStep(step - 1)
-              setError('')
-            }}
-            disabled={saving}
-          >
-            חזרה
-          </button>
-        )}
         <button type="submit" className="prefs-primary" disabled={saving}>
-          {saving ? 'בשמירה…' : !last ? 'המשך' : editSection ? 'שמירת התשובות' : 'שמירה והתחלת העבודה'}
-          {!saving && (last ? <Check size={16} /> : <ArrowLeft size={16} />)}
+          {saving ? 'בשמירה…' : editSection ? 'שמירת התשובות' : 'שמירה והתחלת העבודה'}
+          {!saving && <Check size={16} />}
         </button>
       </div>
     </form>
@@ -258,7 +213,7 @@ export function Onboarding(props: QuestionnaireProps) {
   return (
     <>
       <p className="prefs-hint questionnaire-intro">
-        כמה שאלות קצרות יעזרו לחשב את השכר שלך. אפשר לעדכן את התשובות בהגדרות בכל עת.
+        כדי להתחיל לתעד משמרות מספיק להזין שכר לשעה. אפשר להשלים פרטים לחישוב הנטו בהגדרות.
       </p>
       <QuestionnaireForm {...props} />
     </>

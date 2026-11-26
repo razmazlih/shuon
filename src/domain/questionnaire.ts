@@ -110,17 +110,7 @@ export function visibleQuestions(a: Answers): Question[] {
       'כשיש כמה מעסיקים, המס תלוי גם בתיאום המס.',
     ),
   )
-  if (a.onlyJob === 'yes')
-    qs.push(
-      choice(
-        'personal',
-        'resident',
-        'מרכז החיים שלך בישראל?',
-        [...yesNo, unsure],
-        'למשל, הבית ומקום המגורים הקבוע. האומדן הבסיסי מיועד לתושבי ישראל.',
-      ),
-    )
-  if (a.onlyJob === 'yes' && a.resident === 'yes')
+  if (a.onlyJob === 'yes' && (a.resident ?? 'yes') === 'yes')
     qs.push(
       choice(
         'personal',
@@ -135,7 +125,7 @@ export function visibleQuestions(a: Answers): Question[] {
         'האומדן האוטומטי של ביטוח לאומי ובריאות מיועד לעובדים מגיל 18 שטרם הגיעו לגיל הפרישה.',
       ),
     )
-  if (a.onlyJob === 'yes' && a.resident === 'yes' && a.ageGroup === 'adult') {
+  if (a.onlyJob === 'yes' && (a.resident ?? 'yes') === 'yes' && a.ageGroup === 'adult') {
     qs.push(
       choice(
         'personal',
@@ -279,7 +269,7 @@ function needsAllowance(a: Answers) {
 function basicCredits(a: Answers): number | null {
   if (
     a.onlyJob !== 'yes' ||
-    a.resident !== 'yes' ||
+    (a.resident ?? 'yes') !== 'yes' ||
     a.ageGroup !== 'adult' ||
     !['female', 'male'].includes(a.sex)
   )
@@ -356,7 +346,7 @@ export function applyAnswers(
   draft: Answers,
   today = localDate(Date.now()),
 ) {
-  const answers: Answers = {}
+  const answers: Answers = { resident: draft.resident ?? 'yes' }
   for (const q of visibleQuestions(draft)) {
     if (!draft[q.id]?.trim()) continue
     const invalid = answerError(q, draft)
