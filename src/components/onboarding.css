@@ -31,3 +31,23 @@
   .onboarding-days .question-chip { transition: transform .15s, background-color .15s; }
   .onboarding-days .question-chip:active { transform: scale(.95); }
 }
+
+.onboarding-content .question-number {
+  position: relative;
+}
+.onboarding-content .question-number input {
+  text-align: center;
+  padding-inline: 1.5rem;
+  appearance: textfield;
+}
+.onboarding-content .question-number input::-webkit-inner-spin-button,
+.onboarding-content .question-number input::-webkit-outer-spin-button {
+  appearance: none;
+  margin: 0;
+}
+.onboarding-content .question-number span {
+  position: absolute;
+  inset-inline-end: 1rem;
+  padding: 0;
+  pointer-events: none;
+}
