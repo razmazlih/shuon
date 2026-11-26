@@ -24,7 +24,7 @@ import {
   type WorkShift,
   type Workspace,
 } from './data/model'
-import { subscribeWorkspace, writeSetting, writeShifts } from './data/repository'
+import { subscribeWorkspace, writeQuestionnaire, writeSetting, writeShifts } from './data/repository'
 import { calculateGross, type BandKind } from './domain/gross'
 import { addDays, addMonths, localDate, localTime, localToInstant } from './domain/time'
 import { estimateSalary, salaryReport } from './domain/net'
@@ -267,6 +267,12 @@ function WorkspaceApp({ user }: { user: User | null }) {
   }
   const setting = <K extends Exclude<keyof Workspace, 'shifts'>>(key: K, value: Workspace[K]) =>
     writeSetting(uid, key, value, w[key])
+  const saveQuestionnaire = (
+    profile: Workspace['profile'],
+    payroll: Workspace['payroll'],
+    originalProfile: Workspace['profile'],
+    originalPayroll: Workspace['payroll'],
+  ) => writeQuestionnaire(uid, { profile, payroll }, { profile: originalProfile, payroll: originalPayroll })
   const originalsForEditor =
     editor?.initial
       ? [...w.shifts.filter((s) => s.id !== editor.initial!.id), editor.initial]
@@ -474,6 +480,8 @@ function WorkspaceApp({ user }: { user: User | null }) {
         {page === 'settings' && (
           <Settings
             profile={w.profile}
+            payroll={w.payroll}
+            onSaveQuestionnaire={saveQuestionnaire}
             onSave={(v) => setting('profile', v)}
             templates={w.templates}
             onTemplate={(t) => setting('templates', [...w.templates, t])}
@@ -495,7 +503,7 @@ function WorkspaceApp({ user }: { user: User | null }) {
       </main>
       {user && !w.profile.onboarded && (
         <Dialog title="נעים להכיר, זה שועון">
-          <Onboarding profile={w.profile} onSave={(v) => setting('profile', v)} />
+          <Onboarding profile={w.profile} payroll={w.payroll} onSaveQuestionnaire={saveQuestionnaire} />
         </Dialog>
       )}
       {picked && !editor && (

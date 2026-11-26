@@ -21,6 +21,7 @@ export interface PaySettings {
   restStart: string
   restEnd: string
   restStartDay?: number
+  nightPremiumAmount?: number
   nightPremiumPercent?: number
   rateHistory?: { from: string; rate: number }[]
   holidays?: string[]
@@ -63,7 +64,7 @@ export const grossCoverage = {
     'חמישה ימים: 8:36 שעות וביום המקוצר 7:36. שישה ימים: 8 שעות. ערב המנוחה, ערב חג ועבודת לילה: 7 שעות כברירת מחדל. בשני הפרופילים 42 שעות רגילות בשבוע.',
   week: 'שבוע החישוב מתחיל ביום ראשון. משמרת רצופה שומרת על מדרגת השעות היומית בחצות. דקות המשמרת משויכות לחודש ולשבוע לפי מועד העבודה בפועל.',
   premium:
-    'תוספת לילה מוגדרת כאחוז משכר הבסיס לכל שעות המשמרת שסווגה כלילה, ונכללת בבסיס לחישוב הגמולים באותה משמרת.',
+    'תוספת לילה מוגדרת בסכום לשעה או כאחוז משכר הבסיס לכל שעות המשמרת שסווגה כלילה, ונכללת בבסיס לחישוב הגמולים באותה משמרת.',
   rest: 'חלונות המנוחה והחג הם השעות שהוגדרו במקום העבודה. השעות הקבועות לחגים הן קירוב. חפיפה בין חג למנוחה מזכה פעם אחת בתוספת.',
   limitations:
     'החישוב כולל משמרות שהוזנו. השלמת שכר בערב חג לפי הסכם, דמי חג בגין היעדרות או עבודה מכורח, חופשה, מחלה, שעות גמישות, הסדרים ענפיים, שעות גלובליות ומנוחת פיצוי טעונים בדיקה נפרדת. שבוע שחסרים בו ימי עבודה או היעדרות בתשלום עשוי לתת אומדן חלקי.',
@@ -163,6 +164,7 @@ function verifySettings(s: PaySettings) {
     !validAmount(s.hourlyRate) ||
     ![5, 6].includes(s.workDays) ||
     !validAmount(s.nightPremiumPercent ?? 0) ||
+    !validAmount(s.nightPremiumAmount ?? 0) ||
     !weekdays.every((d) => Number.isInteger(d) && d >= 0 && d < 7) ||
     !validClock(s.restStart) ||
     !validClock(s.restEnd, true) ||
@@ -335,7 +337,8 @@ export function calculateGross(shifts: Shift[], settings: PaySettings, month?: s
       if (r.from > p.date) break
       baseRate = r.rate
     }
-    const rate = baseRate * (1 + (night ? (settings.nightPremiumPercent ?? 0) : 0) / 100)
+    const nightPremium = settings.nightPremiumAmount ?? (baseRate * (settings.nightPremiumPercent ?? 0)) / 100
+    const rate = night ? baseRate + nightPremium : baseRate
     const row = rows.get(p.shiftId)!
     for (const [tier, duration] of [regular, firstTier, overtime - firstTier].entries()) {
       if (duration === 0) continue

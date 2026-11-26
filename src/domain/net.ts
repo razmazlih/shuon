@@ -25,6 +25,7 @@ export type PayrollMonth = {
 export type PayrollProfile = {
   creditPoints: number | null
   pensionPercent: number | null
+  regularInsurance?: boolean
   capPension: boolean
   months: Record<string, PayrollMonth>
 }
@@ -163,12 +164,16 @@ export function estimateSalary(
     )
     incomeTax = cents(cumulativeTax - (prior?.incomeTaxPaid ?? 0))
   }
-  const contributions = supported ? employeeInsurance2026(taxable) : null
+  const contributions =
+    supported && profile.regularInsurance !== false ? employeeInsurance2026(taxable) : null
   const insurance = !supported
     ? null
     : provided(monthOptions.insurance)
       ? monthOptions.insurance
-      : cents(contributions!.national + contributions!.health)
+      : contributions
+        ? cents(contributions.national + contributions.health)
+        : null
+  if (supported && insurance === null) missing.push('ניכוי ביטוח לאומי ובריאות מהתלוש')
   const net =
     pension === null || incomeTax === null || insurance === null
       ? null

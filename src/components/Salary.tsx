@@ -125,6 +125,7 @@ export function PayrollSettings({
     setStatus('')
     try {
       await onProfileChange({
+        ...profile,
         creditPoints: readNumber(data, 'creditPoints'),
         pensionPercent: readNumber(data, 'pensionPercent'),
         capPension: data.has('capPension'),
@@ -139,7 +140,9 @@ export function PayrollSettings({
   }
   return (
     <form key={JSON.stringify(profile)} className="salary-form" onSubmit={submit}>
-      <p className="salary-help">אפשר להעתיק את שני הערכים מהתלוש האחרון. הם ישמשו את החישוב בכל החודשים.</p>
+      <p className="salary-help">
+        שאלון השכר בהגדרות משמש לאומדן הראשוני. אם בתלוש מופיעים ערכים אחרים, אפשר לעדכן אותם כאן לכל החודשים.
+      </p>
       <div className="salary-grid">
         <NumberField name="creditPoints" title="נקודות זיכוי" value={profile.creditPoints} hint="לפי התלוש" />
         <NumberField
@@ -495,20 +498,23 @@ export function Salary(props: SalaryProps) {
             {missing.join(' · ')}.
           </p>
           {hasPayrollRules && (
-            <button
-              type="button"
-              className="salary-link"
-              aria-controls={settingsId}
-              onClick={() => {
-                if (settings.current) {
-                  settings.current.open = true
-                  settings.current.scrollIntoView({ block: 'center' })
-                  settings.current.querySelector('input')?.focus()
-                }
-              }}
-            >
-              השלמת פרטים לחישוב הנטו
-            </button>
+            <>
+              <a className="salary-link" href="#settings">עדכון שאלון השכר</a>
+              <button
+                type="button"
+                className="salary-link"
+                aria-controls={settingsId}
+                onClick={() => {
+                  if (settings.current) {
+                    settings.current.open = true
+                    settings.current.scrollIntoView({ block: 'center' })
+                    settings.current.querySelector('input')?.focus()
+                  }
+                }}
+              >
+                השלמה לפי תלוש
+              </button>
+            </>
           )}
         </div>
       )}

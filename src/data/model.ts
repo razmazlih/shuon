@@ -19,6 +19,7 @@ export type Theme = 'light' | 'dark' | 'sage' | 'system'
 export interface UserProfile {
   pay: PaySettings
   theme: Theme
+  questionnaire?: Record<string, string>
   onboarded: boolean
 }
 export interface Template {

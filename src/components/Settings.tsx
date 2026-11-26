@@ -5,7 +5,6 @@ import {
   Bookmark,
   CalendarDays,
   ChevronLeft,
-  Clock3,
   Laptop,
   LogIn,
   LogOut,
@@ -20,11 +19,12 @@ import type { PaySettings } from '../domain/gross'
 import { dateMs, localDate, localTime, localToInstant } from '../domain/time'
 import AppleCalendar from './AppleCalendar'
 import { TimeRange } from './TimeRange'
+import { QuestionnaireSettings, type QuestionnaireProps } from './PayQuestionnaire'
+export { Onboarding } from './PayQuestionnaire'
 import './settings.css'
 
 type SaveProfile = (profile: UserProfile) => Promise<void>
-type SettingsProps = {
-  profile: UserProfile
+type SettingsProps = QuestionnaireProps & {
   onSave: SaveProfile
   templates: Template[]
   onTemplate: (template: Template) => Promise<void>
@@ -116,60 +116,6 @@ function SectionHeading({ children, icon }: { children: ReactNode; icon: ReactNo
   )
 }
 
-export function Onboarding({ profile, onSave }: { profile: UserProfile; onSave: SaveProfile }) {
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState('')
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    const form = new FormData(event.currentTarget)
-    setSaving(true)
-    setError('')
-    try {
-      await onSave({
-        ...profile,
-        onboarded: true,
-        pay: {
-          ...profile.pay,
-          hourlyRate: Number(form.get('hourlyRate')),
-          workDays: Number(form.get('workDays')) as 5 | 6,
-        },
-      })
-    } catch {
-      setError('שמירת ההגדרות נכשלה. אפשר לנסות שוב.')
-    } finally {
-      setSaving(false)
-    }
-  }
-  return (
-    <form className="prefs-form prefs-onboard" onSubmit={submit}>
-      <p>כדי לחשב את שווי המשמרת הראשונה, צריך את שכר הבסיס לשעה ואת אורך שבוע העבודה במקום העבודה.</p>
-      <label className="prefs-field">
-        שכר בסיס לשעה (₪)
-        <input
-          name="hourlyRate"
-          min=".01"
-          step=".01"
-          type="number"
-          inputMode="decimal"
-          placeholder="לפי הסכם העבודה"
-          required
-        />
-      </label>
-      <label className="prefs-field">
-        שבוע העבודה במקום העבודה
-        <select name="workDays" defaultValue={profile.pay.workDays}>
-          <option value={5}>5 ימי עבודה</option>
-          <option value={6}>6 ימי עבודה</option>
-        </select>
-      </label>
-      <button type="submit" className="prefs-primary" disabled={saving}>
-        {saving ? 'בשמירה…' : 'שמירה והתחלת העבודה'}
-      </button>
-      {error && <p role="alert">{error}</p>}
-    </form>
-  )
-}
-
 type HolidayDate = { id: string; date: string }
 type HolidayRange = { id: string; start: string; end: string }
 type SavePay = (pay: PaySettings, section: string, message: string) => Promise<boolean>
@@ -185,18 +131,16 @@ function TimeSettings({ pay, busy, save }: { pay: PaySettings; busy: boolean; sa
       end: dateTimeValue(range.end),
     })),
   )
-  const [workDays, setWorkDays] = useState(pay.workDays)
   const [error, setError] = useState('')
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const data = new FormData(event.currentTarget)
     setError('')
     try {
-      const restDay = Number(data.get('restDay')),
-        restStartDay = Number(data.get('restStartDay'))
+      const restStartDay = Number(data.get('restStartDay'))
       const restStart = read(data, 'restStart'),
         restEnd = read(data, 'restEnd')
-      if (restStartDay === restDay && restStart >= restEnd)
+      if (restStartDay === pay.restDay && restStart >= restEnd)
         throw new Error('כאשר המנוחה מתחילה ומסתיימת באותו יום, שעת הסיום צריכה להיות מאוחרת יותר.')
       const windows = ranges.map((range) => {
         const start = isoFromLocal(range.start),
@@ -209,14 +153,9 @@ function TimeSettings({ pay, busy, save }: { pay: PaySettings; busy: boolean; sa
       await save(
         {
           ...pay,
-          workDays,
-          shortDay: Number(data.get('shortDay') ?? pay.shortDay),
-          restDay,
           restStartDay,
           restStart,
           restEnd,
-          nightPremiumPercent: Number(data.get('nightPremiumPercent')),
-          holidayCalendar: read(data, 'holidayCalendar') as PaySettings['holidayCalendar'],
           holidayEveHours: Number(data.get('holidayEveHours')) as 7 | 8,
           holidayStart: read(data, 'holidayStart'),
           holidayEnd: read(data, 'holidayEnd'),
@@ -232,22 +171,8 @@ function TimeSettings({ pay, busy, save }: { pay: PaySettings; busy: boolean; sa
   }
   return (
     <form className="prefs-form" onSubmit={submit}>
-      <div className="prefs-grid">
-        <label className="prefs-field">
-          שבוע העבודה במקום העבודה
-          <select
-            name="workDays"
-            value={workDays}
-            onChange={(e) => setWorkDays(Number(e.target.value) as 5 | 6)}
-          >
-            <option value={5}>5 ימי עבודה</option>
-            <option value={6}>6 ימי עבודה</option>
-          </select>
-        </label>
-        {workDays === 5 && <DayField title="יום עבודה מקוצר" name="shortDay" value={pay.shortDay} />}
-      </div>
       <details className="prefs-details">
-        <summary>מנוחה שבועית ותוספת לילה</summary>
+        <summary>שעות המנוחה השבועית</summary>
         <div className="prefs-form">
           <div className="prefs-grid">
             <DayField
@@ -256,34 +181,15 @@ function TimeSettings({ pay, busy, save }: { pay: PaySettings; busy: boolean; sa
               value={pay.restStartDay ?? (pay.restDay + 6) % 7}
             />
             <ClockField title="שעת כניסה" name="restStart" value={pay.restStart} />
-            <DayField title="יום המנוחה השבועי וסיומו" name="restDay" value={pay.restDay} />
             <ClockField title="שעת יציאה" name="restEnd" value={pay.restEnd} canEndAtMidnight />
           </div>
           <p className="prefs-hint">לסיום בחצות בסוף היום אפשר להזין 24:00. השעות הן לפי שעון ישראל.</p>
-          <label className="prefs-field">
-            תוספת לילה לפי הסכם (%)
-            <input
-              type="number"
-              name="nightPremiumPercent"
-              min="0"
-              step=".01"
-              defaultValue={pay.nightPremiumPercent ?? 0}
-              required
-            />
-          </label>
         </div>
       </details>
       <details className="prefs-details">
         <summary>חגים וערבי חג</summary>
         <div className="prefs-form">
           <div className="prefs-grid">
-            <label className="prefs-field">
-              לוח חגים
-              <select name="holidayCalendar" defaultValue={pay.holidayCalendar ?? 'manual'}>
-                <option value="israel-jewish">חגי ישראל ויום העצמאות</option>
-                <option value="manual">בחירת תאריכים ידנית</option>
-              </select>
-            </label>
             <label className="prefs-field">
               שעות רגילות בערב חג
               <select name="holidayEveHours" defaultValue={pay.holidayEveHours ?? 7}>
@@ -539,6 +445,8 @@ function TemplateSettings({
 
 export function Settings({
   profile,
+  payroll,
+  onSaveQuestionnaire,
   onSave,
   templates,
   onTemplate,
@@ -572,21 +480,22 @@ export function Settings({
     )
   return (
     <div className="prefs-layout">
-      <section className="prefs-card">
-        <SectionHeading icon={<Banknote />}>תעריף שעתי</SectionHeading>
-        <RateSettings pay={profile.pay} busy={busy} save={savePay} />
-        {feedback('rate')}
-      </section>
-      <section className="prefs-card">
-        <SectionHeading icon={<Clock3 />}>שבוע העבודה</SectionHeading>
-        <TimeSettings
-          key={JSON.stringify({ ...profile.pay, rateHistory: null })}
-          pay={profile.pay}
-          busy={busy}
-          save={savePay}
-        />
-        {feedback('time')}
-      </section>
+      <QuestionnaireSettings profile={profile} payroll={payroll} onSaveQuestionnaire={onSaveQuestionnaire} />
+      <details className="prefs-card prefs-pay-tools">
+        <summary><Banknote size={18} aria-hidden="true" /> תעריפים עתידיים, זמני מנוחה וחגים</summary>
+        <div className="prefs-tools-grid">
+          <section>
+            <h3>עדכון תעריף לפי תאריך</h3>
+            <RateSettings pay={profile.pay} busy={busy} save={savePay} />
+            {feedback('rate')}
+          </section>
+          <section>
+            <h3>שעות ותאריכים מיוחדים</h3>
+            <TimeSettings key={JSON.stringify(profile.pay)} pay={profile.pay} busy={busy} save={savePay} />
+            {feedback('time')}
+          </section>
+        </div>
+      </details>
       <section className="prefs-card">
         <SectionHeading icon={<Bookmark />}>תבניות משמרת</SectionHeading>
         <TemplateSettings
@@ -647,7 +556,7 @@ export function Settings({
         )}
         {feedback('account')}
         <button type="button" className="prefs-route" onClick={onSalary}>
-          <span>דוח שכר, נתוני פנסיה ונקודות זיכוי</span>
+          <span>פתיחת דוח השכר</span>
           <ChevronLeft aria-hidden="true" />
         </button>
       </section>

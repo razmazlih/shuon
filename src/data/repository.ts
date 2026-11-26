@@ -137,6 +137,31 @@ export async function writeSetting<K extends Setting>(
   })
 }
 
+type PayProfile = Pick<Workspace, 'profile' | 'payroll'>
+
+export async function writeQuestionnaire(uid: string | undefined, next: PayProfile, previous: PayProfile) {
+  const validate = (current: PayProfile) => {
+    if (!same(current.profile, previous.profile) || !same(current.payroll, previous.payroll)) throw conflict()
+  }
+  if (!uid)
+    return localWrite((data) => {
+      validate(data)
+      Object.assign(data, next)
+    })
+  const profile = doc(db, 'users', uid, 'settings', 'profile')
+  const payroll = doc(db, 'users', uid, 'settings', 'payroll')
+  await runTransaction(db, async (tx) => {
+    const [savedProfile, savedPayroll] = await Promise.all([tx.get(profile), tx.get(payroll)])
+    const defaults = freshWorkspace()
+    validate({
+      profile: savedProfile.exists() ? savedProfile.data().value : defaults.profile,
+      payroll: savedPayroll.exists() ? savedPayroll.data().value : defaults.payroll,
+    })
+    tx.set(profile, { value: next.profile })
+    tx.set(payroll, { value: next.payroll })
+  })
+}
+
 export async function writeShifts(
   uid: string | undefined,
   rows: WorkShift[],
