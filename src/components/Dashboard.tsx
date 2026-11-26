@@ -16,6 +16,8 @@ import {
   Timer,
 } from 'lucide-react'
 import { Forest } from './Forest'
+import type { ShiftPay } from '../domain/gross'
+import { ShiftGross } from './ShiftGross'
 import { TimeRange } from './TimeRange'
 import { addDays, localDate, localTime, weekday } from '../domain/time'
 import { weeklyWorkHours } from '../data/shift-hours'
@@ -24,6 +26,7 @@ import { dateLabel, formatMoney, hourCount, type WorkShift } from '../data/model
 type Props = {
   today: string
   shifts: WorkShift[]
+  shiftPayById: ReadonlyMap<string, ShiftPay>
   active?: WorkShift
   scheduled?: WorkShift
   previousMonth: string
@@ -52,7 +55,7 @@ function duration(shift: WorkShift) {
   )
   return Math.max(0, Math.floor((end - Date.parse(shift.start) - breaks) / 1000))
 }
-function Clock({ active, scheduled, busy, foxReaction, onTimer }: Pick<Props, 'foxReaction' | 'active' | 'scheduled' | 'busy' | 'onTimer'>) {
+function Clock({ active, scheduled, scheduledGross, busy, foxReaction, onTimer }: Pick<Props, 'foxReaction' | 'active' | 'scheduled' | 'busy' | 'onTimer'> & { scheduledGross?: number }) {
   const displayedShift = active ?? scheduled
   const [, refresh] = useState(0)
   useEffect(() => {
@@ -88,6 +91,7 @@ function Clock({ active, scheduled, busy, foxReaction, onTimer }: Pick<Props, 'f
           <div className="clock-scheduled">
             <strong>{scheduled.title}</strong>
             <TimeRange start={localTime(scheduled.start)} end={localTime(scheduled.end)} />
+            <ShiftGross status={scheduled.status} gross={scheduledGross} />
           </div>
         )}
         <div className="timer-actions">
@@ -180,6 +184,7 @@ function Weekly({ today, shifts, onCalendar }: Pick<Props, 'today' | 'shifts' | 
   )
 }
 export function Dashboard(p: Props) {
+  const scheduledGross = p.scheduled ? p.shiftPayById.get(p.scheduled.id)?.gross : undefined
   const upcoming = p.shifts
     .filter((s) => s.status === 'planned')
     .sort((a, b) => a.start.localeCompare(b.start))
@@ -194,7 +199,7 @@ export function Dashboard(p: Props) {
   return (
     <>
       <div className="dashboard-top">
-        <Clock foxReaction={p.foxReaction} active={p.active} scheduled={p.scheduled} busy={p.busy} onTimer={p.onTimer} />
+        <Clock foxReaction={p.foxReaction} active={p.active} scheduled={p.scheduled} scheduledGross={scheduledGross} busy={p.busy} onTimer={p.onTimer} />
         <article className="income-card">
           <div className="income-contours" aria-hidden="true" />
           <h2 className="overline">
@@ -273,6 +278,7 @@ export function Dashboard(p: Props) {
                       {dateLabel(date, { weekday: 'long' })} <i>·</i>{' '}
                       <TimeRange start={localTime(s.start)} end={localTime(s.end)} />
                     </small>
+                    <ShiftGross status={s.status} gross={p.shiftPayById.get(s.id)?.gross} />
                   </span>
                   <Icon className="shift-kind" size={17} />
                   <ChevronLeft size={15} className="row-chevron" />

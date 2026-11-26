@@ -3,12 +3,15 @@ import { CalendarDays, ChevronLeft, ChevronRight, Plus } from 'lucide-react'
 import type { WorkShift } from '../data/model'
 import { formatWorkDuration, shiftWorkMillis, workMillisOnDay } from '../data/shift-hours'
 import { addDays, addMonths, dateMs, localDate, localTime, monthDays } from '../domain/time'
+import type { ShiftPay } from '../domain/gross'
+import { ShiftGross } from './ShiftGross'
 import { TimeRange } from './TimeRange'
 import { SleepingFox } from './SleepingFox'
 import './monthly-calendar.css'
 
 interface CalendarProps {
   shifts: WorkShift[]
+  shiftPayById: ReadonlyMap<string, ShiftPay>
   date: string
   today?: string
   onDate: (date: string) => void
@@ -109,6 +112,7 @@ function usePanelMotion(key: string) {
 
 export function Calendar({
   shifts,
+  shiftPayById,
   date,
   today: calendarToday,
   onDate,
@@ -342,6 +346,7 @@ export function Calendar({
                             <strong>{shift.title || 'משמרת עבודה'}</strong>
                             {crossDay && <small>חוצה חצות</small>}
                           </span>
+                          <ShiftGross status={shift.status} gross={shiftPayById.get(shift.id)?.gross} />
                         </span>
                         <span className="cal-entry-meta">
                           <span className="cal-status">

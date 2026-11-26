@@ -1067,7 +1067,32 @@ button:not(:disabled):active {
   align-items: center;
   justify-content: space-between;
 }
-.detail-pay strong {
+.shift-gross {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 0.4em;
+  color: var(--ink);
+  font-size: 0.75rem;
+}
+
+.shift-gross bdi {
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.clock-scheduled .shift-gross {
+  flex-basis: 100%;
+  color: inherit;
+}
+
+.detail-pay .shift-gross {
+  flex: 1;
+  justify-content: space-between;
+  font-size: inherit;
+}
+
+.detail-pay .shift-gross bdi {
   font-size: 25px;
 }
 .ledger-line {

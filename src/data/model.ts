@@ -81,12 +81,12 @@ export function demoWorkspace(): Workspace {
   }
   return state
 }
-export const formatMoney = (n: number, digits = 0) =>
+export const formatMoney = (n: number, digits = 0, minimumDigits = 0) =>
   new Intl.NumberFormat('he-IL', {
     style: 'currency',
     currency: 'ILS',
     maximumFractionDigits: digits,
-    minimumFractionDigits: 0,
+    minimumFractionDigits: minimumDigits,
   }).format(n)
 export const dateLabel = (date: string, options: Intl.DateTimeFormatOptions) =>
   new Intl.DateTimeFormat('he-IL', { ...options, timeZone: 'UTC' }).format(new Date(date + 'T12:00:00Z'))

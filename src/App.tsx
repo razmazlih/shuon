@@ -25,13 +25,15 @@ import {
   type Workspace,
 } from './data/model'
 import { subscribeWorkspace, writeQuestionnaire, writeSetting, writeShifts } from './data/repository'
-import { calculateGross, type BandKind } from './domain/gross'
+import { calculateShiftPay } from './data/shift-pay'
+import { calculateGross, type BandKind, type ShiftPay } from './domain/gross'
 import { addDays, addMonths, localDate, localTime, localToInstant } from './domain/time'
 import { estimateSalary, salaryReport } from './domain/net'
 import { Dashboard } from './components/Dashboard'
 import { SleepingFox } from './components/SleepingFox'
 import { SalaryMonthPicker } from './components/SalaryMonthPicker'
 import { TimeRange } from './components/TimeRange'
+import { ShiftGross } from './components/ShiftGross'
 import { ShiftEditor } from './components/ShiftEditor'
 import { Calendar } from './components/Calendar'
 import { Onboarding, Settings } from './components/Settings'
@@ -202,6 +204,10 @@ function WorkspaceApp({ user }: { user: User | null }) {
     [storedShifts, statusTime],
   )
   const pay = workspace?.profile.pay
+  const shiftPayById = useMemo<ReadonlyMap<string, ShiftPay>>(
+    () => (pay ? calculateShiftPay(shifts, pay) : new Map()),
+    [shifts, pay],
+  )
   const payroll = workspace?.payroll
   const adjustments = workspace?.adjustments
   const previousMonth = addMonths(today, -1).slice(0, 7)
@@ -353,19 +359,7 @@ function WorkspaceApp({ user }: { user: User | null }) {
   const picked = detail && shifts.find((s) => s.id === detail.id)
   const dialogShift = editor ? editor.initial : picked
   const dialogDate = editor?.date ?? (picked && localDate(picked.start))
-  let pickedPay = null
-  if (picked && picked.status !== 'active') {
-    try {
-      pickedPay = calculateGross(
-        shifts.filter(
-          (s) => s.status === 'completed' || (picked.status === 'planned' && s.status === 'planned'),
-        ),
-        w.profile.pay,
-      ).shifts.find((s) => s.id === picked.id)
-    } catch {
-      /* The conflicting entries remain available to edit in the planner. */
-    }
-  }
+  const pickedPay = picked ? shiftPayById.get(picked.id) : undefined
   const title =
     page === 'today'
       ? 'היום שלי'
@@ -457,6 +451,7 @@ function WorkspaceApp({ user }: { user: User | null }) {
         )}
         {page === 'today' && (
           <Dashboard
+            shiftPayById={shiftPayById}
             today={today}
             shifts={shifts}
             active={active}
@@ -478,6 +473,7 @@ function WorkspaceApp({ user }: { user: User | null }) {
         )}
         {page === 'calendar' && (
           <Calendar
+            shiftPayById={shiftPayById}
             shifts={shifts}
             date={day}
             today={today}
@@ -571,24 +567,21 @@ function WorkspaceApp({ user }: { user: User | null }) {
                     {picked.status === 'active' ? 'פעילה' : picked.status === 'completed' ? 'בוצעה' : 'מתוכננת'}
                   </span>
                 </div>
-                {pickedPay && (
-                  <>
-                    <div className="detail-pay">
-                      <span>ברוטו למשמרת</span>
-                      <strong>{formatMoney(pickedPay.gross, 2)}</strong>
-                    </div>
-                    {pickedPay.bands
-                      .filter((b) => b.hours > 0)
-                      .map((b) => (
-                        <div className="ledger-line" key={b.kind}>
-                          <span>
-                            {bandNames[b.kind]} · {hourCount(b.hours)} שעות
-                          </span>
-                          <b>{formatMoney(b.amount, 2)}</b>
-                        </div>
-                      ))}
-                  </>
+                {picked.status !== 'active' && (
+                  <div className="detail-pay">
+                    <ShiftGross status={picked.status} gross={pickedPay?.gross} />
+                  </div>
                 )}
+                {pickedPay?.bands
+                  .filter((b) => b.hours > 0)
+                  .map((b) => (
+                    <div className="ledger-line" key={b.kind}>
+                      <span>
+                        {bandNames[b.kind]} · {hourCount(b.hours)} שעות
+                      </span>
+                      <b>{formatMoney(b.amount, 2)}</b>
+                    </div>
+                  ))}
                 {picked.breaks.length > 0 && (
                   <p>
                     הפסקות:{' '}
