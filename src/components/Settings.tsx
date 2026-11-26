@@ -19,6 +19,7 @@ import type { PaySettings } from '../domain/gross'
 import { dateMs, localDate, localTime, localToInstant } from '../domain/time'
 import AppleCalendar from './AppleCalendar'
 import { Dialog } from './Dialog'
+import { PayrollSettings } from './PayrollSettings'
 import { TimeRange } from './TimeRange'
 import { QuestionnaireSettings, type QuestionnaireProps } from './PayQuestionnaire'
 export { Onboarding } from './PayQuestionnaire'
@@ -27,6 +28,7 @@ import './settings.css'
 type SaveProfile = (profile: UserProfile) => Promise<void>
 type SettingsProps = QuestionnaireProps & {
   onSave: SaveProfile
+  onSavePayroll: (payroll: QuestionnaireProps['payroll']) => Promise<void>
   templates: Template[]
   onTemplate: (template: Template) => Promise<void>
   user: User | null
@@ -462,6 +464,7 @@ export function Settings({
   payroll,
   onSaveQuestionnaire,
   onSave,
+  onSavePayroll,
   templates,
   onTemplate,
   user,
@@ -495,6 +498,7 @@ export function Settings({
   return (
     <div className="prefs-layout">
       <QuestionnaireSettings profile={profile} payroll={payroll} onSaveQuestionnaire={onSaveQuestionnaire} />
+      <PayrollSettings profile={payroll} onSave={onSavePayroll} />
       <details className="prefs-card prefs-pay-tools">
         <summary><Banknote size={18} aria-hidden="true" /> תעריפים עתידיים, זמני מנוחה וחגים</summary>
         <div className="prefs-tools-grid">

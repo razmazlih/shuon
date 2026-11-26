@@ -11,6 +11,7 @@ import type {
 } from '../domain/net'
 import { grossCoverage, type PayBand } from '../domain/gross'
 import { hourCount } from '../data/model'
+import { NumberField, readNumber } from './PayrollNumberField'
 import './salary.css'
 
 type SalaryProps = {
@@ -54,50 +55,7 @@ const explanations: Record<AdjustmentKind, string> = {
   deduction: 'לדוגמה, החזר מקדמה, חלק העובד בקרן השתלמות או דמי ועד. הסכום יורד ישירות מהנטו.',
 }
 
-function NumberField({
-  name,
-  title,
-  value,
-  max,
-  min = 0,
-  required = false,
-  step = '0.01',
-  hint,
-}: {
-  name: string
-  title: string
-  value?: number | null
-  min?: number | null
-  max?: number
-  required?: boolean
-  step?: string
-  hint?: string
-}) {
-  return (
-    <label className="salary-field">
-      <span>{title}</span>
-      <input
-        type="number"
-        key={value ?? ''}
-        name={name}
-        min={min ?? undefined}
-        max={max}
-        step={step}
-        required={required}
-        inputMode="decimal"
-        defaultValue={value ?? ''}
-        placeholder={hint}
-      />
-    </label>
-  )
-}
-
-function readNumber(data: FormData, key: string) {
-  const value = data.get(key)
-  return value === null || value === '' ? null : Number(value)
-}
-
-export function PayrollSettings({
+function PayslipForm({
   month,
   profile,
   onProfileChange,
@@ -128,15 +86,12 @@ export function PayrollSettings({
     try {
       await onProfileChange({
         ...profile,
-        creditPoints: readNumber(data, 'creditPoints'),
-        pensionPercent: readNumber(data, 'pensionPercent'),
-        capPension: data.has('capPension'),
         months: { ...profile.months, [month]: settings },
       })
       setUsePrior(null)
-      setStatus('פרטי השכר נשמרו')
+      setStatus('נתוני התלוש נשמרו')
     } catch {
-      setStatus('שמירת פרטי השכר נכשלה. אפשר לנסות שוב.')
+      setStatus('שמירת נתוני התלוש נכשלה. אפשר לנסות שוב.')
     } finally {
       setSaving(false)
     }
@@ -144,79 +99,59 @@ export function PayrollSettings({
   return (
     <form className="salary-form" onSubmit={submit}>
       <p className="salary-help">
-        שאלון השכר בהגדרות משמש לאומדן הראשוני. אם בתלוש מופיעים ערכים אחרים, אפשר לעדכן אותם כאן לכל החודשים.
+        השדות הבאים מחליפים את האומדן האוטומטי לחודש שנבחר. אפשר להזין אפס או להשאיר שדה ריק לחישוב אוטומטי.
       </p>
-      <div className="salary-grid">
-        <NumberField name="creditPoints" title="נקודות זיכוי" value={profile.creditPoints} hint="לפי התלוש" />
-        <NumberField
-          name="pensionPercent"
-          title="הפרשת עובד לפנסיה (%)"
-          value={profile.pensionPercent}
-          max={100}
-          hint="לפי התלוש"
-        />
+      <div className="salary-grid salary-grid-three">
+        <NumberField name="pensionBase" title="שכר מבוטח בפועל (₪)" value={monthData.pensionBase} />
+        <NumberField name="incomeTax" min={null} title="מס הכנסה בתלוש (₪)" value={monthData.incomeTax} />
+        <NumberField name="insurance" title="ביטוח לאומי ובריאות (₪)" value={monthData.insurance} />
       </div>
-      <label className="salary-check">
-        <input key={String(profile.capPension)} type="checkbox" name="capPension" defaultChecked={profile.capPension} /> החלת תקרת פנסיית חובה
-        (13,769 ₪ בחודש בשנת 2026)
-      </label>
-      <details className="salary-inner-details">
-        <summary>נתוני תלוש לחודש {monthLabel(month)}</summary>
-        <p className="salary-help">
-          השדות הבאים מחליפים את האומדן האוטומטי לחודש שנבחר. אפשר להזין אפס או להשאיר שדה ריק לחישוב אוטומטי.
-        </p>
-        <div className="salary-grid salary-grid-three">
-          <NumberField name="pensionBase" title="שכר מבוטח בפועל (₪)" value={monthData.pensionBase} />
-          <NumberField name="incomeTax" min={null} title="מס הכנסה בתלוש (₪)" value={monthData.incomeTax} />
-          <NumberField name="insurance" title="ביטוח לאומי ובריאות (₪)" value={monthData.insurance} />
-        </div>
-        {Number(month.slice(5)) > 1 && (
-          <label className="salary-check">
-            <input type="checkbox" checked={usePrior} onChange={(e) => setUsePrior(e.target.checked)} /> חישוב
-            מס מצטבר בעזרת התלוש הקודם
-          </label>
-        )}
-        {usePrior && (
-          <>
-            <p className="salary-help">
-              יש להזין סכומים עד סוף החודש הקודם באותה שנת מס. החישוב מניח שמספר נקודות הזיכוי היה קבוע
-              בתקופה.
-            </p>
-            <div className="salary-grid">
-              <NumberField
-                name="months"
-                title="חודשי חישוב קודמים"
-                value={monthData.prior?.months}
-                min={1}
-                max={Number(month.slice(5)) - 1}
-                step="1"
-                required
-              />
-              <NumberField
-                name="taxableIncome"
-                title="שכר חייב מצטבר (₪)"
-                value={monthData.prior?.taxableIncome}
-                required
-              />
-              <NumberField
-                name="incomeTaxPaid"
-                title="מס הכנסה שנוכה במצטבר (₪)"
-                value={monthData.prior?.incomeTaxPaid}
-                required
-              />
-              <NumberField
-                name="pensionTaxCredit"
-                title="זיכוי פנסיה מצטבר (₪)"
-                value={monthData.prior?.pensionTaxCredit}
-                required
-              />
-            </div>
-          </>
-        )}
-      </details>
+      {Number(month.slice(5)) > 1 && (
+        <label className="salary-check">
+          <input type="checkbox" checked={usePrior} onChange={(e) => setUsePrior(e.target.checked)} /> חישוב
+          מס מצטבר בעזרת התלוש הקודם
+        </label>
+      )}
+      {usePrior && (
+        <>
+          <p className="salary-help">
+            יש להזין סכומים עד סוף החודש הקודם באותה שנת מס. החישוב מניח שמספר נקודות הזיכוי היה קבוע
+            בתקופה.
+          </p>
+          <div className="salary-grid">
+            <NumberField
+              name="months"
+              title="חודשי חישוב קודמים"
+              value={monthData.prior?.months}
+              min={1}
+              max={Number(month.slice(5)) - 1}
+              step="1"
+              required
+            />
+            <NumberField
+              name="taxableIncome"
+              title="שכר חייב מצטבר (₪)"
+              value={monthData.prior?.taxableIncome}
+              required
+            />
+            <NumberField
+              name="incomeTaxPaid"
+              title="מס הכנסה שנוכה במצטבר (₪)"
+              value={monthData.prior?.incomeTaxPaid}
+              required
+            />
+            <NumberField
+              name="pensionTaxCredit"
+              title="זיכוי פנסיה מצטבר (₪)"
+              value={monthData.prior?.pensionTaxCredit}
+              required
+            />
+          </div>
+        </>
+      )}
       <div className="salary-actions">
         <button className="salary-primary" type="submit" disabled={saving}>
-          {saving ? 'בשמירה…' : 'שמירת פרטי שכר'}
+          {saving ? 'בשמירה…' : 'שמירת נתוני התלוש'}
         </button>
         <span role="status">{status}</span>
       </div>
@@ -438,8 +373,8 @@ type Amount = (estimate: Estimate) => number | null
 export function Salary(props: SalaryProps) {
   const { month, actual, planned, profile, adjustments, actualBands, forecastBands } = props
   const { forecast, actual: earned } = salaryReport(month, actual, planned, profile, adjustments)
-  const settings = useRef<HTMLDetailsElement>(null)
-  const settingsId = useId()
+  const payslip = useRef<HTMLDetailsElement>(null)
+  const payslipId = useId()
   const missing = forecast.missing
   const hasPayrollRules = month.startsWith('2026-')
   const bands = Object.entries(bandLabels).flatMap(([kind, label]) => {
@@ -502,16 +437,16 @@ export function Salary(props: SalaryProps) {
           </p>
           {hasPayrollRules && (
             <>
-              <a className="salary-link" href="#settings">עדכון שאלון השכר</a>
+              <a className="salary-link" href="#settings">עדכון הגדרות השכר</a>
               <button
                 type="button"
                 className="salary-link"
-                aria-controls={settingsId}
+                aria-controls={payslipId}
                 onClick={() => {
-                  if (settings.current) {
-                    settings.current.open = true
-                    settings.current.scrollIntoView({ block: 'center' })
-                    settings.current.querySelector('input')?.focus()
+                  if (payslip.current) {
+                    payslip.current.open = true
+                    payslip.current.scrollIntoView({ block: 'center' })
+                    payslip.current.querySelector('input')?.focus()
                   }
                 }}
               >
@@ -550,9 +485,9 @@ export function Salary(props: SalaryProps) {
           {amountRow('אומדן נטו לתשלום', (estimate) => estimate.net)}
         </tfoot>
       </SalaryComparison>
-      <details className="salary-card salary-settings" ref={settings} id={settingsId}>
-        <summary>פרטי שכר וניכויים</summary>
-        <PayrollSettings
+      <details className="salary-card salary-settings" ref={payslip} id={payslipId}>
+        <summary>נתוני תלוש לחודש {monthLabel(month)}</summary>
+        <PayslipForm
           key={month}
           month={month}
           profile={profile}

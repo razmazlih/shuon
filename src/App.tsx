@@ -503,6 +503,7 @@ function WorkspaceApp({ user }: { user: User | null }) {
             profile={w.profile}
             payroll={w.payroll}
             onSaveQuestionnaire={saveQuestionnaire}
+            onSavePayroll={(v) => setting('payroll', v)}
             onSave={(v) => setting('profile', v)}
             templates={w.templates}
             onTemplate={(t) => setting('templates', w.templates.some(item => item.id === t.id)

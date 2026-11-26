@@ -126,8 +126,7 @@
   font-size: 0.875rem;
   line-height: 1.6;
 }
-.salary-card > summary,
-.salary-inner-details > summary {
+.salary-card > summary {
   font-weight: 700;
 }
 .salary-table {
@@ -221,8 +220,7 @@
   display: grid;
   gap: 0.95rem;
 }
-.salary-settings[open] > summary,
-.salary-inner-details[open] > summary {
+.salary-settings[open] > summary {
   margin-bottom: 0.9rem;
 }
 .salary-help,
@@ -231,12 +229,6 @@
 }
 .salary-form .salary-help {
   margin: 0;
-}
-.salary-inner-details .salary-help {
-  margin-bottom: 0.75rem;
-}
-.salary-inner-details .salary-check {
-  margin-block: 0.85rem;
 }
 .salary-check {
   display: flex;
