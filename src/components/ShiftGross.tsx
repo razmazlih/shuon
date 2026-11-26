@@ -5,7 +5,7 @@ export function ShiftGross({ status, gross }: { status: WorkShift['status']; gro
 
   return (
     <span className="shift-gross">
-      <span>{status === 'planned' ? 'ברוטו צפוי' : 'ברוטו למשמרת'}</span>
+      <span>{status === 'planned' ? 'שכר צפוי' : 'שכר למשמרת'}</span>
       {gross === undefined ? <span>סכום לא זמין</span> : <bdi>{formatMoney(gross, 2, 2)}</bdi>}
     </span>
   )
