@@ -1,4 +1,4 @@
-import { useEffect, useId, useLayoutEffect, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useId, useLayoutEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { Bookmark, CalendarPlus, ChevronDown, Trash2 } from 'lucide-react'
 import {
   buildManualShiftWrites,
@@ -18,6 +18,8 @@ import { TimeRange } from './TimeRange'
 import './calendar.css'
 
 interface ShiftEditorProps {
+  preview?: { title: string; content: ReactNode }
+  transitionFrom?: DOMRect
   initial?: WorkShift
   date: string
   templates: Template[]
@@ -131,6 +133,8 @@ function NoteField({ value, onChange }: { value: string; onChange: (value: strin
 }
 
 export function ShiftEditor({
+  preview,
+  transitionFrom,
   initial,
   date,
   templates,
@@ -386,13 +390,14 @@ export function ShiftEditor({
 
   return (
     <Dialog
-      title={editing ? 'עריכת משמרת' : 'הוספת משמרת'}
-      className="shift-editor-modal"
+      title={preview?.title ?? (editing ? 'עריכת משמרת' : 'הוספת משמרת')}
+      className={preview ? undefined : 'shift-editor-modal'}
+      transitionFrom={transitionFrom}
       closeDisabled={busy}
       onClose={pickingDates ? undefined : onClose}
       onBack={pickingDates ? closeDatesPicker : undefined}
     >
-      {editing && initial.status === 'active' ? (
+      {preview ? preview.content : editing && initial.status === 'active' ? (
         <div className="se-form">
           <p>המשמרת פעילה. אפשר לסיים אותה בשעון הנוכחות ולערוך את הפרטים לאחר מכן.</p>
           <button type="button" className="btn secondary" onClick={onClose}>

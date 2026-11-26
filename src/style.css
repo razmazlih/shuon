@@ -921,8 +921,7 @@ button:not(:disabled):active {
   font-size: 14px;
   color: var(--muted);
 }
-.detail-time,
-.detail-actions {
+.detail-time {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -958,8 +957,9 @@ button:not(:disabled):active {
   font-size: 14px;
 }
 .detail-actions {
+  display: grid;
+  gap: 10px;
   margin-top: 21px;
-  flex-wrap: wrap;
 }
 .support-panel {
   margin-top: 14px;

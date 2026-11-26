@@ -32,15 +32,15 @@ import { Dashboard } from './components/Dashboard'
 import { SleepingFox } from './components/SleepingFox'
 import { SalaryMonthPicker } from './components/SalaryMonthPicker'
 import { TimeRange } from './components/TimeRange'
+import { ShiftEditor } from './components/ShiftEditor'
 const Calendar = lazy(() => import('./components/Calendar').then((m) => ({ default: m.Calendar })))
-const ShiftEditor = lazy(() => import('./components/ShiftEditor').then((m) => ({ default: m.ShiftEditor })))
 const Onboarding = lazy(() => import('./components/Settings').then((m) => ({ default: m.Onboarding })))
 const Settings = lazy(() => import('./components/Settings').then((m) => ({ default: m.Settings })))
 const Salary = lazy(() => import('./components/Salary').then((m) => ({ default: m.Salary })))
 import { Dialog } from './components/Dialog'
 
 type Page = 'today' | 'calendar' | 'salary' | 'settings'
-type Editor = { date: string; initial?: WorkShift }
+type Editor = { date: string; initial?: WorkShift; transitionFrom?: DOMRect }
 const nav = [
   { id: 'today', label: 'היום', icon: House },
   { id: 'calendar', label: 'יומן', icon: CalendarDays },
@@ -327,7 +327,13 @@ function WorkspaceApp({ user }: { user: User | null }) {
         setMessage('המשמרת הסתיימה ונשמרה')
       }
     })
+  const closeDetail = () => {
+    if (detail?.justFinished) setFoxReaction('stop')
+    setDetail(null)
+  }
   const picked = detail && shifts.find((s) => s.id === detail.id)
+  const dialogShift = editor ? editor.initial : picked
+  const dialogDate = editor?.date ?? (picked && localDate(picked.start))
   let pickedPay = null
   if (picked && picked.status !== 'active') {
     try {
@@ -506,97 +512,103 @@ function WorkspaceApp({ user }: { user: User | null }) {
           <Onboarding profile={w.profile} payroll={w.payroll} onSaveQuestionnaire={saveQuestionnaire} />
         </Dialog>
       )}
-      {picked && !editor && (
-        <Dialog title={picked.title} onClose={() => {
-          if (detail?.justFinished) setFoxReaction('stop')
-          setDetail(null)
-        }}>
-          <div className="shift-detail">
-            <p className="detail-date">
-              {detail?.justFinished && <SleepingFox />}
-              {dateLabel(localDate(picked.start), {
-                weekday: 'long',
-                day: 'numeric',
-                month: 'long',
-                year: 'numeric',
-              })}
-            </p>
-            <div className="detail-time">
-              <Clock3 size={19} />
-              <TimeRange
-                start={localTime(picked.start)}
-                end={picked.status === 'active' ? '…' : localTime(picked.end)}
-              />
-              <span>
-                {picked.status === 'active' ? 'פעילה' : picked.status === 'completed' ? 'בוצעה' : 'מתוכננת'}
-              </span>
-            </div>
-            {pickedPay && (
-              <>
-                <div className="detail-pay">
-                  <span>ברוטו למשמרת</span>
-                  <strong>{formatMoney(pickedPay.gross, 2)}</strong>
+      {dialogDate && (
+        <ShiftEditor
+          key={dialogShift ? dialogShift.id + ':' + dialogShift.updatedAt : 'new'}
+          date={dialogDate}
+          initial={dialogShift ?? undefined}
+          transitionFrom={editor?.transitionFrom}
+          templates={w.templates}
+          shifts={w.shifts}
+          onSave={saveRows}
+          onDelete={async (id) => {
+            await writeShifts(uid, [], [id], originalsForEditor)
+            setMessage('המשמרת נמחקה')
+          }}
+          onClose={editor ? () => setEditor(null) : closeDetail}
+          preview={!editor && picked ? {
+            title: picked.title,
+            content: (
+              <div className="shift-detail">
+                <p className="detail-date">
+                  {detail?.justFinished && <SleepingFox />}
+                  {dateLabel(localDate(picked.start), {
+                    weekday: 'long',
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric',
+                  })}
+                </p>
+                <div className="detail-time">
+                  <Clock3 size={19} />
+                  <TimeRange
+                    start={localTime(picked.start)}
+                    end={picked.status === 'active' ? '…' : localTime(picked.end)}
+                  />
+                  <span>
+                    {picked.status === 'active' ? 'פעילה' : picked.status === 'completed' ? 'בוצעה' : 'מתוכננת'}
+                  </span>
                 </div>
-                {pickedPay.bands
-                  .filter((b) => b.hours > 0)
-                  .map((b) => (
-                    <div className="ledger-line" key={b.kind}>
-                      <span>
-                        {bandNames[b.kind]} · {hourCount(b.hours)} שעות
-                      </span>
-                      <b>{formatMoney(b.amount, 2)}</b>
+                {pickedPay && (
+                  <>
+                    <div className="detail-pay">
+                      <span>ברוטו למשמרת</span>
+                      <strong>{formatMoney(pickedPay.gross, 2)}</strong>
                     </div>
-                  ))}
-              </>
-            )}
-            {picked.breaks.length > 0 && (
-              <p>
-                הפסקות:{' '}
-                {picked.breaks.map((pause, index) => (
-                  <Fragment key={pause.start}>
-                    {index > 0 && ', '}
-                    <TimeRange start={localTime(pause.start)} end={localTime(pause.end)} />
-                    {pause.paid && ' (בתשלום)'}
-                  </Fragment>
-                ))}
-              </p>
-            )}
-            {picked.note && <p>{picked.note}</p>}
-            <div className="detail-actions">
-              {picked.status === 'active' ? (
-                <button className="btn primary" onClick={() => navigate('today')}>
-                  לשעון המשמרת <ArrowLeft size={15} />
-                </button>
-              ) : (
-                <button
-                  className="btn primary"
-                  onClick={() => {
-                    setEditor({ initial: picked, date: localDate(picked.start) })
-                    setDetail(null)
-                  }}
-                >
-                  <FilePenLine size={16} />
-                  עריכה
-                </button>
-              )}
-            </div>
-          </div>
-        </Dialog>
-      )}
-      {editor && (
-        <Suspense fallback={null}>
-          <ShiftEditor
-            {...editor}
-            templates={w.templates}
-            shifts={w.shifts}
-            onSave={saveRows}
-            onDelete={async (id) => {
-              await writeShifts(uid, [], [id], originalsForEditor)
-              setMessage('המשמרת נמחקה')
-            }}
-            onClose={() => setEditor(null)}
-          />
-        </Suspense>
+                    {pickedPay.bands
+                      .filter((b) => b.hours > 0)
+                      .map((b) => (
+                        <div className="ledger-line" key={b.kind}>
+                          <span>
+                            {bandNames[b.kind]} · {hourCount(b.hours)} שעות
+                          </span>
+                          <b>{formatMoney(b.amount, 2)}</b>
+                        </div>
+                      ))}
+                  </>
+                )}
+                {picked.breaks.length > 0 && (
+                  <p>
+                    הפסקות:{' '}
+                    {picked.breaks.map((pause, index) => (
+                      <Fragment key={pause.start}>
+                        {index > 0 && ', '}
+                        <TimeRange start={localTime(pause.start)} end={localTime(pause.end)} />
+                        {pause.paid && ' (בתשלום)'}
+                      </Fragment>
+                    ))}
+                  </p>
+                )}
+                {picked.note && <p>{picked.note}</p>}
+                <div className="detail-actions">
+                  {picked.status === 'active' ? (
+                    <button className="btn primary" onClick={() => navigate('today')}>
+                      לשעון המשמרת <ArrowLeft size={15} />
+                    </button>
+                  ) : (
+                    <button
+                      className="btn primary"
+                      onClick={(event) => {
+                        setEditor({
+                          initial: picked,
+                          date: localDate(picked.start),
+                          transitionFrom: event.currentTarget.closest('dialog')?.getBoundingClientRect(),
+                        })
+                        setDetail(null)
+                      }}
+                    >
+                      <FilePenLine size={16} />
+                      עריכה
+                    </button>
+                  )}
+                  <button className="btn secondary" onClick={closeDetail}>
+                    סגירה
+                  </button>
+                </div>
+              </div>
+            ),
+          } : undefined}
+        />
       )}
       {message && (
         <div className="toast" role="status">
