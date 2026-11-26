@@ -71,7 +71,7 @@
 }
 
 .onboarding-days .question-chip { position: relative; font-size: .84rem; }
-.onboarding-days .question-chip:not(:last-child) input {
+.onboarding-days .question-chip input {
   position: absolute;
   opacity: 0;
 }
@@ -87,14 +87,6 @@
 .onboarding-days input:checked + .week-marker {
   background: var(--green);
   color: var(--card);
-}
-.onboarding-days .question-chip:last-child {
-  grid-column: 1 / -1;
-  justify-self: start;
-  flex-direction: row;
-  min-height: 44px;
-  margin-top: .35rem;
-  padding-inline: .75rem;
 }
 
 .onboarding-content .question-choices:has(input[name="pension"]) {

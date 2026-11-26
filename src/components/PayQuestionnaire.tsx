@@ -80,7 +80,7 @@ function QuestionField({
       {error}
     </p>
   )
-  const options = question.options ?? []
+  const options = (question.options ?? []).filter(option => !dayTiles || option.value !== 'unknown')
   if (question.kind === 'choice' && (dayTiles || (compact ? question.id !== 'restDay' : options.length <= 4))) {
     return (
       <fieldset className="question-field" aria-describedby={describedBy} aria-invalid={Boolean(error)}>
@@ -101,12 +101,12 @@ function QuestionField({
                   {({ yes: '✓', no: '×', unknown: '?', saved: '≡' })[option.value]}
                 </span>
               )}
-              {dayTiles && option.value !== 'unknown' && (
+              {dayTiles && (
                 <span className="week-marker" aria-hidden="true">
                   {value === option.value ? <Check size={16} /> : Number(option.value) + 1}
                 </span>
               )}
-              <span>{dayTiles && option.value === 'unknown' ? 'לא בטוח/ה' : option.label}</span>
+              <span>{option.label}</span>
             </label>
           ))}
         </div>
