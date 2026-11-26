@@ -1,0 +1,592 @@
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { onAuthStateChanged, type User } from 'firebase/auth'
+import {
+  ArrowLeft,
+  CalendarDays,
+  ChartNoAxesColumnIncreasing,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  Clock3,
+  Copy,
+  FilePenLine,
+  House,
+  LogIn,
+  Plus,
+  Settings2,
+  ShieldCheck,
+  X,
+} from 'lucide-react'
+import { auth, login, logout } from './data/firebase'
+import { dateLabel, defaultPay, formatMoney, hourCount, type WorkShift, type Workspace } from './data/model'
+import { subscribeWorkspace, writeSetting, writeShifts } from './data/repository'
+import { calculateGross, type BandKind } from './domain/gross'
+import { localDate, localTime } from './domain/time'
+import { salaryReport } from './domain/net'
+import { Dashboard } from './components/Dashboard'
+const Calendar = lazy(() => import('./components/Calendar').then((m) => ({ default: m.Calendar })))
+const ShiftEditor = lazy(() => import('./components/ShiftEditor').then((m) => ({ default: m.ShiftEditor })))
+const Onboarding = lazy(() => import('./components/Settings').then((m) => ({ default: m.Onboarding })))
+const Settings = lazy(() => import('./components/Settings').then((m) => ({ default: m.Settings })))
+const Salary = lazy(() => import('./components/Salary').then((m) => ({ default: m.Salary })))
+import { Dialog } from './components/Dialog'
+
+type Page = 'today' | 'calendar' | 'salary' | 'settings'
+type Editor = { date: string; initial?: WorkShift; duplicate?: boolean }
+const nav = [
+  { id: 'today', label: 'היום', icon: House },
+  { id: 'calendar', label: 'יומן', icon: CalendarDays },
+  { id: 'salary', label: 'שכר', icon: ChartNoAxesColumnIncreasing },
+] as const
+const fromHash = (): Page => {
+  const value = location.hash.slice(1)
+  return ['today', 'calendar', 'salary', 'settings'].includes(value) ? (value as Page) : 'today'
+}
+const bandNames: Record<BandKind, string> = {
+  regular: 'שעות רגילות',
+  overtime125: 'שעות נוספות · 125%',
+  overtime150: 'שעות נוספות · 150%',
+  rest150: 'מנוחה או חג · 150%',
+  rest175: 'מנוחה ושעות נוספות · 175%',
+  rest200: 'מנוחה ושעות נוספות · 200%',
+}
+function errText(e: unknown) {
+  const code = (e as { code?: string })?.code
+  if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request')
+    return 'חלון הכניסה נסגר. אפשר להתחבר שוב בכל זמן.'
+  if (code === 'auth/popup-blocked') return 'הדפדפן חסם את חלון Google. יש לאפשר חלונות קופצים ולהתחבר שוב.'
+  if (code === 'auth/unauthorized-domain')
+    return 'הכתובת הנוכחית אינה מורשית לכניסה. אפשר להתחבר באתר shuon-shifts-il.web.app.'
+  if (code === 'permission-denied') return 'אין הרשאה לנתונים. יש להתחבר מחדש.'
+  if (code === 'unavailable' || code === 'auth/network-request-failed')
+    return 'החיבור לשרת נכשל. יש לבדוק את החיבור לאינטרנט ולנסות שוב.'
+  return e instanceof Error && /[א-ת]/.test(e.message) ? e.message : 'הפעולה לא הושלמה. אפשר לנסות שוב.'
+}
+function monthShift(month: string, offset: number) {
+  const date = new Date(month + '-15T12:00:00Z')
+  date.setUTCMonth(date.getUTCMonth() + offset)
+  return date.toISOString().slice(0, 7)
+}
+export default function App() {
+  const [identity, setIdentity] = useState<{ user: User | null } | null>(null)
+  useEffect(() => onAuthStateChanged(auth, (user) => setIdentity({ user })), [])
+  return identity ? (
+    <Suspense fallback={<Loading />}>
+      <WorkspaceApp key={identity.user?.uid || 'demo'} user={identity.user} />
+    </Suspense>
+  ) : (
+    <Loading />
+  )
+}
+function Loading() {
+  return (
+    <div className="loading" role="status">
+      <img src="/fox.svg" alt="" />
+      טוען את שועון…
+    </div>
+  )
+}
+function WorkspaceApp({ user }: { user: User | null }) {
+  const uid = user?.uid
+  const [workspace, setWorkspace] = useState<Workspace | null>(null)
+  const [loadError, setLoadError] = useState('')
+  const [retry, setRetry] = useState(0)
+  const [page, setPage] = useState<Page>(fromHash)
+  const [today, setToday] = useState(() => localDate(Date.now()))
+  const [day, setDay] = useState(today)
+  const [month, setMonth] = useState(today.slice(0, 7))
+  const [editor, setEditor] = useState<Editor | null>(null)
+  const [detail, setDetail] = useState<WorkShift | null>(null)
+  const [message, setMessage] = useState('')
+  const [working, setWorking] = useState(false)
+  const locked = useRef(false)
+  useEffect(() => {
+    setLoadError('')
+    return subscribeWorkspace(uid, setWorkspace, (e) => setLoadError(errText(e)))
+  }, [uid, retry])
+  useEffect(() => {
+    const sync = () => setPage(fromHash())
+    window.addEventListener('hashchange', sync)
+    return () => window.removeEventListener('hashchange', sync)
+  }, [])
+  useEffect(() => {
+    const i = setInterval(() => setToday(localDate(Date.now())), 30000)
+    return () => clearInterval(i)
+  }, [])
+  useEffect(() => {
+    if (!message) return
+    const i = setTimeout(() => setMessage(''), 7000)
+    return () => clearTimeout(i)
+  }, [message])
+  const theme = workspace?.profile.theme || 'light'
+  useEffect(() => {
+    const media = window.matchMedia('(prefers-color-scheme: dark)')
+    const apply = () => {
+      document.documentElement.dataset.theme = theme === 'system' ? (media.matches ? 'dark' : 'light') : theme
+    }
+    apply()
+    media.addEventListener('change', apply)
+    return () => media.removeEventListener('change', apply)
+  }, [theme])
+  const navigate = (next: Page) => {
+    location.hash = next
+    setPage(next)
+    setDetail(null)
+    setEditor(null)
+    window.scrollTo({ top: 0 })
+  }
+  const goCalendar = (date: string) => {
+    setDay(date)
+    navigate('calendar')
+  }
+  const workingMonth = page === 'salary' ? month : today.slice(0, 7)
+  const shifts = workspace?.shifts
+  const pay = workspace?.profile.pay
+  const wage = useMemo(() => {
+    const rows = (shifts || []).filter((s) => s.status !== 'active')
+    const empty = calculateGross([], defaultPay)
+    let actual = empty,
+      combined = empty,
+      issue = ''
+    try {
+      actual = calculateGross(
+        rows.filter((s) => s.status === 'completed'),
+        pay || defaultPay,
+        workingMonth,
+      )
+      combined = calculateGross(rows, pay || defaultPay, workingMonth)
+    } catch (e) {
+      issue = errText(e)
+    }
+    return {
+      actual,
+      combined,
+      issue,
+      planned: {
+        gross: combined.gross - actual.gross,
+        pensionable: combined.pensionable - actual.pensionable,
+      },
+    }
+  }, [shifts, pay, workingMonth])
+  const showDetail = useCallback((s: WorkShift) => {
+    setDetail(s)
+  }, [])
+  const run = async (task: () => Promise<void>) => {
+    if (locked.current) return
+    locked.current = true
+    setWorking(true)
+    try {
+      await task()
+    } catch (e) {
+      setMessage(errText(e))
+    } finally {
+      locked.current = false
+      setWorking(false)
+    }
+  }
+  const signIn = () => void run(login)
+  if (loadError)
+    return (
+      <div className="loading">
+        <img src="/fox.svg" alt="" />
+        <p role="alert">{loadError}</p>
+        <button className="btn primary" onClick={() => setRetry((n) => n + 1)}>
+          לנסות שוב
+        </button>
+        {user && (
+          <button className="text-button" onClick={() => void logout()}>
+            יציאה מהחשבון
+          </button>
+        )}
+      </div>
+    )
+  if (!workspace) return <Loading />
+  const w = workspace
+  const active = w.shifts.find((s) => s.status === 'active')
+  const totals = salaryReport(workingMonth, wage.actual, wage.planned, w.payroll, w.adjustments)
+  const plannedIds = new Set(w.shifts.filter((s) => s.status === 'planned').map((s) => s.id))
+  const count = wage.combined.shifts.filter((s) => plannedIds.has(s.id)).length
+  const openPay = () => {
+    setMonth(today.slice(0, 7))
+    navigate('salary')
+  }
+  const setting = <K extends Exclude<keyof Workspace, 'shifts'>>(key: K, value: Workspace[K]) =>
+    writeSetting(uid, key, value, w[key])
+  const originalsForEditor =
+    editor?.initial && !editor.duplicate
+      ? [...w.shifts.filter((s) => s.id !== editor.initial!.id), editor.initial]
+      : w.shifts
+  const saveRows = async (rows: WorkShift[]) => {
+    await writeShifts(uid, rows, [], originalsForEditor)
+    setMessage(rows.length === 1 ? 'המשמרת נשמרה' : 'המשמרות נשמרו')
+  }
+  const timer = (op: 'start' | 'pause' | 'resume' | 'stop') =>
+    void run(async () => {
+      const now = new Date().toISOString()
+      if (op === 'start') {
+        if (active) return
+        const upcoming = w.shifts.find((s) => s.status === 'planned' && s.start <= now && s.end > now)
+        const shift: WorkShift = {
+          id: upcoming?.id || crypto.randomUUID(),
+          title: upcoming?.title || 'משמרת עבודה',
+          status: 'active',
+          start: now,
+          end: now,
+          breaks: [],
+          updatedAt: now,
+        }
+        await writeShifts(uid, [shift], [], w.shifts)
+        setMessage('שעון המשמרת התחיל לפעול')
+        return
+      }
+      if (!active) return
+      const row = { ...active, breaks: [...active.breaks] }
+      if (op === 'pause') {
+        if (row.openBreak) return
+        row.openBreak = now
+      }
+      if (op === 'resume' || op === 'stop') {
+        if (row.openBreak && row.openBreak < now)
+          row.breaks.push({ start: row.openBreak, end: now, paid: false })
+        row.openBreak = null
+      }
+      if (op === 'stop') {
+        row.status = 'completed'
+        row.end = now
+        if (w.shifts.some((s) => s.id !== row.id && row.start < s.end && row.end > s.start)) {
+          setEditor({ initial: row, date: localDate(row.start) })
+          setMessage('יש חפיפה עם משמרת רשומה. אפשר לתקן את השעות לפני השמירה.')
+          return
+        }
+      }
+      await writeShifts(uid, [row], [], w.shifts)
+      if (op === 'stop') {
+        setDetail(row)
+        setMessage('המשמרת הסתיימה ונשמרה')
+      }
+    })
+  const picked = detail && (w.shifts.find((s) => s.id === detail.id) || detail)
+  let pickedPay = null
+  if (picked && picked.status !== 'active') {
+    try {
+      pickedPay = calculateGross(
+        w.shifts.filter(
+          (s) => s.status === 'completed' || (picked.status === 'planned' && s.status === 'planned'),
+        ),
+        w.profile.pay,
+      ).shifts.find((s) => s.id === picked.id)
+    } catch {
+      /* The conflicting entries remain available to edit in the planner. */
+    }
+  }
+  const title =
+    page === 'today'
+      ? 'היום שלי'
+      : page === 'calendar'
+        ? 'יומן המשמרות'
+        : page === 'salary'
+          ? 'השכר שלי'
+          : 'הגדרות'
+  const hint =
+    page === 'today'
+      ? dateLabel(today, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+      : page === 'calendar'
+        ? 'תכנון שבועי ורישום שעות עבודה'
+        : page === 'salary'
+          ? 'תחזית חודשית ופירוט הניכויים'
+          : 'העבודה, המראה והחיבורים שלי'
+  return (
+    <>
+      <header className="app-header">
+        <div className="header-inner">
+          <a href="#today" className="brand" aria-label="שועון, מסך היום">
+            <img src="/fox.svg" alt="" />
+            <span>שועון</span>
+          </a>
+          <nav aria-label="ניווט ראשי" className="primary-nav">
+            {nav.map(({ id, label, icon: Icon }) => (
+              <a
+                key={id}
+                className={page === id ? 'selected' : ''}
+                href={'#' + id}
+                aria-current={page === id ? 'page' : undefined}
+              >
+                <Icon size={17} />
+                {label}
+              </a>
+            ))}
+          </nav>
+          <div className="account">
+            {user ? (
+              <span className="user-tag">
+                <span className="avatar">{(user.displayName || user.email || 'ש').slice(0, 1)}</span>
+                <span>{user.displayName?.split(' ')[0] || 'החשבון שלי'}</span>
+              </span>
+            ) : (
+              <button className="signin" onClick={signIn} disabled={working}>
+                <LogIn size={16} />
+                כניסה עם Google
+              </button>
+            )}
+            <span className="header-rule" />
+            <button
+              className={'icon-btn settings-button ' + (page === 'settings' ? 'current' : '')}
+              aria-label="הגדרות"
+              onClick={() => navigate('settings')}
+            >
+              <Settings2 size={20} />
+            </button>
+          </div>
+        </div>
+      </header>
+      <main className="shell">
+        <div className="page-heading">
+          <div>
+            <div className="title-row">
+              <h1>{title}</h1>
+              {!user && (
+                <span className="demo-mark" title="נתונים לדוגמה הנשמרים בדפדפן הזה">
+                  נתוני הדגמה
+                </span>
+              )}
+            </div>
+            <p>{hint}</p>
+          </div>
+          {(page === 'today' || page === 'calendar') && (
+            <button
+              className="btn add-shift"
+              onClick={() => setEditor({ date: page === 'today' ? today : day })}
+            >
+              <Plus size={17} /> הוספת משמרת
+            </button>
+          )}
+          {page === 'salary' && (
+            <div className="month-control">
+              <button
+                className="icon-btn"
+                aria-label="לחודש הקודם"
+                onClick={() => setMonth(monthShift(month, -1))}
+              >
+                <ChevronRight size={16} />
+              </button>
+              <label>
+                <span className="sr-only">חודש הדוח</span>
+                <input
+                  type="month"
+                  value={month}
+                  onChange={(e) => {
+                    if (e.target.value) setMonth(e.target.value)
+                  }}
+                />
+              </label>
+              <button
+                className="icon-btn"
+                aria-label="לחודש הבא"
+                onClick={() => setMonth(monthShift(month, 1))}
+              >
+                <ChevronLeft size={16} />
+              </button>
+            </div>
+          )}
+        </div>
+        {wage.issue && (page === 'salary' || page === 'today') && (
+          <p className="warning" role="alert">
+            חישוב השכר דורש תיקון. {wage.issue} <button onClick={() => goCalendar(day)}>פתיחת היומן</button>
+          </p>
+        )}
+        {page === 'today' && (
+          <Dashboard
+            today={today}
+            shifts={w.shifts}
+            active={active}
+            actual={wage.actual}
+            forecastNet={totals.forecast.net}
+            earned={totals.actual.cashGross}
+            forecastGross={totals.forecast.cashGross}
+            forecastCount={count}
+            issue={wage.issue}
+            busy={working}
+            onTimer={timer}
+            onSalary={openPay}
+            onCalendar={goCalendar}
+            onShift={showDetail}
+          />
+        )}
+        {page === 'calendar' && (
+          <Calendar
+            shifts={w.shifts}
+            date={day}
+            onDate={setDay}
+            onEdit={showDetail}
+            onAdd={(date) => setEditor({ date })}
+            onDuplicate={(s) => setEditor({ initial: s, duplicate: true, date: day })}
+          />
+        )}
+        {page === 'salary' && !wage.issue && (
+          <>
+            <Salary
+              key={workingMonth}
+              month={workingMonth}
+              actual={wage.actual}
+              planned={wage.planned}
+              actualBands={wage.actual.bands}
+              forecastBands={wage.combined.bands}
+              profile={w.payroll}
+              adjustments={w.adjustments}
+              onProfileChange={(v) => setting('payroll', v)}
+              onAdjustmentsChange={(v) => setting('adjustments', v)}
+            />
+          </>
+        )}
+        {page === 'settings' && (
+          <Settings
+            profile={w.profile}
+            onSave={(v) => setting('profile', v)}
+            user={user}
+            onSalary={openPay}
+            onSignIn={signIn}
+            onSignOut={logout}
+          />
+        )}
+        <footer className="footer">
+          <span>
+            <img src="/fox.svg" alt="" /> שועון
+          </span>
+          <small>
+            <ShieldCheck size={14} />
+            {user ? 'חשבון אישי' : 'סביבת הדגמה אישית בדפדפן'}
+          </small>
+        </footer>
+      </main>
+      {user && !w.profile.onboarded && (
+        <Dialog title="נעים להכיר, זה שועון">
+          <Onboarding profile={w.profile} onSave={(v) => setting('profile', v)} />
+        </Dialog>
+      )}
+      {picked && !editor && (
+        <Dialog title={picked.title} onClose={() => setDetail(null)}>
+          <div className="shift-detail">
+            <p className="detail-date">
+              {dateLabel(localDate(picked.start), {
+                weekday: 'long',
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric',
+              })}
+            </p>
+            <div className="detail-time">
+              <Clock3 size={19} />
+              <bdi>
+                {localTime(picked.start)} – {picked.status === 'active' ? '…' : localTime(picked.end)}
+              </bdi>
+              <span>
+                {picked.status === 'active' ? 'פעילה' : picked.status === 'completed' ? 'בוצעה' : 'מתוכננת'}
+              </span>
+            </div>
+            {pickedPay && (
+              <>
+                <div className="detail-pay">
+                  <span>ברוטו למשמרת</span>
+                  <strong>{formatMoney(pickedPay.gross, 2)}</strong>
+                </div>
+                {pickedPay.bands
+                  .filter((b) => b.hours > 0)
+                  .map((b) => (
+                    <div className="ledger-line" key={b.kind}>
+                      <span>
+                        {bandNames[b.kind]} · {hourCount(b.hours)} שעות
+                      </span>
+                      <b>{formatMoney(b.amount, 2)}</b>
+                    </div>
+                  ))}
+              </>
+            )}
+            {picked.breaks.length > 0 && (
+              <p>
+                הפסקות:{' '}
+                {picked.breaks
+                  .map((b) => localTime(b.start) + '–' + localTime(b.end) + (b.paid ? ' (בתשלום)' : ''))
+                  .join(', ')}
+              </p>
+            )}
+            {picked.note && <p>{picked.note}</p>}
+            <div className="detail-actions">
+              {picked.status === 'active' ? (
+                <button className="btn primary" onClick={() => navigate('today')}>
+                  לשעון המשמרת <ArrowLeft size={15} />
+                </button>
+              ) : (
+                <>
+                  <button
+                    className="btn primary"
+                    onClick={() => {
+                      setEditor({ initial: picked, date: localDate(picked.start) })
+                      setDetail(null)
+                    }}
+                  >
+                    <FilePenLine size={16} />
+                    עריכה
+                  </button>
+                  <button
+                    className="btn secondary"
+                    onClick={() => {
+                      setEditor({ initial: picked, duplicate: true, date: today })
+                      setDetail(null)
+                    }}
+                  >
+                    <Copy size={16} />
+                    שכפול
+                  </button>
+                  {picked.status === 'planned' && Date.parse(picked.end) <= Date.now() && (
+                    <button
+                      className="btn secondary"
+                      disabled={working}
+                      onClick={() =>
+                        void run(async () => {
+                          await saveRows([{ ...picked, status: 'completed' }])
+                          setDetail(null)
+                        })
+                      }
+                    >
+                      <Check size={16} />
+                      סימון כבוצעה
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        </Dialog>
+      )}
+      {editor && (
+        <Dialog
+          title={editor.duplicate ? 'שכפול משמרת' : editor.initial ? 'עריכת משמרת' : 'הוספת משמרת'}
+          onClose={() => setEditor(null)}
+        >
+          <ShiftEditor
+            {...editor}
+            templates={w.templates}
+            shifts={w.shifts}
+            onSave={saveRows}
+            onDelete={async (id) => {
+              await writeShifts(uid, [], [id], originalsForEditor)
+              setMessage('המשמרת נמחקה')
+            }}
+            onTemplate={async (t) => {
+              await setting('templates', [...w.templates.filter((v) => v.id !== t.id), t])
+            }}
+            onClose={() => setEditor(null)}
+          />
+        </Dialog>
+      )}
+      {message && (
+        <div className="toast" role="status">
+          {message}
+          <button aria-label="סגירת הודעה" onClick={() => setMessage('')}>
+            <X size={15} />
+          </button>
+        </div>
+      )}
+    </>
+  )
+}

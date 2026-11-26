@@ -1,0 +1,370 @@
+.prefs-layout,
+.prefs-form {
+  display: grid;
+  gap: 1rem;
+}
+.prefs-layout {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  color: var(--ink, #203a32);
+}
+.prefs-card {
+  min-width: 0;
+  border: 1px solid var(--line, #dce1d9);
+  border-radius: 1rem;
+  padding: clamp(1rem, 2.5vw, 1.5rem);
+  background: var(--card, #fff);
+}
+.prefs-heading {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+  margin: 0 0 1.2rem;
+  font-size: 1.15rem;
+  color: var(--ink);
+}
+.prefs-heading > span {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.65rem;
+  color: var(--green, #265d48);
+  background: var(--paper, #eff3ec);
+}
+.prefs-heading svg {
+  width: 1.05rem;
+  height: 1.05rem;
+}
+.prefs-rate {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.65rem 0 0.9rem;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid var(--line);
+}
+.prefs-rate span,
+.prefs-hint,
+.prefs-onboard p,
+.prefs-apple p {
+  color: var(--muted, #53665e);
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+.prefs-rate strong {
+  font-size: 1.55rem;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.prefs-hint,
+.prefs-onboard p {
+  margin: 0;
+}
+.prefs-form {
+  align-content: start;
+}
+.prefs-form > button {
+  justify-self: start;
+}
+.prefs-onboard {
+  min-width: 0;
+}
+.prefs-onboard > button {
+  width: 100%;
+  justify-content: center;
+}
+.prefs-grid {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.prefs-field,
+.prefs-apple label {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.4rem;
+  font-size: 0.9rem;
+  min-width: 0;
+}
+.prefs-field input,
+.prefs-field select,
+.prefs-apple input {
+  font: inherit;
+  min-height: 2.6rem;
+  padding: 0.55rem 0.62rem;
+  background: var(--card, white);
+  color: var(--ink, #203a32);
+  border: 1px solid var(--line, #ccd2c9);
+  border-radius: 0.52rem;
+  width: 100%;
+  box-sizing: border-box;
+  min-width: 0;
+}
+.prefs-field input[type='number'] {
+  direction: ltr;
+  text-align: right;
+}
+.prefs-primary,
+.prefs-secondary,
+.prefs-apple button,
+.prefs-route,
+.prefs-text,
+.prefs-theme {
+  cursor: pointer;
+  font: inherit;
+}
+.prefs-primary,
+.prefs-secondary,
+.prefs-apple button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.55rem 0.9rem;
+  font-size: 0.9rem;
+  font-weight: 650;
+  border: 1px solid transparent;
+  border-radius: 0.58rem;
+}
+.prefs-primary {
+  background: var(--green, #246047);
+  color: #fff;
+}
+.prefs-secondary,
+.prefs-apple button {
+  color: var(--ink);
+  background: var(--card, white);
+  border-color: var(--line);
+}
+.prefs-secondary svg {
+  width: 1.05rem;
+  height: 1.05rem;
+}
+.prefs-details,
+.prefs-history {
+  border-top: 1px solid var(--line);
+  padding-top: 0.75rem;
+}
+.prefs-layout summary {
+  cursor: pointer;
+  color: var(--ink);
+  font-size: 0.94rem;
+  font-weight: 650;
+}
+.prefs-details[open] > summary {
+  margin-bottom: 0.9rem;
+}
+.prefs-history {
+  margin-top: 1rem;
+}
+.prefs-history ul {
+  list-style: none;
+  padding: 0;
+  margin: 0.5rem 0 0;
+}
+.prefs-history li {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding-block: 0.35rem;
+  font-size: 0.86rem;
+}
+.prefs-collection {
+  display: grid;
+  gap: 0.5rem;
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+.prefs-collection > legend {
+  margin-bottom: 0.4rem;
+  font-weight: 650;
+  font-size: 0.91rem;
+}
+.prefs-collection > button {
+  justify-self: start;
+}
+.prefs-adder-row {
+  display: flex;
+  align-items: end;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.prefs-adder-row .prefs-field {
+  flex: 1 1 8.5rem;
+}
+.prefs-text {
+  border: 0;
+  color: var(--green, #246047);
+  background: none;
+  padding: 0.55rem 0.1rem;
+  text-decoration: underline;
+}
+.prefs-themes {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.45rem;
+}
+.prefs-theme {
+  padding: 0.3rem;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 0.62rem;
+  background: var(--card);
+  color: var(--ink);
+}
+.prefs-theme[aria-pressed='true'] {
+  border: 2px solid var(--green);
+  padding: calc(0.3rem - 1px);
+}
+.prefs-theme > span:last-child {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem;
+  font-size: 0.78rem;
+  padding-block: 0.3rem 0.1rem;
+}
+.prefs-theme-preview {
+  display: grid;
+  gap: 0.22rem;
+  align-content: center;
+  justify-items: start;
+  padding: 0.45rem;
+  height: 2.7rem;
+  border-radius: 0.28rem;
+  background: #f4f2eb;
+  color: #203c31;
+}
+.prefs-theme-preview i {
+  display: block;
+  height: 0.2rem;
+  width: 65%;
+  border-radius: 0.2rem;
+  background: currentColor;
+  opacity: 0.6;
+}
+.prefs-theme-preview i:first-child {
+  width: 38%;
+  height: 0.34rem;
+  opacity: 1;
+}
+.prefs-theme-preview i:last-child {
+  width: 45%;
+}
+.theme-preview-dark {
+  background: #172b25;
+  color: #c4d2be;
+}
+.theme-preview-sage {
+  background: #ccdbcc;
+  color: #2c4939;
+}
+.theme-preview-system {
+  color: #769080;
+  background: linear-gradient(95deg, #f4f2eb 50%, #233c33 50%);
+}
+.prefs-identity {
+  font-size: 0.95rem;
+  color: var(--ink);
+  margin: 0 0 0.9rem;
+  overflow-wrap: anywhere;
+}
+.prefs-identity + button,
+.prefs-card > .prefs-hint + button {
+  margin-block: 0.6rem;
+}
+.prefs-route {
+  margin-top: 0.8rem;
+  padding: 0.8rem 0 0;
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  background: none;
+  color: var(--green);
+  text-align: start;
+  border: 0;
+  border-top: 1px solid var(--line);
+  font-size: 0.9rem;
+}
+.prefs-route svg {
+  width: 1rem;
+  height: 1rem;
+  flex: none;
+}
+.prefs-apple {
+  grid-column: 1 / -1;
+  position: relative;
+}
+.prefs-apple .prefs-calendar-icon {
+  position: absolute;
+  inset-inline-start: clamp(1rem, 2.5vw, 1.5rem);
+  top: clamp(1rem, 2.5vw, 1.5rem);
+  width: 2rem;
+  height: 2rem;
+  padding: 0.45rem;
+  box-sizing: border-box;
+  background: var(--paper);
+  color: var(--green);
+  border-radius: 0.65rem;
+}
+.prefs-apple h2 {
+  padding-inline-start: 2.6rem;
+  min-height: 2rem;
+  display: flex;
+  align-items: center;
+  margin: 0;
+  font-size: 1.15rem;
+}
+.prefs-apple p {
+  margin: 0.6rem 0;
+}
+.prefs-apple form {
+  display: grid;
+  gap: 0.65rem;
+  max-width: 36rem;
+}
+.prefs-apple form > button {
+  justify-self: start;
+}
+.prefs-apple .calendar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.prefs-apple .calendar-reviews fieldset {
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+}
+.prefs-layout button:disabled,
+.prefs-onboard button:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+.prefs-status,
+.prefs-error {
+  margin: 0.5rem 0 0;
+  font-size: 0.875rem;
+}
+.prefs-error {
+  color: var(--danger, #a54036);
+}
+@media (max-width: 900px) {
+  .prefs-layout {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 430px) {
+  .prefs-grid {
+    grid-template-columns: 1fr;
+  }
+  .prefs-theme > span:last-child {
+    flex-direction: column;
+  }
+}

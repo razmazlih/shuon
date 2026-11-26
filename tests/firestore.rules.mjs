@@ -1,0 +1,172 @@
+import { after, before, test } from 'node:test'
+import assert from 'node:assert/strict'
+import { randomUUID } from 'node:crypto'
+import 'tsx/esm'
+import { readFile } from 'node:fs/promises'
+import { assertFails, assertSucceeds, initializeTestEnvironment } from '@firebase/rules-unit-testing'
+import { collection, deleteDoc, doc, getDoc, getDocs, setDoc, writeBatch } from 'firebase/firestore'
+
+const address = process.env.FIRESTORE_EMULATOR_HOST || ''
+if (!/^(127\.0\.0\.1|localhost):\d+$/.test(address))
+  throw Error('Use a local Firestore emulator for rules tests.')
+const [host, port] = address.split(':')
+const shift = {
+  id: 'one',
+  title: 'משמרת',
+  start: '2026-11-26T06:00:00.000Z',
+  end: '2026-11-26T14:00:00.000Z',
+  status: 'planned',
+  breaks: [],
+  updatedAt: '2026-11-26T02:00:00.000Z',
+}
+let env, own, other, guest
+const uid = 'rules-owner'
+const shiftPath = 'users/' + uid + '/shifts/'
+const settingsPath = 'users/' + uid + '/settings/'
+const privatePaths = [
+  'appleCalendarConnections/' + uid,
+  'users/' + uid + '/appleSyncScopes/scope/events/one',
+  'users/' + uid + '/applePrivate/credentials',
+]
+
+function mutate(database, uid, operation) {
+  const batch = writeBatch(database)
+  batch.set(doc(database, 'users', uid, 'settings', 'shiftWrite'), { nonce: randomUUID() })
+  operation(batch)
+  return batch.commit()
+}
+
+before(async () => {
+  const rules = await readFile(new URL('../firestore.rules', import.meta.url), 'utf8')
+  env = await initializeTestEnvironment({
+    projectId: 'demo-shuon',
+    firestore: { host, port: Number(port), rules },
+  })
+  own = env.authenticatedContext(uid).firestore()
+  other = env.authenticatedContext('rules-other').firestore()
+  guest = env.unauthenticatedContext().firestore()
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    for (const path of privatePaths) await setDoc(doc(ctx.firestore(), path), { server: true })
+  })
+})
+after(async () => {
+  await env?.cleanup()
+})
+
+test('authenticated owner can list, create, edit and delete their own shifts', async () => {
+  const ref = doc(own, shiftPath + 'one')
+  await assertSucceeds(mutate(own, uid, (batch) => batch.set(ref, shift)))
+  await assertSucceeds(getDoc(ref))
+  await assertSucceeds(getDocs(collection(own, 'users', uid, 'shifts')))
+  await assertSucceeds(mutate(own, uid, (batch) => batch.update(ref, { status: 'completed' })))
+  await assertSucceeds(mutate(own, uid, (batch) => batch.delete(ref)))
+})
+
+test('other accounts and unsigned clients cannot read or modify personal records', async () => {
+  await assertSucceeds(mutate(own, uid, (batch) => batch.set(doc(own, shiftPath + 'one'), shift)))
+  for (const db of [other, guest]) {
+    for (const path of [shiftPath + 'one', settingsPath + 'profile']) {
+      const ref = doc(db, path)
+      await assertFails(getDoc(ref))
+      await assertFails(setDoc(ref, shift))
+      await assertFails(deleteDoc(ref))
+    }
+    await assertFails(getDocs(collection(db, 'users', uid, 'shifts')))
+  }
+})
+
+test('only designated user settings documents can be read or changed', async () => {
+  for (const setting of ['profile', 'payroll', 'adjustments', 'templates', 'clock']) {
+    const ref = doc(own, settingsPath + setting)
+    await assertSucceeds(setDoc(ref, { value: 1 }))
+    await assertSucceeds(getDoc(ref))
+  }
+  await assertFails(setDoc(doc(own, settingsPath + 'credentials'), { value: 1 }))
+  await assertFails(getDoc(doc(own, settingsPath + 'credentials')))
+})
+
+test('server-only Apple connections and reconciliation metadata resist direct access by every client', async () => {
+  for (const db of [own, other, guest])
+    for (const path of privatePaths) {
+      const ref = doc(db, path)
+      await assertFails(getDoc(ref))
+      await assertFails(setDoc(ref, { sealed: 'impostor' }))
+      await assertFails(deleteDoc(ref))
+    }
+  await assertFails(getDocs(collection(own, 'appleCalendarConnections')))
+})
+
+test('shift writes must preserve the matching ID, supported status and field types', async () => {
+  const ref = doc(own, shiftPath + 'one')
+  for (const invalid of [
+    { id: 'wrong' },
+    { status: 'unknown' },
+    { title: 'a'.repeat(121) },
+    { start: 42 },
+    { end: false },
+    { breaks: {} },
+    { breaks: Array(101).fill({}) },
+  ]) {
+    await assertFails(mutate(own, uid, (batch) => batch.set(ref, { ...shift, ...invalid })))
+  }
+})
+
+test('older clients cannot silently modify shifts without rotating the workspace marker', async () => {
+  const reference = doc(own, shiftPath + 'marker-check')
+  await assertFails(setDoc(reference, { ...shift, id: 'marker-check' }))
+  await assertSucceeds(mutate(own, uid, (batch) => batch.set(reference, { ...shift, id: 'marker-check' })))
+  await assertFails(deleteDoc(reference))
+  const marker = doc(own, settingsPath + 'shiftWrite')
+  const existing = (await getDoc(marker)).data()
+  const unchanged = writeBatch(own)
+  unchanged.set(marker, existing)
+  unchanged.delete(reference)
+  await assertFails(unchanged.commit())
+  await assertFails(getDoc(doc(other, settingsPath + 'shiftWrite')))
+})
+
+test('two signed-in devices serialize overlapping creates, adjacent writes and stale edits through the repository', async () => {
+  const { writeCloudShifts } = await import('../src/data/shift-writes.ts')
+  const user = 'concurrent-' + randomUUID()
+  const deviceA = env.authenticatedContext(user).firestore()
+  const deviceB = env.authenticatedContext(user).firestore()
+  const a = { ...shift, id: 'a' },
+    b = { ...shift, id: 'b' }
+  const results = await Promise.allSettled([
+    writeCloudShifts(deviceA, user, [a], [], []),
+    writeCloudShifts(deviceB, user, [b], [], []),
+  ])
+  assert.equal(
+    results.filter((r) => r.status === 'fulfilled').length,
+    1,
+    results.map((r) => r.reason?.message ?? r.status).join('; '),
+  )
+  assert.match(results.find((r) => r.status === 'rejected').reason.message, /חפיפה/)
+  const collectionRef = collection(deviceA, 'users', user, 'shifts')
+  const before = (await getDocs(collectionRef)).docs.map((s) => s.data())
+  assert.equal(before.length, 1)
+  const adjacent = { ...shift, id: 'adjacent', start: shift.end, end: '2026-11-26T15:00:00.000Z' }
+  await writeCloudShifts(deviceB, user, [adjacent], [], [])
+  await writeCloudShifts(deviceA, user, [{ ...before[0], title: 'גרסה חדשה' }], [], before)
+  await assert.rejects(writeCloudShifts(deviceB, user, [], [before[0].id], before), /השתנתה/)
+  assert.equal((await getDocs(collectionRef)).size, 2)
+})
+
+test('only one of two concurrently opened timers can commit, without losing the other device’s revision', async () => {
+  const { writeCloudShifts } = await import('../src/data/shift-writes.ts')
+  const user = 'timers-' + randomUUID()
+  const a = env.authenticatedContext(user).firestore(),
+    b = env.authenticatedContext(user).firestore()
+  const now = new Date().toISOString()
+  const active = { ...shift, start: now, end: now, status: 'active' }
+  const attempts = await Promise.allSettled([
+    writeCloudShifts(a, user, [{ ...active, id: 'a' }], [], []),
+    writeCloudShifts(b, user, [{ ...active, id: 'b' }], [], []),
+  ])
+  assert.equal(attempts.filter((v) => v.status === 'fulfilled').length, 1)
+  assert.match(attempts.find((v) => v.status === 'rejected').reason.message, /כבר פועל/)
+  const current = (await getDocs(collection(a, 'users', user, 'shifts'))).docs.map((s) => s.data())
+  assert.equal(current.length, 1)
+  await writeCloudShifts(a, user, [{ ...current[0], openBreak: now }], [], current)
+  await assert.rejects(writeCloudShifts(b, user, [{ ...current[0], openBreak: null }], [], current), /השתנתה/)
+})
