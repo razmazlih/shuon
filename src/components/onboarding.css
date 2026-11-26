@@ -5,3 +5,29 @@
 @media (prefers-reduced-motion: no-preference) {
   .onboarding-content .question-fields { animation: question-reveal .25s ease-out; }
 }
+
+.onboarding-content .onboarding-days {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: .5rem;
+  width: 100%;
+  margin-top: 1rem;
+}
+.onboarding-days .question-chip {
+  min-height: 3.5rem;
+  justify-content: center;
+  flex-direction: column;
+  gap: .2rem;
+  padding: .4rem .15rem;
+  text-align: center;
+}
+.onboarding-days .question-chip:has(:focus-visible) {
+  outline: 2px solid var(--green);
+  outline-offset: 2px;
+}
+.onboarding-content .question-actions { align-items: stretch; }
+.onboarding-content .question-actions button { min-height: 3rem; }
+@media (prefers-reduced-motion: no-preference) {
+  .onboarding-days .question-chip { transition: transform .15s, background-color .15s; }
+  .onboarding-days .question-chip:active { transform: scale(.95); }
+}

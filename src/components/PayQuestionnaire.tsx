@@ -51,11 +51,13 @@ const shortOptions: Record<string, Record<string, string>> = {
 function QuestionField({
   question,
   compact = false,
+  dayTiles = false,
   value,
   error,
   onChange,
 }: {
   question: Question
+  dayTiles?: boolean
   compact?: boolean
   value: string
   error?: string
@@ -76,12 +78,12 @@ function QuestionField({
     </p>
   )
   const options = question.options ?? []
-  if (question.kind === 'choice' && (compact ? question.id !== 'restDay' : options.length <= 4)) {
+  if (question.kind === 'choice' && (dayTiles || (compact ? question.id !== 'restDay' : options.length <= 4))) {
     return (
       <fieldset className="question-field" aria-describedby={describedBy} aria-invalid={Boolean(error)}>
         <legend>{question.title}</legend>
         {hint}
-        <div className={compact ? "question-choices question-grid" : "question-choices"} data-count={options.length}>
+        <div className={dayTiles ? "question-choices onboarding-days" : compact ? "question-choices question-grid" : "question-choices"} data-count={options.length}>
           {options.map((option) => (
             <label key={option.value} className="question-chip">
               <input
@@ -91,7 +93,7 @@ function QuestionField({
                 checked={value === option.value}
                 onChange={() => onChange(option.value)}
               />
-              <span>{option.label}</span>
+              <span>{dayTiles && option.value === 'unknown' ? 'לא בטוח/ה' : option.label}</span>
             </label>
           ))}
         </div>
@@ -225,6 +227,7 @@ function QuestionnaireForm({
       <QuestionField
         key={q.id}
         compact={compact}
+        dayTiles={!editSection && q.id === 'restDay'}
         question={short ? {
           ...field, title: shortTitles[field.id], hint: undefined,
           options: field.options?.map(option => ({
