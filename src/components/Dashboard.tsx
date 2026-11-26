@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import {
   ArrowLeft,
   CalendarDays,
@@ -204,7 +204,7 @@ function Weekly({ today, shifts, shiftPayById, onCalendar, onShift }: Pick<Props
                   <span className="week-shift-plot" aria-hidden="true">
                     {value === undefined
                       ? <span className="week-shift-missing">—</span>
-                      : <span className="week-shift-bar" style={{ height: value / ceiling * 100 + '%' }} />}
+                      : <span className="week-shift-bar" style={{ '--week-bar-size': value / ceiling * 100 + '%' } as CSSProperties} />}
                   </span>
                   <span className="week-shift-date">{label}</span>
                   <strong className="week-shift-name">{shift.title || 'משמרת עבודה'}</strong>
