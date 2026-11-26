@@ -20,7 +20,7 @@ import type { ShiftPay } from '../domain/gross'
 import { ShiftGross } from './ShiftGross'
 import { TimeRange } from './TimeRange'
 import { addDays, localDate, localTime, weekday } from '../domain/time'
-import { weeklyWorkHours } from '../data/shift-hours'
+import { formatWorkDuration, shiftWorkMillis } from '../data/shift-hours'
 import { dateLabel, formatMoney, hourCount, type WorkShift } from '../data/model'
 
 type Props = {
@@ -119,11 +119,29 @@ function Clock({ active, scheduled, scheduledGross, busy, foxReaction, onTimer }
     </article>
   )
 }
-function Weekly({ today, shifts, onCalendar }: Pick<Props, 'today' | 'shifts' | 'onCalendar'>) {
+function Weekly({ today, shifts, shiftPayById, onCalendar, onShift }: Pick<Props, 'today' | 'shifts' | 'shiftPayById' | 'onCalendar' | 'onShift'>) {
   const start = addDays(today, -weekday(today))
-  const days = useMemo(() => weeklyWorkHours(shifts, start), [shifts, start])
-  const max = Math.max(8, ...days.map((d) => d.actual + d.planned))
-  const total = days.reduce((n, d) => n + d.actual + d.planned, 0)
+  const end = addDays(start, 6)
+  const entries = useMemo(() =>
+    shifts
+      .map((shift) => ({ shift, date: localDate(shift.start) }))
+      .filter(({ date }) => start <= date && date <= end)
+      .sort((a, b) => Date.parse(a.shift.start) - Date.parse(b.shift.start)),
+    [shifts, start, end],
+  )
+  const hasActive = entries.some(({ shift }) => shift.status === 'active')
+  const [now, setNow] = useState(Date.now)
+  useEffect(() => {
+    if (!hasActive) return
+    const refresh = () => setNow(Date.now())
+    refresh()
+    const timer = window.setInterval(refresh, 15_000)
+    return () => window.clearInterval(timer)
+  }, [hasActive])
+  const rows = entries.map((entry) => ({ ...entry, millis: shiftWorkMillis(entry.shift, now) }))
+  const total = rows.reduce((sum, row) => sum + row.millis, 0)
+  const shortDate = { day: 'numeric', month: 'short' } as const
+
   return (
     <article className="panel weekly">
       <div className="panel-heading">
@@ -136,50 +154,31 @@ function Weekly({ today, shifts, onCalendar }: Pick<Props, 'today' | 'shifts' | 
         </button>
       </div>
       <div className="week-sub">
-        <b>{hourCount(total)} שעות</b>
+        <b><bdi dir="ltr">{formatWorkDuration(total)}</bdi> שעות</b>
         <span>·</span>
-        {dateLabel(start, { day: 'numeric', month: 'short' })} עד{' '}
-        {dateLabel(addDays(start, 6), { day: 'numeric', month: 'short' })}
+        {dateLabel(start, shortDate)} עד {dateLabel(end, shortDate)}
       </div>
-      <div className="week-chart">
-        {days.map((d) => (
-          <button
-            key={d.date}
-            className={'day-column ' + (d.date === today ? 'is-today' : '')}
-            onClick={() => onCalendar(d.date)}
-            aria-label={
-              dateLabel(d.date, { weekday: 'long', day: 'numeric', month: 'long' }) +
-              ' — ' +
-              hourCount(d.actual + d.planned) +
-              ' שעות'
-            }
-          >
-            <div className="bar-area">
-              <span className="bar-label">
-                {d.actual + d.planned > 0 ? hourCount(d.actual + d.planned) : '–'}
-              </span>
-              <div
-                className="bar stacked-bar"
-                style={{ height: Math.max(2, ((d.actual + d.planned) / max) * 62) + 'px' }}
-              >
-                {d.planned > 0 && <i className="legend-planned" style={{ flex: d.planned }} />}
-                {d.actual > 0 && <i className="legend-worked" style={{ flex: d.actual }} />}
-              </div>
-            </div>
-            <span className="day-name">{['א׳', 'ב׳', 'ג׳', 'ד׳', 'ה׳', 'ו׳', 'ש׳'][weekday(d.date)]}</span>
-          </button>
-        ))}
-      </div>
-      <div className="chart-legend">
-        <span>
-          <i className="legend-worked" />
-          בוצעו
-        </span>
-        <span>
-          <i className="legend-planned" />
-          מתוכננות
-        </span>
-      </div>
+      {rows.length === 0 ? <p className="week-empty">אין משמרות השבוע.</p> : (
+        <ul className="week-shifts" aria-label="משמרות השבוע">
+          {rows.map(({ shift, date, millis }) => (
+            <li key={shift.id}>
+              <button type="button" className="week-shift" onClick={() => onShift(shift)}>
+                <span className="week-shift-name">
+                  <strong>{shift.title || 'משמרת עבודה'}</strong>
+                  <small>{dateLabel(date, { weekday: 'short', ...shortDate })}</small>
+                </span>
+                <span className="week-shift-totals">
+                  <span><bdi dir="ltr">{formatWorkDuration(millis)}</bdi> שעות</span>
+                  {shift.status === 'active'
+                    ? <small>פעילה</small>
+                    : <ShiftGross status={shift.status} gross={shiftPayById.get(shift.id)?.gross} compact />}
+                </span>
+                <ChevronLeft size={15} aria-hidden="true" />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
     </article>
   )
 }
@@ -247,7 +246,7 @@ export function Dashboard(p: Props) {
         </dl>
       </section>
       <div className="dashboard-bottom">
-        <Weekly today={p.today} shifts={p.shifts} onCalendar={p.onCalendar} />
+        <Weekly today={p.today} shifts={p.shifts} shiftPayById={p.shiftPayById} onCalendar={p.onCalendar} onShift={p.onShift} />
         <article className="panel upcoming">
           <div className="panel-heading">
             <div className="section-title">
