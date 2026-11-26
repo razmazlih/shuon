@@ -2,8 +2,11 @@
   font-size: clamp(1.7rem, 5vw, 2.55rem);
   line-height: 1.2;
 }
-.onboarding-content .question-fields {
-  min-block-size: 15rem;
+.onboarding-content .question-fields > .question-field {
+  margin-block-end: .875rem;
+}
+.onboarding-content .question-field .question-number {
+  margin-block: .875rem 0;
 }
 .onboarding-screen[open] .onboarding-content .question-form {
   animation: none;
