@@ -329,7 +329,7 @@ function WorkspaceApp({ user }: { user: User | null }) {
     page === 'today'
       ? dateLabel(today, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
       : page === 'calendar'
-        ? 'תכנון שבועי ורישום שעות עבודה'
+        ? 'תכנון חודשי ורישום שעות עבודה'
         : page === 'salary'
           ? 'תחזית חודשית ופירוט הניכויים'
           : 'העבודה, המראה והחיבורים שלי'
@@ -378,7 +378,7 @@ function WorkspaceApp({ user }: { user: User | null }) {
         </div>
       </header>
       <main className="shell">
-        <div className="page-heading">
+        <div className={page === 'calendar' ? 'page-heading calendar-page-heading' : 'page-heading'}>
           <div>
             <div className="title-row">
               <h1>{title}</h1>
@@ -393,9 +393,10 @@ function WorkspaceApp({ user }: { user: User | null }) {
           {(page === 'today' || page === 'calendar') && (
             <button
               className="btn add-shift"
+              aria-label="הוספת משמרת"
               onClick={() => setEditor({ date: page === 'today' ? today : day })}
             >
-              <Plus size={17} /> הוספת משמרת
+              <Plus size={17} aria-hidden="true" /> <span>הוספת משמרת</span>
             </button>
           )}
           {page === 'salary' && (
@@ -454,6 +455,7 @@ function WorkspaceApp({ user }: { user: User | null }) {
           <Calendar
             shifts={shifts}
             date={day}
+            today={today}
             onDate={setDay}
             onEdit={showDetail}
             onAdd={(date) => setEditor({ date })}

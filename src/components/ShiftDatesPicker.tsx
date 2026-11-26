@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react'
 import type { DaySelection } from '../data/manual-shifts'
 import type { WorkShift } from '../data/model'
-import { addDays, dateMs, localDate, localTime, weekday } from '../domain/time'
+import { addDays, addMonths, dateMs, localDate, localTime, monthDays } from '../domain/time'
 import './shift-dates-picker.css'
 
 type PickerProps = {
@@ -32,17 +32,6 @@ const dayFormat = new Intl.DateTimeFormat('he-IL', {
 const monthFormat = new Intl.DateTimeFormat('he-IL', { month: 'long', year: 'numeric', timeZone: 'UTC' })
 const shortDateFormat = new Intl.DateTimeFormat('he-IL', { day: 'numeric', month: 'short', timeZone: 'UTC' })
 const dateLabel = (date: string) => dayFormat.format(dateMs(date))
-
-function monthDays(first: string) {
-  const last = new Date(dateMs(first))
-  last.setUTCMonth(last.getUTCMonth() + 1, 0)
-  const leading = weekday(first)
-  const trailing = 6 - last.getUTCDay()
-  return Array.from({ length: leading + last.getUTCDate() + trailing }, (_, index) => {
-    const day = addDays(first, index - leading)
-    return day.length === 10 && day >= '0001-01-01' && day <= '9999-12-31' ? day : null
-  })
-}
 
 function refreshSelection(selection: DaySelection, shifts: WorkShift[]) {
   const isCurrent = (snapshot: WorkShift) =>
@@ -178,9 +167,7 @@ export function ShiftDatesPicker({ primary, selections, shifts, footer, onConfir
   }, [date])
 
   function changeMonth(offset: number) {
-    const next = new Date(dateMs(first))
-    next.setUTCMonth(next.getUTCMonth() + offset)
-    setMonth(next.toISOString().slice(0, 7))
+    setMonth((current) => addMonths(current + '-01', offset).slice(0, 7))
   }
 
   function pickDay(date: string) {

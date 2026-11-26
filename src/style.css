@@ -1177,6 +1177,17 @@ button:not(:disabled):active {
     min-height: 105px;
   }
 }
+@media (max-width: 340px) {
+  .calendar-page-heading .add-shift {
+    flex: 0 0 44px;
+    justify-content: center;
+    min-height: 44px;
+    padding: 0;
+  }
+  .calendar-page-heading .add-shift span {
+    display: none;
+  }
+}
 @media (prefers-reduced-motion: reduce) {
   * {
     transition: none !important;

@@ -2,6 +2,8 @@
 export const TIME_ZONE = 'Asia/Jerusalem'
 export const HOUR_MS = 3_600_000
 const DAY_MS = 24 * HOUR_MS
+const FIRST_CALENDAR_YEAR = 1
+const LAST_CALENDAR_YEAR = 9999
 const clock = new Intl.DateTimeFormat('sv-SE', {
   timeZone: TIME_ZONE,
   year: 'numeric',
@@ -45,6 +47,35 @@ export function addDays(date: string, days: number): string {
 
 export function weekday(date: string): number {
   return new Date(dateMs(date)).getUTCDay()
+}
+
+export function addMonths(date: string, offset: number): string {
+  const target = new Date(dateMs(date))
+  const yearStart = target.getUTCFullYear() * 12
+  const day = target.getUTCDate()
+  const month = Math.min(
+    LAST_CALENDAR_YEAR * 12 + 11,
+    Math.max(FIRST_CALENDAR_YEAR * 12, yearStart + target.getUTCMonth() + offset),
+  )
+  // Day zero of the following month is the target month's last day.
+  target.setUTCMonth(month - yearStart + 1, 0)
+  target.setUTCDate(Math.min(day, target.getUTCDate()))
+  return target.toISOString().slice(0, 10)
+}
+
+export function monthDays(date: string): (string | null)[] {
+  const first = new Date(dateMs(date))
+  first.setUTCDate(1)
+  const last = new Date(first)
+  last.setUTCMonth(last.getUTCMonth() + 1, 0)
+  const leading = first.getUTCDay()
+  const trailing = 6 - last.getUTCDay()
+  return Array.from({ length: leading + last.getUTCDate() + trailing }, (_, index) => {
+    const day = new Date(first.getTime() + (index - leading) * DAY_MS)
+    return day.getUTCFullYear() >= FIRST_CALENDAR_YEAR && day.getUTCFullYear() <= LAST_CALENDAR_YEAR
+      ? day.toISOString().slice(0, 10)
+      : null
+  })
 }
 
 // Format from named fields: Safari and Chrome can use different separators for the same locale.
