@@ -1,6 +1,6 @@
 import './onboarding.css'
 import { useId, useRef, useState, type FormEvent } from 'react'
-import { BriefcaseBusiness, Check, ClipboardList, MoonStar, Pencil, UserRound } from 'lucide-react'
+import { ArrowLeft, BriefcaseBusiness, Check, ClipboardList, MoonStar, Pencil, UserRound } from 'lucide-react'
 import type { UserProfile } from '../data/model'
 import type { PayrollProfile } from '../domain/net'
 import {
@@ -284,7 +284,14 @@ function QuestionnaireForm({
   }
   return (
     <form className="question-form" onSubmit={submit} noValidate>
-      {!editSection && <p className="prefs-hint" aria-live="polite">שאלה {step + 1} מתוך {onboardingSteps.length}</p>}
+      {!editSection && (
+        <div className="onboarding-progress">
+          <span aria-live="polite">שאלה {step + 1} מתוך {onboardingSteps.length}</span>
+          <div className="onboarding-track" aria-hidden="true">
+            {onboardingSteps.map((id, i) => <span key={id} data-filled={i <= step} />)}
+          </div>
+        </div>
+      )}
       <fieldset ref={stage} key={editSection ?? step} className="question-fields" disabled={saving}>
         <legend className="sr-only">{section.title}</legend>
         {primary.map(renderQuestion)}
@@ -314,7 +321,7 @@ function QuestionnaireForm({
         {!editSection && step > 0 && <button type="button" className="prefs-secondary" disabled={saving} onClick={() => void moveToStep(step - 1)}>חזרה</button>}
         <button type="submit" className="prefs-primary" disabled={saving}>
           {saving ? 'בשמירה…' : editSection ? 'שמירת התשובות' : lastStep ? 'שמירה וכניסה ליומן' : 'המשך'}
-          {!saving && (editSection || lastStep) && <Check size={16} />}
+          {!saving && (editSection || lastStep ? <Check size={16} /> : <ArrowLeft size={16} />)}
         </button>
       </div>
     </form>
@@ -326,7 +333,7 @@ export function Onboarding(props: QuestionnaireProps) {
     <div className="onboarding-content">
       <img className="onboarding-fox" src="/fox.svg" alt="" width="64" height="64" />
       <QuestionnaireForm {...props} />
-      <p className="prefs-hint">אפשר לעדכן את השכר בהגדרות בכל עת.</p>
+      <p className="prefs-hint">אפשר לשנות את התשובות בהגדרות.</p>
     </div>
   )
 }
