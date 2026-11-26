@@ -37,6 +37,7 @@ import { Calendar } from './components/Calendar'
 import { Onboarding, Settings } from './components/Settings'
 import { Salary } from './components/Salary'
 import { Dialog } from './components/Dialog'
+import { Landing } from './components/Landing'
 
 type Page = 'today' | 'calendar' | 'salary' | 'settings'
 type Editor = { date: string; initial?: WorkShift; transitionFrom?: DOMRect }
@@ -72,14 +73,26 @@ function errText(e: unknown) {
 function scheduledShiftAt(shifts: WorkShift[], now: number) {
   return shifts.find((shift) => shiftStatusAt(shift, now) === 'planned' && Date.parse(shift.start) <= now)
 }
+const isDemoPath = () => /^\/demo\/?$/.test(location.pathname)
+
 export default function App() {
   const [identity, setIdentity] = useState<{ user: User | null } | null>(null)
-  useEffect(() => onAuthStateChanged(auth, (user) => setIdentity({ user })), [])
-  return identity ? (
-    <WorkspaceApp key={identity.user?.uid || 'demo'} user={identity.user} />
-  ) : (
-    <Loading />
-  )
+  useEffect(() => {
+    let wasSignedIn = false
+    return onAuthStateChanged(auth, (user) => {
+      if ((user && isDemoPath()) || (!user && wasSignedIn)) {
+        history.replaceState(history.state, '', '/')
+      }
+      wasSignedIn = user !== null
+      setIdentity({ user })
+    })
+  }, [])
+
+  if (!identity) return <Loading />
+  if (identity.user || isDemoPath()) {
+    return <WorkspaceApp key={identity.user?.uid ?? 'demo'} user={identity.user} />
+  }
+  return <Landing describeError={errText} />
 }
 function Loading() {
   return (
@@ -148,7 +161,10 @@ function WorkspaceApp({ user }: { user: User | null }) {
     }
     apply()
     media.addEventListener('change', apply)
-    return () => media.removeEventListener('change', apply)
+    return () => {
+      media.removeEventListener('change', apply)
+      delete document.documentElement.dataset.theme
+    }
   }, [theme])
   useLayoutEffect(() => {
     window.scrollTo({ top: 0 })
@@ -508,6 +524,7 @@ function WorkspaceApp({ user }: { user: User | null }) {
             <ShieldCheck size={14} />
             {user ? 'חשבון אישי' : 'סביבת הדגמה אישית בדפדפן'}
           </small>
+          {!user && <a href="/">חזרה לדף הפתיחה</a>}
         </footer>
       </main>
       {user && !w.profile.onboarded && (
