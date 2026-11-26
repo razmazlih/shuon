@@ -37,13 +37,10 @@
 .se-form > .btn {
   margin: 0 1rem 0.8rem;
 }
-.se-body,
-.se-details-body {
+.se-body {
   display: grid;
   min-width: 0;
-  gap: 0.65rem;
-}
-.se-body {
+  gap: 0.85rem;
   border: 0;
   padding: 0;
   margin: 0;
@@ -105,17 +102,11 @@
   font-size: 0.8rem;
   font-weight: 600;
 }
-.se-options,
 .se-option,
 .se-confirm > div {
   display: flex;
   align-items: center;
   gap: 0.45rem;
-}
-.se-options {
-  justify-content: space-between;
-  flex-wrap: wrap;
-  border-block-start: 1px solid var(--line);
 }
 .se-option {
   background: transparent;
@@ -130,9 +121,6 @@
 }
 .se-option:hover {
   background: var(--paper);
-}
-.se-option[aria-expanded='true'] .lucide-chevron-down {
-  transform: rotate(180deg);
 }
 .se-change-summary {
   color: var(--ink);
@@ -150,69 +138,76 @@
   padding-inline: 0.2rem;
   background: var(--tint);
 }
-.se-dot {
-  width: 0.35rem;
-  height: 0.35rem;
-  border-radius: 50%;
-  background: currentColor;
-}
-.se-panels {
-  margin-block-start: -0.65rem;
-}
-.se-disclosure {
+.se-template-picker {
   display: grid;
-  grid-template-rows: 0fr;
-  opacity: 0;
-  transition: grid-template-rows 0.2s ease, opacity 0.16s ease;
+  gap: 0.4rem;
+  min-width: 0;
+  font-size: 0.875rem;
 }
-.se-disclosure[data-open='true'] {
-  grid-template-rows: 1fr;
-  opacity: 1;
+.se-template-picker > .se-field-label {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
 }
-.se-disclosure-clip {
-  min-height: 0;
-  overflow: hidden;
-}
-.se-disclosure-clip > * {
-  margin: 0.3rem 3px 3px;
-}
-@media (prefers-reduced-motion: reduce) {
-  .se-disclosure {
-    transition: none;
-  }
+.se-template-picker > .se-field-label svg {
+  color: var(--green);
 }
 .se-templates {
-  display: grid;
-  border: 1px solid var(--line);
-  border-radius: 0.65rem;
-  overflow: hidden;
+  display: flex;
+  gap: 0.45rem;
+  overflow-x: auto;
+  padding: 2px 2px 5px;
+  margin-inline: -2px;
 }
 .se-templates button {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 0.5rem;
-  min-height: 44px;
-  padding: 0.45rem 0.7rem;
+  display: grid;
+  flex: 0 0 auto;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 0.4rem;
+  width: max-content;
+  max-width: 100%;
+  min-height: 48px;
+  padding: 0.35rem 0.65rem;
+  border: 1px solid var(--line);
+  border-radius: 0.7rem;
   background: var(--paper);
   text-align: start;
+  color: var(--ink);
+  cursor: pointer;
 }
-.se-templates button:hover {
-  background: var(--tint);
+.se-templates button > span {
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+.se-templates button small {
+  grid-column: 1;
+  color: var(--muted);
+  font-size: 0.75rem;
 }
 .se-templates button:focus-visible {
   outline-offset: -3px;
 }
-.se-templates button + button {
-  border-block-start: 1px solid var(--line);
+.se-templates button:hover,
+.se-templates button[aria-pressed='true'] {
+  background: var(--tint);
 }
-.se-templates button > span {
-  overflow-wrap: anywhere;
+.se-templates button[aria-pressed='true'] {
+  border-color: var(--green);
 }
-.se-templates bdi {
+.se-template-check {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
+  color: var(--green);
+  visibility: hidden;
+}
+.se-templates button[aria-pressed='true'] .se-template-check {
+  visibility: visible;
+}
+.se-optional {
+  margin-inline-start: 0.25rem;
   color: var(--muted);
-  white-space: nowrap;
-  font-size: 0.8rem;
+  font-weight: 400;
 }
 .se-confirm {
   display: grid;

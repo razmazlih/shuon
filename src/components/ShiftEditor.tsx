@@ -1,5 +1,5 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
-import { Bookmark, CalendarPlus, ChevronDown, Trash2 } from 'lucide-react'
+import { Bookmark, CalendarPlus, Check, Trash2 } from 'lucide-react'
 import {
   buildManualShiftWrites,
   inferEndOffset,
@@ -116,7 +116,7 @@ function NoteField({ value, onChange }: { value: string; onChange: (value: strin
 
   return (
     <label className="se-field">
-      <span className="se-field-label">הערה</span>
+      <span className="se-field-label">הערה <small className="se-optional">לא חובה</small></span>
       <textarea
         ref={ref}
         className="se-note"
@@ -153,20 +153,17 @@ export function ShiftEditor({
   const [selections, setSelections] = useState<DaySelection[]>([])
   const [pickingDates, setPickingDates] = useState(false)
   const [pickerFooter, setPickerFooter] = useState<HTMLDivElement | null>(null)
-  const [panel, setPanel] = useState<'details' | 'templates' | null>(null)
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
-  const [notice, setNotice] = useState('')
   const contentRef = useRef<HTMLDivElement>(null)
   const pickerButtonRef = useRef<HTMLButtonElement>(null)
   const restorePickerFocus = useRef(false)
   const deleteButtonRef = useRef<HTMLButtonElement>(null)
   const cancelDeleteRef = useRef<HTMLButtonElement>(null)
   const restoreDeleteFocus = useRef(false)
-  const templateButtonRef = useRef<HTMLButtonElement>(null)
-  const detailsId = useId()
-  const templatesId = useId()
+  const templateLabelId = useId()
 
   const days = [day, ...selections.map((selection) => selection.date)].filter(Boolean)
   const endOffset = day ? manualEndOffset(day, start, end, editing ? initial : undefined) : 0
@@ -220,9 +217,7 @@ export function ShiftEditor({
   function applyTemplate(template: Template) {
     setStart(wall(template.start))
     setEnd(wall(template.end))
-    setPanel(null)
-    templateButtonRef.current?.focus()
-    setNotice('התבנית הוחלה')
+    setSelectedTemplateId(template.id)
     setError('')
   }
 
@@ -230,7 +225,6 @@ export function ShiftEditor({
     event.preventDefault()
     if (busy || pickingDates || confirmDelete) return
     setError('')
-    setNotice('')
     try {
       const change = buildManualShiftWrites({ date: day, start, end, note, initial, selections, shifts })
       setBusy(true)
@@ -289,70 +283,47 @@ export function ShiftEditor({
                 }}
               />
             </label>
+            {templates.length > 0 && (
+              <div className="se-template-picker">
+                <span className="se-field-label" id={templateLabelId}>
+                  <Bookmark size={15} aria-hidden="true" /> תבניות משמרת
+                </span>
+                <div className="se-templates" role="group" aria-labelledby={templateLabelId}>
+                  {templates.map((template) => (
+                    <button key={template.id} type="button" aria-pressed={selectedTemplateId === template.id} onClick={() => applyTemplate(template)}>
+                      <span>{template.title}</span>
+                      <small>
+                        <TimeRange start={template.start} end={template.end} />
+                        {template.end < template.start && ' · למחרת'}
+                      </small>
+                      <Check size={15} className="se-template-check" aria-hidden="true" />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             <div className="se-grid se-shift-times">
-              <ClockField title="שעת התחלה" foldDates={days} value={start} change={setStart} />
+              <ClockField
+                title="שעת התחלה"
+                foldDates={days}
+                value={start}
+                change={(value) => {
+                  setStart(value)
+                  setSelectedTemplateId(null)
+                }}
+              />
               <ClockField
                 title="שעת סיום"
                 foldDates={finishFoldDates}
                 value={end}
-                change={setEnd}
+                change={(value) => {
+                  setEnd(value)
+                  setSelectedTemplateId(null)
+                }}
                 hint={finishHint}
               />
             </div>
-            <div className="se-options">
-              <button
-                type="button"
-                className="se-option"
-                aria-expanded={panel === 'details'}
-                aria-controls={detailsId}
-                onClick={() => setPanel(panel === 'details' ? null : 'details')}
-              >
-                <ChevronDown size={16} aria-hidden="true" />
-                פרטים נוספים
-                {note && <span className="se-dot" aria-hidden="true" />}
-              </button>
-              {templates.length > 0 && (
-                <button
-                  ref={templateButtonRef}
-                  type="button"
-                  className="se-option"
-                  aria-expanded={panel === 'templates'}
-                  aria-controls={templatesId}
-                  onClick={() => setPanel(panel === 'templates' ? null : 'templates')}
-                >
-                  <Bookmark size={15} aria-hidden="true" />
-                  בחירה מתבנית
-                </button>
-              )}
-            </div>
-            <div className="se-panels">
-              {templates.length > 0 && (
-                <div
-                  className="se-disclosure"
-                  id={templatesId}
-                  data-open={panel === 'templates'}
-                  inert={panel !== 'templates'}
-                >
-                  <div className="se-disclosure-clip">
-                    <div className="se-templates">
-                      {templates.map((template) => (
-                        <button key={template.id} type="button" onClick={() => applyTemplate(template)}>
-                          <span>{template.title}</span>
-                          <TimeRange start={template.start} end={template.end} />
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-              <div className="se-disclosure" id={detailsId} data-open={panel === 'details'} inert={panel !== 'details'}>
-                <div className="se-disclosure-clip">
-                  <div className="se-details-body">
-                    <NoteField value={note} onChange={setNote} />
-                  </div>
-                </div>
-              </div>
-            </div>
+            <NoteField value={note} onChange={setNote} />
           </fieldset>
         )}
       </div>
@@ -360,7 +331,6 @@ export function ShiftEditor({
         {!pickingDates && (
           <>
             {error && <p className="se-error" role="alert">{error}</p>}
-            {notice && <p className="sr-only" role="status">{notice}</p>}
             {changeSummary && <p className="se-change-summary" role="status">{changeSummary}</p>}
             {confirmDelete ? (
               <div className="se-confirm" role="group" aria-label="אישור מחיקת המשמרת">
