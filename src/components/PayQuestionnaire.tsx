@@ -63,6 +63,7 @@ function QuestionField({
   error?: string
   onChange: (value: string) => void
 }) {
+  const hourlyRate = question.id === 'hourlyRate'
   const id = useId()
   const hintId = question.hint ? id + '-hint' : undefined
   const hint = question.hint && (
@@ -132,7 +133,7 @@ function QuestionField({
         <div className="question-number">
           <input
             id={id}
-            type="number"
+            type={hourlyRate ? 'text' : 'number'}
             inputMode={question.step === 1 ? 'numeric' : 'decimal'}
             dir="ltr"
             name={question.id}
@@ -142,7 +143,12 @@ function QuestionField({
             step={question.step ?? 'any'}
             aria-describedby={describedBy}
             aria-invalid={Boolean(error)}
-            onChange={(e) => onChange(e.target.value)}
+            onChange={(e) => {
+              const entered = e.target.value
+              if (!hourlyRate) return onChange(entered)
+              const amount = entered.replace(',', '.')
+              if (/^\d*(?:\.\d{0,2})?$/.test(amount)) onChange(amount)
+            }}
           />
           {question.unit && <span>{question.unit}</span>}
         </div>
