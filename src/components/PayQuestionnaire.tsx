@@ -82,7 +82,7 @@ function QuestionField({
     return (
       <fieldset className="question-field" aria-describedby={describedBy} aria-invalid={Boolean(error)}>
         <legend>{question.title}</legend>
-        {hint}
+        {dayTiles ? <p className="question-hint" id={hintId}>בחרו את יום המנוחה השבועי שלכם. ברירת המחדל היא שבת.</p> : hint}
         <div className={dayTiles ? "question-choices onboarding-days" : compact ? "question-choices question-grid" : "question-choices"} data-count={options.length}>
           {options.map((option) => (
             <label key={option.value} className="question-chip">
@@ -93,6 +93,11 @@ function QuestionField({
                 checked={value === option.value}
                 onChange={() => onChange(option.value)}
               />
+              {dayTiles && option.value !== 'unknown' && (
+                <span className="week-marker" aria-hidden="true">
+                  {value === option.value ? <Check size={16} /> : Number(option.value) + 1}
+                </span>
+              )}
               <span>{dayTiles && option.value === 'unknown' ? 'לא בטוח/ה' : option.label}</span>
             </label>
           ))}

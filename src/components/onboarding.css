@@ -8,8 +8,8 @@
 
 .onboarding-content .onboarding-days {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: .5rem;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: .2rem;
   width: 100%;
   margin-top: 1rem;
 }
@@ -50,4 +50,31 @@
   inset-inline-end: 1rem;
   padding: 0;
   pointer-events: none;
+}
+
+.onboarding-days .question-chip { position: relative; font-size: .84rem; }
+.onboarding-days .question-chip:not(:last-child) input {
+  position: absolute;
+  opacity: 0;
+}
+.onboarding-days .week-marker {
+  display: grid;
+  place-items: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  color: var(--muted);
+  font-size: .75rem;
+}
+.onboarding-days input:checked + .week-marker {
+  background: var(--green);
+  color: var(--card);
+}
+.onboarding-days .question-chip:last-child {
+  grid-column: 1 / -1;
+  justify-self: start;
+  flex-direction: row;
+  min-height: 44px;
+  margin-top: .35rem;
+  padding-inline: .75rem;
 }
