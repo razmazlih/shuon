@@ -140,6 +140,7 @@ function Weekly({ today, shifts, shiftPayById, onCalendar, onShift }: Pick<Props
   }, [hasActive])
   const rows = entries.map((entry) => ({ ...entry, millis: shiftWorkMillis(entry.shift, now) }))
   const total = rows.reduce((sum, row) => sum + row.millis, 0)
+  const longest = rows.reduce((max, row) => Math.max(max, row.millis), 1)
   const shortDate = { day: 'numeric', month: 'short' } as const
 
   return (
@@ -162,10 +163,17 @@ function Weekly({ today, shifts, shiftPayById, onCalendar, onShift }: Pick<Props
         <ul className="week-shifts" aria-label="משמרות השבוע">
           {rows.map(({ shift, date, millis }) => (
             <li key={shift.id}>
-              <button type="button" className="week-shift" onClick={() => onShift(shift)}>
+              <button type="button" className="week-shift" data-status={shift.status} onClick={() => onShift(shift)}>
+                <span className="week-shift-date">
+                  <span className="sr-only">{dateLabel(date, { weekday: 'long', ...shortDate })}</span>
+                  <strong aria-hidden="true">{Number(date.slice(-2))}</strong>
+                  <small aria-hidden="true">{dateLabel(date, { weekday: 'narrow' })}</small>
+                </span>
                 <span className="week-shift-name">
                   <strong>{shift.title || 'משמרת עבודה'}</strong>
-                  <small>{dateLabel(date, { weekday: 'short', ...shortDate })}</small>
+                  <span className="week-shift-track" aria-hidden="true">
+                    <span style={{ width: (millis / longest) * 100 + '%' }} />
+                  </span>
                 </span>
                 <span className="week-shift-totals">
                   <span><bdi dir="ltr">{formatWorkDuration(millis)}</bdi> שעות</span>
