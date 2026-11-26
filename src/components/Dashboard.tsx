@@ -51,13 +51,14 @@ function duration(shift: WorkShift) {
   return Math.max(0, Math.floor((end - Date.parse(shift.start) - breaks) / 1000))
 }
 function Clock({ active, scheduled, busy, onTimer }: Pick<Props, 'active' | 'scheduled' | 'busy' | 'onTimer'>) {
+  const displayedShift = active ?? scheduled
   const [, refresh] = useState(0)
   useEffect(() => {
-    if (!active || active.openBreak) return
+    if (!displayedShift || displayedShift.openBreak) return
     const interval = window.setInterval(() => refresh((t) => t + 1), 1000)
     return () => clearInterval(interval)
-  }, [active])
-  const seconds = active ? duration(active) : 0
+  }, [displayedShift])
+  const seconds = displayedShift ? duration(displayedShift) : 0
   const parts = [Math.floor(seconds / 3600), Math.floor(seconds / 60) % 60, seconds % 60].map((n) =>
     String(n).padStart(2, '0'),
   )
@@ -68,7 +69,7 @@ function Clock({ active, scheduled, busy, onTimer }: Pick<Props, 'active' | 'sch
         <div className="overline">
           <Timer size={17} /> שעון נוכחות
         </div>
-        <div className="clock-readout" role="timer" aria-label={'משך עבודה ' + parts.join(':')} dir="ltr">
+        <div className="clock-readout" role="timer" aria-label={(scheduled && !active ? 'זמן מתחילת המשמרת המתוכננת ' : 'משך עבודה ') + parts.join(':')} dir="ltr">
           {parts[0]}
           <i>:</i>
           {parts[1]}
