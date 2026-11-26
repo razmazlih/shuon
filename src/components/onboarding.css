@@ -90,3 +90,29 @@
   padding-inline: .35rem;
   text-align: center;
 }
+
+.onboarding-content .question-chip:has(.pension-symbol) {
+  position: relative;
+  flex-direction: column;
+  gap: .35rem;
+  padding-block: .65rem;
+}
+.question-chip:has(.pension-symbol) input {
+  position: absolute;
+  inset-block-start: .45rem;
+  inset-inline-start: .45rem;
+}
+.pension-symbol {
+  display: grid;
+  place-items: center;
+  width: 1.85rem;
+  height: 1.85rem;
+  border-radius: 50%;
+  font-size: 1.2rem;
+  font-weight: 700;
+  line-height: 1;
+  color: #375675;
+  background: #e1edfa;
+}
+.pension-symbol[data-answer="yes"] { color: #215e49; background: #daefe1; }
+.pension-symbol[data-answer="no"] { color: #924b31; background: #fae8dd; }

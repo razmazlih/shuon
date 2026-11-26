@@ -52,11 +52,13 @@ function QuestionField({
   question,
   compact = false,
   dayTiles = false,
+  pensionTiles = false,
   value,
   error,
   onChange,
 }: {
   question: Question
+  pensionTiles?: boolean
   dayTiles?: boolean
   compact?: boolean
   value: string
@@ -94,6 +96,11 @@ function QuestionField({
                 checked={value === option.value}
                 onChange={() => onChange(option.value)}
               />
+              {pensionTiles && (
+                <span className="pension-symbol" data-answer={option.value} aria-hidden="true">
+                  {({ yes: '✓', no: '×', unknown: '?', saved: '≡' })[option.value]}
+                </span>
+              )}
               {dayTiles && option.value !== 'unknown' && (
                 <span className="week-marker" aria-hidden="true">
                   {value === option.value ? <Check size={16} /> : Number(option.value) + 1}
@@ -238,6 +245,7 @@ function QuestionnaireForm({
       <QuestionField
         key={q.id}
         compact={compact}
+        pensionTiles={!editSection && q.id === 'pension'}
         dayTiles={!editSection && q.id === 'restDay'}
         question={short ? {
           ...field, title: shortTitles[field.id], hint: undefined,
