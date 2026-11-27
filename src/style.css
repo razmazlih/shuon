@@ -1055,6 +1055,27 @@ button:not(:disabled):active {
   background: var(--scrim);
   backdrop-filter: blur(3px);
 }
+:root {
+  scrollbar-gutter: stable;
+}
+.modal[data-exiting] {
+  --modal-exit-duration: 220ms;
+  animation: modal-exit var(--modal-exit-duration) ease-in both;
+}
+.modal[data-exiting]::backdrop {
+  animation: modal-backdrop-exit var(--modal-exit-duration) ease-in both;
+}
+@keyframes modal-exit {
+  to { opacity: 0; transform: translateY(6px) scale(0.98); }
+}
+@keyframes modal-backdrop-exit {
+  to { opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .modal[data-exiting] {
+    --modal-exit-duration: 1ms;
+  }
+}
 .modal-header {
   display: flex;
   align-items: center;

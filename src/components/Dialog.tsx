@@ -8,6 +8,7 @@ export function Dialog({
   className,
   transitionFrom,
   closeDisabled = false,
+  onExit,
 }: {
   title: string
   onClose?: () => void
@@ -16,6 +17,7 @@ export function Dialog({
   className?: string
   transitionFrom?: DOMRect
   closeDisabled?: boolean
+  onExit?: () => void
 }) {
   const ref = useRef<HTMLDialogElement>(null)
   const titleId = useId()
@@ -55,6 +57,10 @@ export function Dialog({
       ref={ref}
       aria-labelledby={titleId}
       className={className ? 'modal ' + className : 'modal'}
+      data-exiting={onExit ? '' : undefined}
+      onAnimationEnd={(e) => {
+        if (e.target === e.currentTarget && e.animationName === 'modal-exit') onExit?.()
+      }}
       onCancel={(e) => {
         e.preventDefault()
         if (!closeDisabled) (onBack ?? onClose)?.()
