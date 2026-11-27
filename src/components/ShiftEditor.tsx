@@ -160,7 +160,7 @@ export function ShiftEditor({
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [busy, setBusy] = useState(false)
-  const [saved, setSaved] = useState(false)
+  const [exiting, setExiting] = useState(false)
   const [error, setError] = useState('')
   const contentRef = useRef<HTMLDivElement>(null)
   const pickerButtonRef = useRef<HTMLButtonElement>(null)
@@ -235,7 +235,7 @@ export function ShiftEditor({
       const change = buildManualShiftWrites({ date: day, start, end, note, initial, selections, shifts })
       setBusy(true)
       await onSave(change)
-      setSaved(true)
+      setExiting(true)
     } catch (reason) {
       reportError(reason)
       setBusy(false)
@@ -248,10 +248,9 @@ export function ShiftEditor({
     setError('')
     try {
       await onDelete(initial.id)
-      onClose()
+      setExiting(true)
     } catch (reason) {
       reportError(reason)
-    } finally {
       setBusy(false)
     }
   }
@@ -406,7 +405,7 @@ export function ShiftEditor({
       className={preview ? undefined : 'shift-editor-modal'}
       transitionFrom={transitionFrom}
       closeDisabled={busy}
-      onExit={saved ? onClose : undefined}
+      onExit={exiting ? onClose : undefined}
       onClose={pickingDates ? undefined : confirmDelete ? cancelDeletion : onClose}
       onBack={pickingDates ? closeDatesPicker : undefined}
     >
