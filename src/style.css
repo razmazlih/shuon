@@ -1170,13 +1170,55 @@ button:not(:disabled):active {
 .detail-pay .shift-gross bdi {
   font-size: 25px;
 }
-.ledger-line {
+.shift-work-hours {
+  margin-block: 1rem;
+}
+.shift-work-hours h3,
+.salary-work-hours h2 {
   display: flex;
-  justify-content: space-between;
-  gap: 15px;
-  padding: 8px 0;
-  border-bottom: 1px solid var(--line);
-  font-size: 14px;
+  align-items: center;
+  gap: 0.5rem;
+}
+.shift-work-hours h3 {
+  margin: 0 0 0.55rem;
+  font-size: 1rem;
+}
+.shift-work-hours dl {
+  margin: 0;
+}
+.shift-work-hours dl > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.55rem 0.75rem;
+}
+.shift-work-hours dl > div + div {
+  border-block-end: 1px solid var(--line);
+}
+.shift-work-total {
+  border-radius: 0.65rem;
+  background: var(--tint);
+  font-weight: 700;
+}
+.shift-work-hours dd {
+  margin: 0;
+  text-align: end;
+}
+.shift-work-hours small {
+  display: block;
+  color: var(--muted);
+}
+.shift-work-hours p,
+.salary-work-hours p {
+  margin: 0.55rem 0 0;
+  color: var(--muted);
+}
+.work-duration {
+  display: inline-block;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 .detail-actions {
   display: grid;

@@ -9,16 +9,16 @@ import type {
   PayrollProfile,
   SalaryInput,
 } from '../domain/net'
-import { grossCoverage, type PayBand } from '../domain/gross'
-import { hourCount } from '../data/model'
+import { grossCoverage, type GrossResult, type PayBand } from '../domain/gross'
+import { WorkDuration, workHourBands } from './WorkHours'
 import { NumberField, readNumber } from './PayrollNumberField'
 import './salary.css'
 
 type SalaryProps = {
   month: string
   actual: SalaryInput
-  actualBands?: PayBand[]
-  forecastBands?: PayBand[]
+  actualWork: Pick<GrossResult, 'hours' | 'bands'>
+  forecastWork: Pick<GrossResult, 'hours' | 'bands'>
   planned: SalaryInput
   profile: PayrollProfile
   adjustments: PayrollAdjustment[]
@@ -136,15 +136,6 @@ function PayslipForm({
   )
 }
 
-const bandLabels: Record<PayBand['kind'], string> = {
-  regular: 'שעות רגילות',
-  overtime125: 'שעות נוספות 125%',
-  overtime150: 'שעות נוספות 150%',
-  rest150: 'מנוחה או חג 150%',
-  rest175: 'מנוחה ושעות נוספות 175%',
-  rest200: 'מנוחה ושעות נוספות 200%',
-}
-
 function SalaryComparison({ title, children }: { title: string; children: ReactNode }) {
   return (
     <table className="salary-table" aria-label={title}>
@@ -183,12 +174,52 @@ function SalaryAmount({ value }: { value: number | null }) {
 }
 
 function PayBandValue({ band }: { band?: PayBand }) {
-  if (!band) return <span aria-label="אין שעות">—</span>
   return (
     <>
-      <SalaryAmount value={band.amount} />
-      <small>{hourCount(band.hours)} שעות</small>
+      <WorkDuration hours={band?.hours ?? 0} />
+      {band && <small><SalaryAmount value={band.amount} /></small>}
     </>
+  )
+}
+
+function MonthlyWorkHours({ actualWork, forecastWork }: Pick<SalaryProps, 'actualWork' | 'forecastWork'>) {
+  const bands = workHourBands.flatMap(([kind, label]) => {
+    const actual = actualWork.bands.find((band) => band.kind === kind && band.hours > 0)
+    const forecast = forecastWork.bands.find((band) => band.kind === kind && band.hours > 0)
+    return actual || forecast ? [{ kind, label, actual, forecast }] : []
+  })
+  const showForecast = actualWork.hours !== forecastWork.hours ||
+    bands.some(({ actual, forecast }) => actual?.hours !== forecast?.hours)
+
+  return (
+    <section className="salary-card salary-work-hours">
+      <h2><Clock size={19} aria-hidden="true" /> שעות עבודה בחודש</h2>
+      {bands.length === 0 ? <p>אין שעות עבודה בחודש הזה.</p> : (
+        <table className="salary-table" aria-label="שעות עבודה ושכר לפי סוג">
+          <thead>
+            <tr>
+              <th scope="col">סוג שעות</th>
+              <th scope="col">בוצעו</th>
+              {showForecast && <th scope="col">צפי לסוף החודש</th>}
+            </tr>
+          </thead>
+          <tbody>
+            <tr className="salary-work-total">
+              <th scope="row">סך שעות העבודה</th>
+              <td><WorkDuration hours={actualWork.hours} /></td>
+              {showForecast && <td><WorkDuration hours={forecastWork.hours} /></td>}
+            </tr>
+            {bands.map(({ kind, label, actual, forecast }) => (
+              <tr key={kind}>
+                <th scope="row">{label}</th>
+                <td><PayBandValue band={actual} /></td>
+                {showForecast && <td><PayBandValue band={forecast} /></td>}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </section>
   )
 }
 
@@ -245,20 +276,14 @@ function DisclosureLabel({ icon: Icon, children }: { icon: LucideIcon; children:
 }
 
 export function Salary(props: SalaryProps) {
-  const { month, actual, planned, profile, adjustments, actualBands, forecastBands } = props
+  const { month, actual, planned, profile, adjustments, actualWork, forecastWork } = props
   const { forecast, actual: earned } = salaryReport(month, actual, planned, profile, adjustments)
   const payslip = useRef<HTMLDetailsElement>(null)
   const payslipId = useId()
   const missing = [...new Set([...earned.missing, ...forecast.missing])]
   const hasPayrollRules = month.startsWith('2026-')
-  const bands = Object.entries(bandLabels).flatMap(([kind, label]) => {
-    const forecastBand = forecastBands?.find((band) => band.kind === kind && band.hours > 0)
-    const actualBand = actualBands?.find((band) => band.kind === kind && band.hours > 0)
-    return forecastBand || actualBand ? [{ kind, label, forecastBand, actualBand }] : []
-  })
-
   const monthData = profile.months?.[month]
-  const hasSalaryData = bands.length > 0 ||
+  const hasSalaryData = forecastWork.hours > 0 ||
     [actual.gross, actual.pensionable, planned.gross, planned.pensionable].some((value) => value !== 0) ||
     adjustments.some((item) => item.month === month) ||
     [monthData?.pensionBase, monthData?.incomeTax, monthData?.insurance, monthData?.prior].some((value) => value != null)
@@ -297,6 +322,7 @@ export function Salary(props: SalaryProps) {
           <h2>אין עדיין נתוני שכר לחודש הזה</h2>
         </section>
       )}
+      <MonthlyWorkHours actualWork={actualWork} forecastWork={forecastWork} />
       {hasSalaryData && missing.length > 0 && (
         <div className="salary-card salary-estimate-note">
           <p>
@@ -347,24 +373,6 @@ export function Salary(props: SalaryProps) {
           </details>
         ) : <div className="salary-method"><SalaryMethod /></div>}
       </details>
-      {bands.length > 0 && (
-        <details className="salary-card salary-disclosure">
-          <DisclosureLabel icon={Clock}>פירוט שעות העבודה</DisclosureLabel>
-          <SalaryComparison title="שעות ושכר לפי תעריף">
-            <tbody>
-              {bands.map(({ kind, label, forecastBand, actualBand }) => (
-                <ComparisonRow
-                  key={kind}
-                  title={label}
-                  forecast={<PayBandValue band={forecastBand} />}
-                  actual={<PayBandValue band={actualBand} />}
-                  shared={actualBand?.amount === forecastBand?.amount && actualBand?.hours === forecastBand?.hours}
-                />
-              ))}
-            </tbody>
-          </SalaryComparison>
-        </details>
-      )}
       <details className="salary-card salary-disclosure salary-settings" ref={payslip} id={payslipId}>
         <DisclosureLabel icon={ReceiptText}>עדכון לפי תלוש</DisclosureLabel>
         <PayslipForm key={month} month={month} profile={profile} onProfileChange={props.onProfileChange} />

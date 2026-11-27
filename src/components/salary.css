@@ -267,6 +267,21 @@
   font-size: 0.8rem;
   font-weight: 400;
 }
+.salary-work-hours h2 {
+  margin-block-end: 0.55rem;
+}
+.salary-work-hours .salary-table thead th {
+  width: auto;
+}
+.salary-work-hours .salary-table thead th:first-child {
+  width: 48%;
+}
+.salary-work-total {
+  background: var(--tint);
+}
+.salary-table .salary-work-total th[scope='row'] {
+  font-weight: 700;
+}
 .salary-form {
   display: grid;
   gap: 0.95rem;

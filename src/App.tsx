@@ -19,15 +19,13 @@ import type { ManualShiftWrites } from './data/manual-shifts'
 import {
   dateLabel,
   defaultPay,
-  formatMoney,
-  hourCount,
   shiftStatusAt,
   type WorkShift,
   type Workspace,
 } from './data/model'
 import { subscribeWorkspace, writeQuestionnaire, writeSetting, writeShifts } from './data/repository'
 import { calculateShiftPay } from './data/shift-pay'
-import { calculateGross, type BandKind, type ShiftPay } from './domain/gross'
+import { calculateGross, type ShiftPay } from './domain/gross'
 import { addDays, addMonths, localDate, localTime, localToInstant } from './domain/time'
 import { estimateSalary, salaryReport } from './domain/net'
 import { Dashboard } from './components/Dashboard'
@@ -35,6 +33,7 @@ import { SleepingFox } from './components/SleepingFox'
 import { SalaryMonthPicker } from './components/SalaryMonthPicker'
 import { TimeRange } from './components/TimeRange'
 import { ShiftGross } from './components/ShiftGross'
+import { ShiftWorkHours } from './components/WorkHours'
 import { ShiftEditor } from './components/ShiftEditor'
 import { Calendar } from './components/Calendar'
 import { Onboarding, Settings } from './components/Settings'
@@ -53,14 +52,6 @@ const nav = [
 const fromHash = (): Page => {
   const value = location.hash.slice(1)
   return ['today', 'calendar', 'salary', 'settings'].includes(value) ? (value as Page) : 'today'
-}
-const bandNames: Record<BandKind, string> = {
-  regular: 'שעות רגילות',
-  overtime125: 'שעות נוספות · 125%',
-  overtime150: 'שעות נוספות · 150%',
-  rest150: 'מנוחה או חג · 150%',
-  rest175: 'מנוחה ושעות נוספות · 175%',
-  rest200: 'מנוחה ושעות נוספות · 200%',
 }
 function errText(e: unknown) {
   const code = (e as { code?: string })?.code
@@ -451,7 +442,7 @@ function WorkspaceApp({ user }: { user: User | null }) {
         </div>
         {wage?.issue && (
           <p className="warning" role="alert">
-            חישוב השכר דורש תיקון. {wage.issue} <button onClick={() => goCalendar(day)}>פתיחת היומן</button>
+            {page === 'salary' ? 'פירוט שעות העבודה אינו זמין כרגע.' : 'חישוב השכר דורש תיקון.'} {wage.issue} <button onClick={() => goCalendar(day)}>פתיחת היומן</button>
           </p>
         )}
         {page === 'today' && (
@@ -494,8 +485,8 @@ function WorkspaceApp({ user }: { user: User | null }) {
               month={workingMonth}
               actual={wage.actual}
               planned={wage.planned}
-              actualBands={wage.actual.bands}
-              forecastBands={wage.combined.bands}
+              actualWork={wage.actual}
+              forecastWork={wage.combined}
               profile={w.payroll}
               adjustments={w.adjustments}
               onProfileChange={(v) => setting('payroll', v)}
@@ -577,16 +568,7 @@ function WorkspaceApp({ user }: { user: User | null }) {
                     <ShiftGross status={picked.status} gross={pickedPay?.gross} />
                   </div>
                 )}
-                {pickedPay?.bands
-                  .filter((b) => b.hours > 0)
-                  .map((b) => (
-                    <div className="ledger-line" key={b.kind}>
-                      <span>
-                        {bandNames[b.kind]} · {hourCount(b.hours)} שעות
-                      </span>
-                      <b>{formatMoney(b.amount, 2)}</b>
-                    </div>
-                  ))}
+                <ShiftWorkHours status={picked.status} pay={pickedPay} />
                 {picked.note && <p>{picked.note}</p>}
                 <div className="detail-actions">
                   {picked.status === 'active' ? (
