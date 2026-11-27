@@ -253,12 +253,12 @@
   min-height: 44px;
   justify-content: center;
 }
-.se-save-actions {
+.se-actions {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 9.5rem), 1fr));
   gap: 0.5rem;
 }
 
-.se-save-actions .btn {
+.se-actions .btn {
   padding-inline: 0.5rem;
 }

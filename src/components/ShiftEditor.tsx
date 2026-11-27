@@ -344,7 +344,7 @@ export function ShiftEditor({
               <div className="se-confirm" role="group" aria-label="אישור מחיקת המשמרת">
                 <strong>למחוק את המשמרת מהיומן?</strong>
                 <span>{dateFormat.format(dateMs(originalDate))} · לא ניתן לבטל אחרי המחיקה.</span>
-                <div>
+                <div className="se-actions">
                   <button ref={cancelDeleteRef} type="button" className="btn secondary" disabled={busy} onClick={cancelDeletion}>
                     ביטול
                   </button>
@@ -354,7 +354,7 @@ export function ShiftEditor({
                 </div>
               </div>
             ) : (
-              <div className="se-save-actions">
+              <div className="se-actions">
                 <button type="submit" className="btn primary" disabled={busy || needsTemplate}>
                   {busy ? 'שומר…' : days.length > 1 ? 'שמירת ' + days.length + ' משמרות' : 'שמירת משמרת'}
                 </button>
