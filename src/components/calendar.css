@@ -102,13 +102,10 @@
   font-size: 0.8rem;
   font-weight: 600;
 }
-.se-option,
-.se-confirm > div {
+.se-option {
   display: flex;
   align-items: center;
   gap: 0.45rem;
-}
-.se-option {
   background: transparent;
   color: var(--green);
   font-size: 0.86rem;
