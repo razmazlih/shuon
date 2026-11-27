@@ -136,6 +136,7 @@
   background: var(--tint);
 }
 .se-time-mode {
+  position: relative;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.25rem;
@@ -144,7 +145,23 @@
   border-radius: 0.7rem;
   background: var(--paper);
 }
+.se-time-mode::before {
+  content: '';
+  position: absolute;
+  inset-block: 0.2rem;
+  inset-inline-start: 0.2rem;
+  width: calc(50% - 0.325rem);
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+  background: var(--card);
+  pointer-events: none;
+  transition: inset-inline-start 220ms ease;
+}
+.se-time-mode:has(button:nth-child(2)[aria-pressed='true'])::before {
+  inset-inline-start: calc(50% + 0.125rem);
+}
 .se-time-mode button {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -156,11 +173,34 @@
   color: var(--muted);
   font-weight: 650;
   cursor: pointer;
+  transition: color 180ms ease;
 }
 .se-time-mode button[aria-pressed='true'] {
-  border-color: var(--line);
-  background: var(--card);
   color: var(--ink);
+}
+.se-time-panel {
+  display: grid;
+  grid-template-rows: 1fr;
+  overflow: clip;
+  opacity: 1;
+  transition: grid-template-rows 220ms ease, opacity 200ms ease;
+}
+.se-time-panel > div {
+  min-height: 0;
+}
+.se-time-panel[inert] {
+  grid-template-rows: 0fr;
+  opacity: 0;
+}
+.se-time-panel :focus-visible {
+  outline-offset: -3px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .se-time-mode::before,
+  .se-time-mode button,
+  .se-time-panel {
+    transition: none;
+  }
 }
 .se-templates {
   display: flex;

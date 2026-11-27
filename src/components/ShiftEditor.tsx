@@ -50,12 +50,14 @@ function ClockField({
   hint,
   value,
   change,
+  disabled,
 }: {
   title: string
   foldDates: string[]
   hint?: string
   value: Wall
   change: (clock: Wall) => void
+  disabled: boolean
 }) {
   const hintId = useId()
   return (
@@ -65,6 +67,7 @@ function ClockField({
         <input
           aria-describedby={hint ? hintId : undefined}
           required
+          disabled={disabled}
           type="time"
           value={value.time}
           onChange={(event) => change(wall(event.target.value))}
@@ -295,42 +298,47 @@ export function ShiftEditor({
                 </button>
               </div>
             )}
-            {useTemplate ? (
-              <div className="se-templates" role="group" aria-label="תבניות משמרת">
-                {templates.map((template) => (
-                  <button key={template.id} type="button" aria-pressed={selectedTemplateId === template.id} onClick={() => applyTemplate(template)}>
-                    <span>{template.title}</span>
-                    <small>
-                      <TimeRange start={template.start} end={template.end} />
-                      {template.end < template.start && ' · למחרת'}
-                    </small>
-                    <Check size={15} className="se-template-check" aria-hidden="true" />
-                  </button>
-                ))}
+            <div className="se-time-panels">
+              <div className="se-time-panel" inert={!useTemplate}>
+                <div className="se-templates" role="group" aria-label="תבניות משמרת">
+                  {templates.map((template) => (
+                    <button key={template.id} type="button" aria-pressed={selectedTemplateId === template.id} onClick={() => applyTemplate(template)}>
+                      <span>{template.title}</span>
+                      <small>
+                        <TimeRange start={template.start} end={template.end} />
+                        {template.end < template.start && ' · למחרת'}
+                      </small>
+                      <Check size={15} className="se-template-check" aria-hidden="true" />
+                    </button>
+                  ))}
+                </div>
               </div>
-            ) : (
-              <div className="se-grid se-shift-times">
-                <ClockField
-                  title="שעת התחלה"
-                  foldDates={days}
-                  value={start}
-                  change={(value) => {
-                    setStart(value)
-                    setSelectedTemplateId(null)
-                  }}
-                />
-                <ClockField
-                  title="שעת סיום"
-                  foldDates={finishFoldDates}
-                  value={end}
-                  change={(value) => {
-                    setEnd(value)
-                    setSelectedTemplateId(null)
-                  }}
-                  hint={finishHint}
-                />
+              <div className="se-time-panel" inert={useTemplate}>
+                <div className="se-grid se-shift-times">
+                  <ClockField
+                    disabled={useTemplate}
+                    title="שעת התחלה"
+                    foldDates={days}
+                    value={start}
+                    change={(value) => {
+                      setStart(value)
+                      setSelectedTemplateId(null)
+                    }}
+                  />
+                  <ClockField
+                    disabled={useTemplate}
+                    title="שעת סיום"
+                    foldDates={finishFoldDates}
+                    value={end}
+                    change={(value) => {
+                      setEnd(value)
+                      setSelectedTemplateId(null)
+                    }}
+                    hint={finishHint}
+                  />
+                </div>
               </div>
-            )}
+            </div>
             <NoteField value={note} onChange={setNote} />
           </fieldset>
         )}
