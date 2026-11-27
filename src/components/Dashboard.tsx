@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
   ArrowLeft,
   CalendarDays,
@@ -104,6 +104,12 @@ function Clock({ active, scheduled, scheduledGross, busy, foxReaction, onTimer }
   )
 }
 function Weekly({ today, shifts, shiftPayById, onCalendar, onShift }: Pick<Props, 'today' | 'shifts' | 'shiftPayById' | 'onCalendar' | 'onShift'>) {
+  const chart = useRef<HTMLUListElement>(null)
+  useLayoutEffect(() => {
+    const list = chart.current
+    // The oldest day is at the RTL scroll origin. Start at the newest end.
+    if (list) list.scrollLeft = list.clientWidth - list.scrollWidth
+  }, [today])
   const start = addDays(today, -6)
   const yesterday = addDays(today, -1)
   const entries = useMemo(() =>
@@ -165,7 +171,7 @@ function Weekly({ today, shifts, shiftPayById, onCalendar, onShift }: Pick<Props
             עד <bdi>{metric === 'hours' ? formatWorkDuration(ceiling) : formatMoney(ceiling)}</bdi>
           </span>
         </div>
-        <ul className="week-shifts" aria-label="משמרות השבוע">
+        <ul ref={chart} className="week-shifts" aria-label="משמרות השבוע">
           {columns.map(({ date, row }) => {
             const isToday = date === today
             const label = isToday ? 'היום' : date === yesterday ? 'אתמול' : dateLabel(date, { weekday: 'short', day: 'numeric' })
