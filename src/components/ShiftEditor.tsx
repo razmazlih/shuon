@@ -197,10 +197,10 @@ export function ShiftEditor({
   }, [pickingDates])
 
   useLayoutEffect(() => {
-    if (confirmDelete) cancelDeleteRef.current?.focus()
+    if (confirmDelete) cancelDeleteRef.current?.focus({ preventScroll: true })
     else if (restoreDeleteFocus.current) {
       restoreDeleteFocus.current = false
-      deleteButtonRef.current?.focus()
+      deleteButtonRef.current?.focus({ preventScroll: true })
     }
   }, [confirmDelete])
 
@@ -299,7 +299,7 @@ export function ShiftEditor({
               </div>
             )}
             <div className="se-time-panels">
-              <div className="se-time-panel" inert={!useTemplate}>
+              <div className="se-transition-panel" inert={!useTemplate}>
                 <div className="se-templates" role="group" aria-label="תבניות משמרת">
                   {templates.map((template) => (
                     <button key={template.id} type="button" aria-pressed={selectedTemplateId === template.id} onClick={() => applyTemplate(template)}>
@@ -313,7 +313,7 @@ export function ShiftEditor({
                   ))}
                 </div>
               </div>
-              <div className="se-time-panel" inert={useTemplate}>
+              <div className="se-transition-panel" inert={useTemplate}>
                 <div className="se-grid se-shift-times">
                   <ClockField
                     disabled={useTemplate}
@@ -348,47 +348,52 @@ export function ShiftEditor({
           <>
             {error && <p className="se-error" role="alert">{error}</p>}
             {changeSummary && <p className="se-change-summary" role="status">{changeSummary}</p>}
-            {confirmDelete ? (
-              <div className="se-confirm" role="group" aria-label="אישור מחיקת המשמרת">
-                <strong>למחוק את המשמרת מהיומן?</strong>
-                <span>{dateFormat.format(dateMs(originalDate))} · לא ניתן לבטל אחרי המחיקה.</span>
+            <div>
+              {editing && (
+                <div className="se-transition-panel" inert={!confirmDelete}>
+                  <div className="se-confirm" role="group" aria-label="אישור מחיקת המשמרת">
+                    <strong>למחוק את המשמרת מהיומן?</strong>
+                    <span>{dateFormat.format(dateMs(originalDate))} · לא ניתן לבטל אחרי המחיקה.</span>
+                    <div className="se-actions">
+                      <button ref={cancelDeleteRef} type="button" className="btn secondary" disabled={busy} onClick={cancelDeletion}>
+                        ביטול
+                      </button>
+                      <button type="button" className="btn se-destructive" disabled={busy} onClick={deleteShift}>
+                        {busy ? 'מוחק…' : 'כן, למחוק'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+              <div className="se-transition-panel" inert={confirmDelete}>
                 <div className="se-actions">
-                  <button ref={cancelDeleteRef} type="button" className="btn secondary" disabled={busy} onClick={cancelDeletion}>
-                    ביטול
+                  <button type="submit" className="btn primary" disabled={busy || needsTemplate || confirmDelete}>
+                    {busy ? 'שומר…' : days.length > 1 ? 'שמירת ' + days.length + ' משמרות' : 'שמירת משמרת'}
                   </button>
-                  <button type="button" className="btn se-destructive" disabled={busy} onClick={deleteShift}>
-                    {busy ? 'מוחק…' : 'כן, למחוק'}
-                  </button>
+                  {editing ? (
+                    <button ref={deleteButtonRef} type="button" className="btn secondary se-delete" disabled={busy} onClick={() => {
+                      setError('')
+                      setConfirmDelete(true)
+                    }}>
+                      <Trash2 size={16} aria-hidden="true" />
+                      מחיקת משמרת
+                    </button>
+                  ) : (
+                    <button
+                      ref={pickerButtonRef}
+                      className="btn secondary"
+                      type="button"
+                      disabled={busy || !day || needsTemplate}
+                      onClick={() => setPickingDates(true)}
+                    >
+                      <CalendarPlus size={17} aria-hidden="true" />
+                      <span>{selections.length ? 'עריכת ימים נוספים' : 'בחירת ימים נוספים'}</span>
+                      {selections.length > 0 && <span className="se-count">{selections.length}</span>}
+                    </button>
+                  )}
                 </div>
               </div>
-            ) : (
-              <div className="se-actions">
-                <button type="submit" className="btn primary" disabled={busy || needsTemplate}>
-                  {busy ? 'שומר…' : days.length > 1 ? 'שמירת ' + days.length + ' משמרות' : 'שמירת משמרת'}
-                </button>
-                {editing ? (
-                  <button ref={deleteButtonRef} type="button" className="btn secondary se-delete" disabled={busy} onClick={() => {
-                    setError('')
-                    setConfirmDelete(true)
-                  }}>
-                    <Trash2 size={16} aria-hidden="true" />
-                    מחיקת משמרת
-                  </button>
-                ) : (
-                  <button
-                    ref={pickerButtonRef}
-                    className="btn secondary"
-                    type="button"
-                    disabled={busy || !day || needsTemplate}
-                    onClick={() => setPickingDates(true)}
-                  >
-                    <CalendarPlus size={17} aria-hidden="true" />
-                    <span>{selections.length ? 'עריכת ימים נוספים' : 'בחירת ימים נוספים'}</span>
-                    {selections.length > 0 && <span className="se-count">{selections.length}</span>}
-                  </button>
-                )}
-              </div>
-            )}
+            </div>
           </>
         )}
       </div>

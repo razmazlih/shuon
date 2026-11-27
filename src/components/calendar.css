@@ -178,27 +178,27 @@
 .se-time-mode button[aria-pressed='true'] {
   color: var(--ink);
 }
-.se-time-panel {
+.se-transition-panel {
   display: grid;
-  grid-template-rows: 1fr;
+  grid-template-rows: minmax(0, 1fr);
   overflow: clip;
   opacity: 1;
   transition: grid-template-rows 220ms ease, opacity 200ms ease;
 }
-.se-time-panel > div {
+.se-transition-panel > div {
   min-height: 0;
 }
-.se-time-panel[inert] {
-  grid-template-rows: 0fr;
+.se-transition-panel[inert] {
+  grid-template-rows: minmax(0, 0fr);
   opacity: 0;
 }
-.se-time-panel :focus-visible {
+.se-transition-panel :focus-visible {
   outline-offset: -3px;
 }
 @media (prefers-reduced-motion: reduce) {
   .se-time-mode::before,
   .se-time-mode button,
-  .se-time-panel {
+  .se-transition-panel {
     transition: none;
   }
 }
