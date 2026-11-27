@@ -27,7 +27,6 @@ test('Firestore transactions, conflict review and per-user callable isolation', 
     start: '2026-01-01T20:00:00.000Z',
     end: '2026-01-02T04:00:00.000Z',
     updatedAt: 'one',
-    breaks: [],
     note: 'private',
   }
   await ref.set(initial)
@@ -47,6 +46,8 @@ test('Firestore transactions, conflict review and per-user callable isolation', 
   changed.value.title = 'כותרת חדשה'
   remote.set(url, { text: serializeEvent(changed.uid, changed.value), etag: '"2"' })
   await run()
+  const eventReview = ref.parent.parent.collection('appleSyncScopes').doc(connection.scope).collection('events').doc(ref.id)
+  await eventReview.update({ 'review.invalidBreaks': true })
   const as = (who, data = {}) => ({ auth: { uid: who }, data })
   const status = async () => getAppleCalendarStatus.run(as(uid))
   await assert.rejects(getAppleCalendarStatus.run({ data: {} }), { code: 'unauthenticated' })
@@ -55,6 +56,7 @@ test('Firestore transactions, conflict review and per-user callable isolation', 
   assert.equal(state.reviews.length, 1)
   const review = state.reviews[0]
   assert.equal(review.status, 'completed')
+  assert.deepEqual(Object.keys(review).sort(), ['id', 'left', 'overlap', 'revision', 'right', 'status'])
   await assert.rejects(
     resolveAppleCalendar.run(as(uid, { ...review, choice: 'remote', revision: 'wrong' })),
     { code: 'aborted' },

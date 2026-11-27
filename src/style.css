@@ -449,11 +449,6 @@ button:not(:disabled):active {
 .start-button {
   padding-inline: 19px;
 }
-.clock-break {
-  background: var(--hero);
-  font-size: 12px;
-  padding-inline: 8px;
-}
 .forest {
   pointer-events: none;
   position: absolute;
@@ -1363,9 +1358,6 @@ button:not(:disabled):active {
   }
   .clock-state {
     font-size: 12px;
-  }
-  .clock-break {
-    font-size: 11px;
   }
   .forest {
     width: 47%;

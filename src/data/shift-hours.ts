@@ -2,20 +2,10 @@ import { addDays, HOUR_MS, localToInstant } from '../domain/time'
 import type { WorkShift } from './model'
 
 function workWithin(shift: WorkShift, from: number, until: number, now = until) {
-  const shiftEnd =
-    shift.status === 'active'
-      ? Math.min(now, shift.openBreak ? Date.parse(shift.openBreak) : now)
-      : Date.parse(shift.end)
+  const shiftEnd = shift.status === 'active' ? now : Date.parse(shift.end)
   const start = Math.max(from, Date.parse(shift.start))
   const end = Math.min(until, shiftEnd)
-  if (end <= start) return 0
-  const unpaid = shift.breaks.reduce((total, pause) => {
-    if (pause.paid) return total
-    const overlapStart = Math.max(start, Date.parse(pause.start))
-    const overlapEnd = Math.min(end, Date.parse(pause.end))
-    return total + Math.max(0, overlapEnd - overlapStart)
-  }, 0)
-  return Math.max(0, end - start - unpaid)
+  return Math.max(0, end - start)
 }
 
 export function shiftWorkMillis(shift: WorkShift, now: number): number {

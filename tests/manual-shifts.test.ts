@@ -17,7 +17,6 @@ function row(id: string, start: string, end: string): WorkShift {
     start: localToInstant(extra, start),
     end: localToInstant(extra, end),
     note: 'הערה קודמת',
-    breaks: [],
     updatedAt: new Date(now).toISOString(),
   }
 }
@@ -26,7 +25,6 @@ const draft = { date, start: wall('08:00'), end: wall('16:00'), note: 'הערה 
 
 test('a day can replace one shift, remove another and leave a third, in one validated write', () => {
   const target = row('replace', '09:00', '12:00')
-  target.breaks = [{ start: localToInstant(extra, '10:00'), end: localToInstant(extra, '10:20') }]
   const removed = row('remove', '12:00', '14:00')
   const kept = row('keep', '17:00', '22:00')
   const shifts = [target, removed, kept]
@@ -35,7 +33,6 @@ test('a day can replace one shift, remove another and leave a third, in one vali
   const replaced = rows.find((shift) => shift.id === target.id)
   assert.equal(replaced?.title, target.title)
   assert.equal(replaced?.note, draft.note)
-  assert.deepEqual(replaced?.breaks, target.breaks)
   assert.deepEqual(deleted, [removed.id])
   const change = prepareShiftWrites(rows, deleted, originals, now)
   assert.doesNotThrow(() => change.validate(shifts, now))
@@ -64,20 +61,24 @@ test('adding alongside existing shifts validates overlaps and running shifts can
   )
 })
 
-test('a note-only edit keeps exact legacy times and hours cannot discard a recorded break', () => {
+test('a note-only edit keeps exact times and saving an edited shift drops legacy clock fields', () => {
   const initial = {
     ...row('legacy', '08:00', '16:00'),
     end: '2026-11-29T14:00:03.350Z',
     breaks: [{ start: localToInstant(extra, '09:00'), end: localToInstant(extra, '10:00'), paid: true }],
+    openBreak: null,
   }
   const input = { ...draft, date: extra, initial, shifts: [initial], selections: [] }
   const { rows: [edited] } = buildManualShiftWrites(input)
   assert.equal(edited.end, initial.end)
-  assert.deepEqual(edited.breaks, initial.breaks)
-  assert.throws(() => buildManualShiftWrites({ ...input, start: wall('10:30') }), /ההפסקה שנרשמה/)
+  const { rows: [shortened], originals } = buildManualShiftWrites({ ...input, start: wall('10:30') })
+  const { writes: [saved] } = prepareShiftWrites([shortened], [], originals, now)
+  assert.equal(saved.start, localToInstant(extra, '10:30'))
+  assert.equal(saved.note, draft.note)
+  assert.equal('breaks' in saved, false)
+  assert.equal('openBreak' in saved, false)
   const { rows: [duplicate] } = buildManualShiftWrites({ ...input, date, duplicate: true })
   assert.equal(localDate(duplicate.end), date)
-  assert.deepEqual(duplicate.breaks, [])
 })
 
 test('manual shifts infer an overnight end and respect the repeated hour', () => {

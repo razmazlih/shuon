@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { onAuthStateChanged, type User } from 'firebase/auth'
 import {
   ArrowLeft,
@@ -308,7 +308,7 @@ function WorkspaceApp({ user }: { user: User | null }) {
     await writeShifts(uid, rows, deleted, originals)
     setMessage(rows.length === 1 ? 'המשמרת נשמרה' : 'המשמרות נשמרו')
   }
-  const timer = (op: 'start' | 'resume' | 'stop') =>
+  const timer = (op: 'start' | 'stop') =>
     void run(async () => {
       const now = new Date().toISOString()
       if (op === 'start') {
@@ -319,7 +319,6 @@ function WorkspaceApp({ user }: { user: User | null }) {
           status: 'active',
           start: now,
           end: now,
-          breaks: [],
           updatedAt: now,
         }
         await writeShifts(uid, [shift], [], w.shifts)
@@ -327,32 +326,18 @@ function WorkspaceApp({ user }: { user: User | null }) {
         setMessage('שעון המשמרת התחיל לפעול')
         return
       }
-      const shift = active ?? (op === 'stop' ? scheduledShiftAt(w.shifts, Date.parse(now)) : undefined)
+      const shift = active ?? scheduledShiftAt(w.shifts, Date.parse(now))
       if (!shift || Date.parse(now) <= Date.parse(shift.start)) return
-      const row = { ...shift, breaks: [...shift.breaks] }
-      if (!active) {
-        row.breaks = row.breaks
-          .filter((pause) => Date.parse(pause.start) < Date.parse(now))
-          .map((pause) => Date.parse(pause.end) > Date.parse(now) ? { ...pause, end: now } : pause)
-      }
-      if (row.openBreak && row.openBreak < now)
-        row.breaks.push({ start: row.openBreak, end: now, paid: false })
-      row.openBreak = null
-      if (op === 'stop') {
-        row.status = 'completed'
-        row.end = now
-        if (w.shifts.some((s) => s.id !== row.id && row.start < s.end && row.end > s.start)) {
-          setEditor({ initial: row, date: localDate(row.start) })
-          setMessage('יש חפיפה עם משמרת רשומה. אפשר לתקן את השעות לפני השמירה.')
-          return
-        }
+      const row: WorkShift = { ...shift, status: 'completed', end: now }
+      if (w.shifts.some((s) => s.id !== row.id && row.start < s.end && row.end > s.start)) {
+        setEditor({ initial: row, date: localDate(row.start) })
+        setMessage('יש חפיפה עם משמרת רשומה. אפשר לתקן את השעות לפני השמירה.')
+        return
       }
       await writeShifts(uid, [row], [], w.shifts)
-      if (op === 'stop') {
-        setStatusTime(Date.now())
-        setDetail({ id: row.id, justFinished: true })
-        setMessage('המשמרת הסתיימה ונשמרה')
-      }
+      setStatusTime(Date.now())
+      setDetail({ id: row.id, justFinished: true })
+      setMessage('המשמרת הסתיימה ונשמרה')
     })
   const closeDetail = () => {
     if (detail?.justFinished) setFoxReaction('stop')
@@ -584,18 +569,6 @@ function WorkspaceApp({ user }: { user: User | null }) {
                       <b>{formatMoney(b.amount, 2)}</b>
                     </div>
                   ))}
-                {picked.breaks.length > 0 && (
-                  <p>
-                    הפסקות:{' '}
-                    {picked.breaks.map((pause, index) => (
-                      <Fragment key={pause.start}>
-                        {index > 0 && ', '}
-                        <TimeRange start={localTime(pause.start)} end={localTime(pause.end)} />
-                        {pause.paid && ' (בתשלום)'}
-                      </Fragment>
-                    ))}
-                  </p>
-                )}
                 {picked.note && <p>{picked.note}</p>}
                 <div className="detail-actions">
                   {picked.status === 'active' ? (

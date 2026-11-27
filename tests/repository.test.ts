@@ -6,7 +6,7 @@ import { shiftStatusAt, type WorkShift } from '../src/data/model'
 const now = Date.parse('2026-11-26T15:00:00Z')
 const at = (hour: number) => '2026-11-26T' + String(hour).padStart(2, '0') + ':00:00Z'
 function row(id: string, start: number, end: number, status: WorkShift['status'] = 'planned'): WorkShift {
-  return { id, title: id, status, start: at(start), end: at(end), updatedAt: at(6), breaks: [] }
+  return { id, title: id, status, start: at(start), end: at(end), updatedAt: at(6) }
 }
 
 test('ordinary shifts count as worked at their end instant and running timers stay active', () => {

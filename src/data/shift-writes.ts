@@ -7,7 +7,7 @@ import {
   where,
   type Firestore,
 } from 'firebase/firestore'
-import type { WorkShift } from './model'
+import { normalizeShift, type WorkShift } from './model'
 
 export const shiftConflict = () => new Error('המשמרת השתנתה במכשיר אחר. יש לפתוח אותה מחדש לפני השמירה.')
 const overlap = () => new Error('יש חפיפה עם משמרת שכבר נשמרה. יש לעדכן את השעות ולנסות שוב.')
@@ -32,7 +32,7 @@ export function prepareShiftWrites(
   const writes = rows.map((s) => {
     const oldTime = Date.parse(originals.get(s.id)?.updatedAt ?? '')
     const updatedAt = new Date(Number.isFinite(oldTime) ? Math.max(now, oldTime + 1) : now).toISOString()
-    return { ...s, updatedAt }
+    return { ...normalizeShift(s), updatedAt }
   })
 
   function validate(current: WorkShift[], at = Date.now()) {

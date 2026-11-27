@@ -201,7 +201,10 @@ async function getAppleCalendarStatus(uid) {
     lastSync: state.lastSync,
     error: state.error,
     unsupported: state.unsupported || 0,
-    reviews: docs.docs.map((d) => ({ id: d.id, ...d.data().review })),
+    reviews: docs.docs.map((d) => {
+      const { left, right, status, revision, overlap } = d.data().review ?? {}
+      return { id: d.id, left, right, status, revision, overlap }
+    }),
   }
 }
 
@@ -262,8 +265,8 @@ async function resolveAppleCalendar(uid, data) {
     ) {
       throw fail('aborted', 'הגרסאות השתנו. רעננו את רשימת השינויים.')
     }
-    if (choice === 'remote' && (review.invalidBreaks || review.overlap))
-      throw fail('failed-precondition', 'יש לפתור את חפיפת השעות או להתאים את ההפסקות לפני האישור.')
+    if (choice === 'remote' && review.overlap)
+      throw fail('failed-precondition', 'יש לפתור את חפיפת השעות לפני האישור.')
     tx.update(ref, {
       resolution: {
         choice,

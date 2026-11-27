@@ -16,7 +16,6 @@ const shift = {
   start: '2026-11-26T06:00:00.000Z',
   end: '2026-11-26T14:00:00.000Z',
   status: 'planned',
-  breaks: [],
   updatedAt: '2026-11-26T02:00:00.000Z',
 }
 let env, own, other, guest
@@ -104,11 +103,26 @@ test('shift writes must preserve the matching ID, supported status and field typ
     { title: 'a'.repeat(121) },
     { start: 42 },
     { end: false },
-    { breaks: {} },
-    { breaks: Array(101).fill({}) },
   ]) {
     await assertFails(mutate(own, uid, (batch) => batch.set(ref, { ...shift, ...invalid })))
   }
+})
+
+test('an older shift stays readable and its next save removes legacy clock fields', async () => {
+  const { writeCloudShifts } = await import('../src/data/shift-writes.ts')
+  const user = 'legacy-shift-' + randomUUID()
+  const database = env.authenticatedContext(user).firestore()
+  const reference = doc(database, 'users', user, 'shifts', 'legacy-clock')
+  const legacy = { ...shift, id: 'legacy-clock', breaks: [], openBreak: null }
+  await env.withSecurityRulesDisabled((ctx) => setDoc(doc(ctx.firestore(), reference.path), legacy))
+  const previous = (await assertSucceeds(getDoc(reference))).data()
+  await writeCloudShifts(database, user, [{ ...previous, note: 'updated' }], [], [previous])
+  const saved = (await getDoc(reference)).data()
+  assert.equal(saved.note, 'updated')
+  assert.equal(saved.start, legacy.start)
+  assert.equal(saved.end, legacy.end)
+  assert.equal('breaks' in saved, false)
+  assert.equal('openBreak' in saved, false)
 })
 
 test('older clients cannot silently modify shifts without rotating the workspace marker', async () => {
@@ -200,6 +214,6 @@ test('only one of two concurrently opened timers can commit, without losing the 
   assert.match(attempts.find((v) => v.status === 'rejected').reason.message, /כבר פועל/)
   const current = (await getDocs(collection(a, 'users', user, 'shifts'))).docs.map((s) => s.data())
   assert.equal(current.length, 1)
-  await writeCloudShifts(a, user, [{ ...current[0], openBreak: now }], [], current)
-  await assert.rejects(writeCloudShifts(b, user, [{ ...current[0], openBreak: null }], [], current), /השתנתה/)
+  await writeCloudShifts(a, user, [{ ...current[0], note: 'first change' }], [], current)
+  await assert.rejects(writeCloudShifts(b, user, [{ ...current[0], note: 'stale change' }], [], current), /השתנתה/)
 })
