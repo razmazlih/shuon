@@ -105,6 +105,7 @@ function Clock({ active, scheduled, scheduledGross, busy, foxReaction, onTimer }
 }
 function Weekly({ today, shifts, shiftPayById, onCalendar, onShift }: Pick<Props, 'today' | 'shifts' | 'shiftPayById' | 'onCalendar' | 'onShift'>) {
   const start = addDays(today, -6)
+  const yesterday = addDays(today, -1)
   const entries = useMemo(() =>
     shifts
       .map((shift) => ({ shift, date: localDate(shift.start) }))
@@ -166,11 +167,12 @@ function Weekly({ today, shifts, shiftPayById, onCalendar, onShift }: Pick<Props
         </div>
         <ul className="week-shifts" aria-label="משמרות השבוע">
           {columns.map(({ date, row }) => {
-            const label = dateLabel(date, { weekday: 'short', day: 'numeric' })
+            const isToday = date === today
+            const label = isToday ? 'היום' : date === yesterday ? 'אתמול' : dateLabel(date, { weekday: 'short', day: 'numeric' })
             if (!row) {
               return (
                 <li className="week-day-off" key={date}>
-                  <button type="button" className="week-shift" onClick={() => onCalendar(date)}>
+                  <button type="button" className="week-shift" aria-current={isToday ? 'date' : undefined} onClick={() => onCalendar(date)}>
                     <span className="week-shift-plot" aria-hidden="true">
                       <span className="week-off-icon"><Coffee size={15} /></span>
                     </span>
@@ -184,7 +186,7 @@ function Weekly({ today, shifts, shiftPayById, onCalendar, onShift }: Pick<Props
             const value = plotValue(row)
             return (
               <li key={shift.id}>
-                <button type="button" className="week-shift" data-status={shift.status} onClick={() => onShift(shift)}>
+                <button type="button" className="week-shift" aria-current={isToday ? 'date' : undefined} data-status={shift.status} onClick={() => onShift(shift)}>
                   <span className="week-shift-plot" aria-hidden="true">
                     {value === undefined
                       ? <span className="week-shift-missing">—</span>

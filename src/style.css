@@ -887,6 +887,14 @@ button:not(:disabled):active {
 .week-shift:hover {
   background: var(--tint);
 }
+.week-shift[aria-current='date'] {
+  background: var(--tint);
+  box-shadow: inset 0 0 0 1px var(--green);
+}
+.week-shift[aria-current='date'] .week-shift-date {
+  color: var(--green);
+  font-weight: 800;
+}
 .week-shift:focus-visible {
   outline-offset: -2px;
 }
