@@ -44,6 +44,7 @@ import { Landing } from './components/Landing'
 
 type Page = 'today' | 'calendar' | 'salary' | 'settings'
 type Editor = { date: string; initial?: WorkShift; transitionFrom?: DOMRect }
+const emptyShiftPay: ReadonlyMap<string, ShiftPay> = new Map()
 const nav = [
   { id: 'today', label: 'היום', icon: House },
   { id: 'calendar', label: 'יומן', icon: CalendarDays },
@@ -206,50 +207,70 @@ function WorkspaceApp({ user }: { user: User | null }) {
     [storedShifts, statusTime],
   )
   const pay = workspace?.profile.pay
-  const shiftPayById = useMemo<ReadonlyMap<string, ShiftPay>>(
-    () => (pay ? calculateShiftPay(shifts, pay) : new Map()),
-    [shifts, pay],
-  )
+  const showShiftPay = page === 'today' || page === 'calendar'
+  const showWage = workspace !== null && (page === 'today' || page === 'salary')
+  const readShiftPay = useMemo(() => {
+    let result: ReadonlyMap<string, ShiftPay> | undefined
+    return () => result ??= pay ? calculateShiftPay(shifts, pay) : emptyShiftPay
+  }, [shifts, pay])
+  const shiftPayById = showShiftPay ? readShiftPay() : emptyShiftPay
   const payroll = workspace?.payroll
   const adjustments = workspace?.adjustments
   const previousMonth = addMonths(today, -1).slice(0, 7)
-  const previousGross = useMemo(() => {
-    if (page !== 'today' || !pay || !payroll || !adjustments) return null
-    try {
-      const completed = shifts.filter((shift) => shift.status === 'completed')
-      const earnings = calculateGross(completed, pay, previousMonth)
-      return estimateSalary(previousMonth, earnings, payroll, adjustments.filter((item) => !item.planned))
-        .cashGross
-    } catch {
-      return null
+  const readPreviousGross = useMemo(() => {
+    let result: number | null | undefined
+    return () => {
+      if (result !== undefined) return result
+      if (!pay || !payroll || !adjustments) return null
+      try {
+        const completed = shifts.filter((shift) => shift.status === 'completed')
+        const earnings = calculateGross(completed, pay, previousMonth)
+        result = estimateSalary(previousMonth, earnings, payroll, adjustments.filter((item) => !item.planned))
+          .cashGross
+      } catch {
+        result = null
+      }
+      return result
     }
-  }, [page, pay, payroll, adjustments, shifts, previousMonth])
-  const wage = useMemo(() => {
-    const rows = shifts.filter((s) => s.status !== 'active')
-    const empty = calculateGross([], defaultPay)
-    let actual = empty,
-      combined = empty,
-      issue = ''
-    try {
-      actual = calculateGross(
-        rows.filter((s) => s.status === 'completed'),
-        pay || defaultPay,
-        workingMonth,
-      )
-      combined = calculateGross(rows, pay || defaultPay, workingMonth)
-    } catch (e) {
-      issue = errText(e)
+  }, [pay, payroll, adjustments, shifts, previousMonth])
+  const previousGross = page === 'today' ? readPreviousGross() : null
+  const readWage = useMemo(() => {
+    function calculate() {
+      const settings = pay ?? defaultPay
+      const rows = shifts.filter((s) => s.status !== 'active')
+      const completed = rows.filter((s) => s.status === 'completed')
+      try {
+        const actual = calculateGross(completed, settings, workingMonth)
+        const combined = completed.length === rows.length ? actual : calculateGross(rows, settings, workingMonth)
+        return {
+          actual,
+          combined,
+          issue: null,
+          planned: {
+            gross: combined.gross - actual.gross,
+            pensionable: combined.pensionable - actual.pensionable,
+          },
+        }
+      } catch (e) {
+        return { issue: errText(e) }
+      }
     }
-    return {
-      actual,
-      combined,
-      issue,
-      planned: {
-        gross: combined.gross - actual.gross,
-        pensionable: combined.pensionable - actual.pensionable,
-      },
-    }
+    let result: ReturnType<typeof calculate> | undefined
+    return () => result ??= calculate()
   }, [shifts, pay, workingMonth])
+  const wage = showWage ? readWage() : null
+  const dashboardPay = useMemo(() => {
+    if (page !== 'today' || !wage?.actual || !payroll || !adjustments) return null
+    const totals = salaryReport(workingMonth, wage.actual, wage.planned, payroll, adjustments)
+    const plannedIds = new Set(shifts.filter((s) => s.status === 'planned').map((s) => s.id))
+    return {
+      currentNet: totals.actual.net,
+      forecastNet: totals.forecast.net,
+      workedHours: wage.actual.hours,
+      overtimeHours: wage.actual.overtimeHours,
+      plannedCount: wage.combined.shifts.filter((s) => plannedIds.has(s.id)).length,
+    }
+  }, [page, wage, payroll, adjustments, workingMonth, shifts])
   const showDetail = useCallback((s: WorkShift) => {
     setDetail({ id: s.id })
   }, [])
@@ -285,9 +306,6 @@ function WorkspaceApp({ user }: { user: User | null }) {
   if (!workspace) return <Loading />
   const w = workspace
   const active = w.shifts.find((s) => s.status === 'active')
-  const totals = salaryReport(workingMonth, wage.actual, wage.planned, w.payroll, w.adjustments)
-  const plannedIds = new Set(shifts.filter((s) => s.status === 'planned').map((s) => s.id))
-  const count = wage.combined.shifts.filter((s) => plannedIds.has(s.id)).length
   const openPay = () => {
     setMonth(today.slice(0, 7))
     navigate('salary')
@@ -446,7 +464,7 @@ function WorkspaceApp({ user }: { user: User | null }) {
           )}
           {page === 'salary' && <SalaryMonthPicker month={month} onChange={setMonth} />}
         </div>
-        {wage.issue && (page === 'salary' || page === 'today') && (
+        {wage?.issue && (
           <p className="warning" role="alert">
             חישוב השכר דורש תיקון. {wage.issue} <button onClick={() => goCalendar(day)}>פתיחת היומן</button>
           </p>
@@ -460,11 +478,11 @@ function WorkspaceApp({ user }: { user: User | null }) {
             scheduled={scheduledShiftAt(shifts, statusTime)}
             previousMonth={previousMonth}
             previousGross={previousGross}
-            currentNet={wage.issue ? null : totals.actual.net}
-            forecastNet={wage.issue ? null : totals.forecast.net}
-            workedHours={wage.issue ? null : wage.actual.hours}
-            overtimeHours={wage.issue ? null : wage.actual.overtimeHours}
-            plannedCount={wage.issue ? null : count}
+            currentNet={dashboardPay?.currentNet ?? null}
+            forecastNet={dashboardPay?.forecastNet ?? null}
+            workedHours={dashboardPay?.workedHours ?? null}
+            overtimeHours={dashboardPay?.overtimeHours ?? null}
+            plannedCount={dashboardPay?.plannedCount ?? null}
             busy={working}
             foxReaction={foxReaction}
             onTimer={timer}
@@ -484,7 +502,7 @@ function WorkspaceApp({ user }: { user: User | null }) {
             onAdd={(date) => setEditor({ date })}
           />
         )}
-        {page === 'salary' && !wage.issue && (
+        {page === 'salary' && wage?.actual && (
           <>
             <Salary
               key={workingMonth}

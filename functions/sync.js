@@ -140,7 +140,7 @@ export async function syncCalendar(db, uid, connection, client, deadline) {
       resolution: prior?.resolution,
     })
     const invalidBreaks = !breaksFit(current?.breaks, right)
-    const overlap = overlappingShift(id, local, right)
+    const overlap = (action === 'remote' || action === 'review') && overlappingShift(id, local, right)
     if (action === 'remote' && (invalidBreaks || overlap)) action = 'review'
     const appliedTravel = prior?.appliedTravel ?? 0
     const common = {

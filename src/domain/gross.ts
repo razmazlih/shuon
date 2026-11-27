@@ -125,9 +125,21 @@ function validClock(time: string, allowMidnight = false): boolean {
   return /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(time) || (allowMidnight && time === '24:00')
 }
 
+// Actual, forecast and per-shift results reuse the same civil-time boundaries.
+const boundaryCache = new Map<string, number>()
+const boundaryCacheLimit = 8192
 function boundary(date: string, time: string, end = false): number {
-  if (time === '24:00') return Date.parse(localToInstant(addDays(date, 1), '00:00'))
-  return Date.parse(localToInstant(date, time, end ? 'later' : 'earlier'))
+  if (time === '24:00') return boundary(addDays(date, 1), '00:00')
+  const key = date + 'T' + time + (end ? '+' : '')
+  const cached = boundaryCache.get(key)
+  if (cached !== undefined) return cached
+  const result = Date.parse(localToInstant(date, time, end ? 'later' : 'earlier'))
+  if (boundaryCache.size >= boundaryCacheLimit) {
+    const oldest = boundaryCache.keys().next()
+    if (!oldest.done) boundaryCache.delete(oldest.value)
+  }
+  boundaryCache.set(key, result)
+  return result
 }
 
 function validAmount(value: number): boolean {
