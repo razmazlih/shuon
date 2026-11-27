@@ -142,7 +142,7 @@
   gap: 0.25rem;
   padding: 0.2rem;
   border: 1px solid var(--line);
-  border-radius: 0.7rem;
+  border-radius: 999px;
   background: var(--paper);
 }
 .se-time-mode::before {
@@ -151,9 +151,10 @@
   inset-block: 0.2rem;
   inset-inline-start: 0.2rem;
   width: calc(50% - 0.325rem);
-  border: 1px solid var(--line);
-  border-radius: 0.5rem;
-  background: var(--card);
+  border: 1px solid var(--glass-edge);
+  border-radius: 999px;
+  background: var(--glass-control);
+  box-shadow: var(--surface-shadow);
   pointer-events: none;
   transition: inset-inline-start 220ms ease;
 }
@@ -168,7 +169,7 @@
   gap: 0.35rem;
   min-height: 44px;
   border: 1px solid transparent;
-  border-radius: 0.5rem;
+  border-radius: 999px;
   background: transparent;
   color: var(--muted);
   font-weight: 650;

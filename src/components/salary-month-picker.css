@@ -2,14 +2,16 @@
   display: flex;
   align-items: center;
   flex-shrink: 0;
-  background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: 9px;
+  background: var(--glass-control);
+  border: 1px solid var(--glass-edge);
+  border-radius: 999px;
+  box-shadow: var(--surface-shadow);
 }
 .salary-month-control > .icon-btn,
 .salary-month-navigation > .icon-btn {
   width: 44px;
   height: 44px;
+  border-radius: 50%;
 }
 .salary-month-trigger,
 .salary-month-year {
@@ -19,7 +21,7 @@
   gap: 0.55rem;
   min-height: 44px;
   border: 0;
-  border-radius: 7px;
+  border-radius: 999px;
   background: transparent;
   color: var(--ink);
 }
@@ -45,9 +47,9 @@
   display: grid;
   grid-template-columns: auto 1fr auto;
   align-items: center;
-  background: var(--paper);
-  border: 1px solid var(--line);
-  border-radius: 10px;
+  background: var(--glass-control);
+  border: 1px solid var(--glass-edge);
+  border-radius: 999px;
 }
 .salary-month-year {
   font-size: 1rem;
@@ -74,7 +76,7 @@
 }
 .salary-month-options button[aria-pressed='true'] {
   border-color: var(--green);
-  background: var(--tint);
+  background: var(--glass-selected);
   color: var(--green);
   font-weight: 700;
 }

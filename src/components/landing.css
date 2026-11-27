@@ -8,7 +8,22 @@
   display: flex;
   align-items: center;
   min-height: 88px;
-  border-bottom: 1px solid var(--line);
+}
+
+.landing-header .brand {
+  min-height: 48px;
+  padding-block: 4px;
+  padding-inline: 8px 16px;
+  border: 1px solid var(--glass-edge);
+  border-radius: 999px;
+}
+
+.landing-header .brand,
+.landing-demo {
+  background: var(--glass-fill);
+  box-shadow: var(--glass-shadow);
+  -webkit-backdrop-filter: var(--glass-filter);
+  backdrop-filter: var(--glass-filter);
 }
 
 .landing-main {
@@ -37,7 +52,7 @@
 }
 
 .landing-copy h1 span {
-  color: #a34d2a;
+  color: color-mix(in srgb, var(--accent) 78%, var(--ink));
 }
 
 .landing-intro {
@@ -62,25 +77,27 @@
   justify-content: center;
   gap: 9px;
   min-height: 48px;
-  padding: 9px 16px;
+  padding: 9px 20px;
   border: 1px solid transparent;
-  border-radius: 10px;
+  border-radius: 999px;
   font-weight: 720;
   text-decoration: none;
 }
 
 .landing-login {
-  background: var(--action);
+  background-color: var(--action);
+  background-image: linear-gradient(165deg, #ffffff14, transparent 58%);
+  border-color: color-mix(in srgb, var(--action) 80%, var(--ink));
+  box-shadow: inset 0 1px 0 #ffffff38, 0 3px 9px color-mix(in srgb, var(--action) 15%, transparent);
   color: var(--action-ink);
 }
 
 .landing-login:hover:not(:disabled) {
-  background: var(--action-hover);
+  background-color: var(--action-hover);
 }
 
 .landing-demo {
-  background: var(--card);
-  border-color: var(--line);
+  border-color: var(--glass-edge);
 }
 
 .landing-demo:hover {
@@ -100,13 +117,23 @@
 
 .landing-art {
   display: grid;
+  position: relative;
   align-items: end;
   overflow: hidden;
   aspect-ratio: 1.16;
-  border: 1px solid #d7c9a8;
-  border-radius: 26px;
-  background: radial-gradient(ellipse at 30% 23%, #fcf5df, #eee2be 74%);
-  box-shadow: 0 10px 28px #505a3510;
+  border: 1px solid var(--hero-line);
+  border-radius: 30px;
+  background: radial-gradient(ellipse at 30% 23%, color-mix(in srgb, var(--hero) 65%, var(--card)), var(--hero) 75%);
+  box-shadow: 0 12px 32px -14px color-mix(in srgb, var(--hero-ink) 27%, transparent);
+}
+
+.landing-art::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  box-shadow: inset 0 1px 1px #ffffff94, inset 0 -1px 1px #28433235;
 }
 
 .landing-art .forest {
@@ -132,8 +159,17 @@
   gap: 13px;
   padding: 17px;
   border: 1px solid var(--line);
-  border-radius: 14px;
+  border-radius: 20px;
   background: var(--card);
+  box-shadow: var(--surface-shadow);
+}
+
+@media (prefers-contrast: more), (forced-colors: active) {
+  .landing-header .brand,
+  .landing-login,
+  .landing-demo {
+    border-color: currentColor;
+  }
 }
 
 .landing-feature-icon {
@@ -141,7 +177,7 @@
   flex: 0 0 40px;
   height: 40px;
   place-items: center;
-  border-radius: 10px;
+  border-radius: 14px;
   background: var(--tint);
   color: var(--green);
 }

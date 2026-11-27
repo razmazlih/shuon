@@ -12,7 +12,21 @@
   --hero: #f3eddc;
   --hero-ink: #354632;
   --tag: #e9eddf;
-  --inset: 0 2px 4px #283b2d04;
+  --glass-sheen: #ffffffd6;
+  --glass-shade: #233e3517;
+  --glass-edge: color-mix(in srgb, var(--green) 20%, var(--card));
+  --glass-fill: var(--card);
+  --glass-filter: none;
+  --glass-selected: color-mix(in srgb, var(--green) 14%, var(--card));
+  --glass-control: linear-gradient(158deg, var(--card) 16%, color-mix(in srgb, var(--green) 6%, var(--card)));
+  --glass-shadow: inset 0 1px 1px var(--glass-sheen), inset 0 -1px 1px var(--glass-shade),
+    0 3px 9px var(--glass-shade), 0 12px 28px -16px var(--glass-shade);
+  --surface-shadow: inset 0 1px 0 var(--glass-sheen), 0 8px 24px -17px var(--glass-shade);
+  --inset: var(--surface-shadow);
+  --sky-glow: #c7ded3;
+  --sun-glow: #f1ddbd;
+  --stop-fill: #805035;
+  --stop-ink: #fffaf5;
   --focus: #d88b49;
   --action: #294d39;
   --action-hover: #365e46;
@@ -62,7 +76,13 @@
   --hero: color-mix(in srgb, var(--lavender) 7%, var(--card));
   --hero-ink: var(--ink);
   --hero-line: color-mix(in srgb, var(--lavender) 29%, var(--card));
-  --inset: inset 0 1px 0 #f4f2ed05, 0 2px 5px #090e1c50;
+  --glass-sheen: #f1f5ff29;
+  --glass-shade: #05091155;
+  --glass-edge: color-mix(in srgb, var(--lavender) 24%, var(--card));
+  --sky-glow: #35405d;
+  --sun-glow: #253f42;
+  --stop-fill: #f4bf8d;
+  --stop-ink: #2c2016;
   --focus: #ffc586;
   --action: var(--accent);
   --action-hover: #ffd4aa;
@@ -85,23 +105,46 @@
   --dialog-shadow: 0 20px 90px #080b16cc;
   --scrim: #080d1ac2;
 }
+/* Opaque materials are the baseline, including browsers without backdrop filters. */
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  :root {
+    --glass-fill: color-mix(in srgb, var(--card) 78%, transparent);
+    --glass-filter: blur(18px) saturate(145%);
+  }
+}
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more), (forced-colors: active) {
+  :root {
+    --glass-fill: var(--card);
+    --glass-filter: none;
+    --modal-backdrop-filter: none;
+  }
+}
+@media (prefers-contrast: more) {
+  :root, :root[data-theme='dark'] {
+    --glass-edge: var(--muted);
+    --glass-selected: var(--card);
+  }
+}
+@media (prefers-contrast: more), (forced-colors: active) {
+  .primary-nav a.selected, .week-metric button[aria-pressed='true'] {
+    text-decoration: underline;
+    text-decoration-thickness: 2px;
+    text-underline-offset: 2px;
+  }
+}
 * {
   box-sizing: border-box;
 }
 body {
   margin: 0;
-  background: var(--paper);
+  min-height: 100dvh;
+  background-color: var(--paper);
+  background-image:
+    radial-gradient(ellipse 58rem 27rem at 91% 0, color-mix(in srgb, var(--sky-glow) 65%, transparent), transparent),
+    radial-gradient(ellipse 39rem 26rem at 3% 15rem, color-mix(in srgb, var(--sun-glow) 42%, transparent), transparent);
+  background-repeat: no-repeat;
   color: var(--ink);
   -webkit-font-smoothing: antialiased;
-}
-:root[data-theme='dark'] body {
-  min-height: 100dvh;
-  background-repeat: no-repeat;
-  background-image: radial-gradient(
-    ellipse at 88% 0,
-    color-mix(in srgb, var(--lavender) 9%, var(--paper)) 0,
-    transparent 46rem
-  );
 }
 button,
 a,
@@ -164,8 +207,8 @@ button:not(:disabled):active {
 }
 .app-header {
   height: 74px;
-  background: var(--card);
-  border-bottom: 1px solid var(--line);
+  background: linear-gradient(to bottom, color-mix(in srgb, var(--card) 72%, transparent), transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--glass-edge) 68%, transparent);
 }
 .header-inner,
 .shell {
@@ -199,7 +242,14 @@ button:not(:disabled):active {
 .primary-nav {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--glass-edge);
+  border-radius: 999px;
+  background: var(--glass-fill);
+  -webkit-backdrop-filter: var(--glass-filter);
+  backdrop-filter: var(--glass-filter);
+  box-shadow: var(--glass-shadow);
 }
 .primary-nav a {
   font-size: 14px;
@@ -210,14 +260,15 @@ button:not(:disabled):active {
   display: inline-flex;
   gap: 8px;
   align-items: center;
-  border-radius: 8px;
+  border-radius: inherit;
 }
 .primary-nav a.selected {
   color: var(--green);
-  background: var(--tag);
+  background: var(--glass-selected);
+  box-shadow: inset 0 1px 1px var(--glass-sheen), inset 0 0 0 1px var(--glass-edge);
   font-weight: 740;
 }
-.primary-nav a:hover,
+.primary-nav a:not(.selected):hover,
 .icon-btn:hover,
 .text-button:hover {
   background: var(--tint);
@@ -252,7 +303,13 @@ button:not(:disabled):active {
   background: transparent;
   width: 37px;
   height: 37px;
-  border-radius: 9px;
+  border-radius: 50%;
+}
+.settings-button,
+.modal-header > .icon-btn {
+  border: 1px solid var(--glass-edge);
+  background: var(--glass-control);
+  box-shadow: var(--surface-shadow);
 }
 .current {
   background: var(--tag);
@@ -308,27 +365,27 @@ button:not(:disabled):active {
   gap: 8px;
   min-height: 40px;
   padding: 9px 17px;
-  border-radius: 10px;
+  border-radius: 999px;
   font-size: 14px;
   font-weight: 650;
   white-space: nowrap;
 }
 .add-shift,
 .secondary {
-  background: var(--card);
-  border: 1px solid var(--line);
+  background: var(--glass-control);
+  border: 1px solid var(--glass-edge);
   color: var(--ink);
-  box-shadow: var(--inset);
+  box-shadow: var(--glass-shadow);
 }
 .add-shift:hover,
 .secondary:hover {
   background: var(--tint);
 }
 .primary {
-  background: var(--action);
+  background: linear-gradient(160deg, color-mix(in srgb, var(--action) 90%, white), var(--action) 65%);
   color: var(--action-ink);
   border: 1px solid var(--action);
-  box-shadow: 0 3px 6px #1c352516;
+  box-shadow: inset 0 1px 1px #ffffff40, inset 0 -1px 0 #00000020, 0 3px 7px var(--glass-shade);
 }
 .primary:hover {
   background: var(--action-hover);
@@ -346,14 +403,15 @@ button:not(:disabled):active {
 .income-card,
 .panel,
 .summary-strip {
-  border-radius: 19px;
+  border-radius: 23px;
   overflow: hidden;
 }
 .clock-card {
   isolation: isolate;
   position: relative;
   min-height: 235px;
-  background: var(--hero);
+  background: radial-gradient(ellipse at 14% 18%, color-mix(in srgb, var(--hero) 62%, white), transparent 68%), var(--hero);
+  box-shadow: var(--surface-shadow);
   border: 1px solid var(--hero-line);
   color: var(--hero-ink);
 }
@@ -446,8 +504,19 @@ button:not(:disabled):active {
   gap: 5px;
   margin-top: 20px;
 }
-.start-button {
+.timer-actions .primary {
   padding-inline: 19px;
+  min-height: 44px;
+}
+.timer-actions .primary:not(.start-button) {
+  --action: var(--stop-fill);
+  --action-hover: color-mix(in srgb, var(--stop-fill) 92%, var(--stop-ink));
+  --action-ink: var(--stop-ink);
+}
+:root[data-theme='dark'] .timer-actions .start-button {
+  --action: var(--green);
+  --action-hover: color-mix(in srgb, var(--green) 88%, white);
+  --action-ink: var(--on-green);
 }
 .forest {
   pointer-events: none;
@@ -555,6 +624,8 @@ button:not(:disabled):active {
   isolation: isolate;
   position: relative;
   background-color: var(--feature);
+  background-image: linear-gradient(137deg, color-mix(in srgb, var(--feature) 78%, #719682), var(--feature) 65%);
+  box-shadow: inset 0 1px 0 #ffffff24, 0 5px 16px var(--glass-shade);
   color: #f9fcf1;
   padding: 22px 25px 17px;
   display: flex;
@@ -812,20 +883,21 @@ button:not(:disabled):active {
   padding: 2px;
   gap: 2px;
   border: 1px solid var(--line);
-  border-radius: 0.65rem;
-  background: var(--paper);
+  border-radius: 999px;
+  background: var(--glass-control);
 }
 .week-metric button {
   min-height: 36px;
   padding: 0.25rem 0.7rem;
-  border-radius: 0.48rem;
+  border-radius: inherit;
   background: transparent;
   color: var(--muted);
   font-size: 0.8rem;
   cursor: pointer;
 }
 .week-metric button[aria-pressed='true'] {
-  background: var(--tint);
+  background: var(--glass-selected);
+  box-shadow: var(--surface-shadow);
   color: var(--ink);
   font-weight: 700;
 }
@@ -836,6 +908,8 @@ button:not(:disabled):active {
   font-size: 0.76rem;
 }
 .week-shifts {
+  /* Keep offscreen accessible labels inside the RTL chart's scroll area. */
+  position: relative;
   display: flex;
   overflow-x: auto;
   list-style: none;
@@ -1048,15 +1122,16 @@ button:not(:disabled):active {
   background: var(--card);
   color: var(--ink);
   border: 1px solid var(--line);
-  border-radius: 20px;
+  border-radius: 24px;
   width: min(550px, calc(100vw - 24px));
   max-height: 88dvh;
   padding: 21px 25px;
-  box-shadow: var(--dialog-shadow);
+  box-shadow: inset 0 1px 0 var(--glass-sheen), 0 0 0 1px var(--glass-edge), var(--dialog-shadow);
 }
 .modal::backdrop {
   background: var(--scrim);
-  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: var(--modal-backdrop-filter, blur(3px));
+  backdrop-filter: var(--modal-backdrop-filter, blur(3px));
 }
 :root {
   scrollbar-gutter: stable;
@@ -1370,19 +1445,20 @@ button:not(:disabled):active {
 @media (max-width: 560px) {
   .primary-nav {
     position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: calc(59px + env(safe-area-inset-bottom));
-    padding: 3px 20px env(safe-area-inset-bottom);
+    bottom: calc(8px + env(safe-area-inset-bottom));
+    inset-inline: 12px;
+    max-width: 32rem;
+    margin-inline: auto;
+    height: 56px;
+    padding: 3px 5px;
     z-index: 5;
-    border-top: 1px solid var(--line);
-    background: var(--card);
     display: flex;
     justify-content: space-around;
   }
   .primary-nav a {
-    width: 76px;
+    flex: 1;
+    min-height: 46px;
+    justify-content: center;
     flex-direction: column;
     gap: 1px;
     padding: 3px;
@@ -1393,7 +1469,7 @@ button:not(:disabled):active {
     height: 18px;
   }
   .shell {
-    padding-bottom: 76px;
+    padding-bottom: calc(80px + env(safe-area-inset-bottom));
   }
   .account {
     gap: 10px;
@@ -1458,7 +1534,7 @@ button:not(:disabled):active {
     padding: 10px 0;
   }
   .toast {
-    bottom: 72px;
+    bottom: calc(74px + env(safe-area-inset-bottom));
   }
   .modal {
     padding: 17px;
@@ -1483,6 +1559,9 @@ button:not(:disabled):active {
   }
 }
 @media (prefers-reduced-motion: reduce) {
+  button:not(:disabled):active {
+    transform: none;
+  }
   * {
     transition: none !important;
     scroll-behavior: auto !important;

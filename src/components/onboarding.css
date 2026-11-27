@@ -155,8 +155,7 @@
   text-align: center;
 }
 .onboarding-content .question-field > .question-hint { margin-top: .4rem; }
-.onboarding-content .question-field .question-number,
-.onboarding-content .question-actions button { border-radius: .85rem; }
+.onboarding-content .question-field .question-number { border-radius: .85rem; }
 .onboarding-content .question-actions .prefs-primary { gap: .55rem; }
 @media (min-width: 600px) {
   .onboarding-screen .onboarding-content {
@@ -165,5 +164,6 @@
     background: var(--card);
     border: 1px solid var(--line);
     border-radius: 1.75rem;
+    box-shadow: var(--surface-shadow);
   }
 }

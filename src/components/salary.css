@@ -28,9 +28,9 @@
 .salary-card,
 .salary-summary {
   border: 1px solid var(--line);
-  border-radius: 1.15rem;
+  border-radius: 1.4rem;
   background: var(--card);
-  box-shadow: var(--inset);
+  box-shadow: var(--surface-shadow);
 }
 .salary-card {
   padding: clamp(1rem, 3vw, 1.5rem);
@@ -342,13 +342,14 @@
   font-size: 0.875rem;
 }
 .salary-primary {
-  border-radius: 0.6rem;
+  border-radius: 999px;
   padding: 0.5rem 0.85rem;
   font-weight: 650;
   font-size: 0.9rem;
-  background: var(--green, #205543);
+  background: var(--action);
   border: 1px solid transparent;
-  color: var(--on-green);
+  color: var(--action-ink);
+  box-shadow: var(--surface-shadow);
 }
 .salary-link {
   padding: 0.15rem 0;
