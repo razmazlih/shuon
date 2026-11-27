@@ -190,3 +190,25 @@ test('legacy employees can enter insurance and family facts while retaining exis
   assert.equal(updated.payroll.creditPoints, 8)
   assert.equal(updated.payroll.regularInsurance, false)
 })
+
+test('an explicit rate date can backdate or schedule a raise and replace a same-day entry', () => {
+  const original = apply(basic)
+  const before = '2026-11-02'
+  const from = '2026-11-03'
+  const nextDate = '2026-12-02'
+  const draft = { ...initialAnswers(original.profile, original.payroll, today), hourlyRate: '65' }
+  const scheduled = applyAnswers(original.profile, original.payroll, draft, today, nextDate)
+  assert.equal(initialAnswers(scheduled.profile, scheduled.payroll, today).hourlyRate, '50')
+  const backdated = applyAnswers(scheduled.profile, scheduled.payroll, { ...draft, hourlyRate: '55' }, today, from)
+  const corrected = applyAnswers(backdated.profile, backdated.payroll, { ...draft, hourlyRate: '60' }, today, from)
+  const shifts = [before, from, today, nextDate].map((date) => ({
+    id: date,
+    start: localToInstant(date, '08:00'),
+    end: localToInstant(date, '09:00'),
+  }))
+  assert.deepEqual(calculateGross(shifts, corrected.profile.pay).shifts.map((shift) => shift.gross), [50, 60, 60, 65])
+  assert.throws(() => applyAnswers(original.profile, original.payroll, draft, today, ''), /יש לבחור תאריך תחולה/)
+  assert.throws(() => applyAnswers(original.profile, original.payroll, draft, today, '2026-02-30'), /תאריך לא תקין/)
+  assert.deepEqual(applyAnswers(corrected.profile, corrected.payroll, draft, today, null).profile.pay.rateHistory,
+    corrected.profile.pay.rateHistory)
+})

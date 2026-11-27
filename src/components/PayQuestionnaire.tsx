@@ -1,5 +1,5 @@
 import './onboarding.css'
-import { useId, useRef, useState, type FormEvent } from 'react'
+import { Fragment, useId, useRef, useState, type FormEvent } from 'react'
 import { ArrowLeft, BriefcaseBusiness, Check, ClipboardList, MoonStar, Pencil, UserRound } from 'lucide-react'
 import type { UserProfile } from '../data/model'
 import type { PayrollProfile } from '../domain/net'
@@ -11,7 +11,9 @@ import {
   type Answers,
   type Question,
 } from '../domain/questionnaire'
+import { localDate } from '../domain/time'
 import { Dialog } from './Dialog'
+import { RateEffectiveDate } from './RateEffectiveDate'
 
 export type QuestionnaireProps = {
   profile: UserProfile
@@ -177,9 +179,10 @@ function QuestionnaireForm({
   onDone?: () => void
   onBusy?: (busy: boolean) => void
 }) {
-  const [baseline] = useState(() => ({ profile, payroll }))
+  const [baseline] = useState(() => ({ profile, payroll, answers: initialAnswers(profile, payroll) }))
+  const [rateFrom, setRateFrom] = useState<string | null>(null)
   const [answers, setAnswers] = useState(() => {
-    const saved = initialAnswers(baseline.profile, baseline.payroll)
+    const saved = baseline.answers
     if (editSection === 'personal')
       return { onlyJob: 'yes', ageGroup: 'adult', pension: 'yes', children: 'no', ...saved } as Answers
     if (editSection === 'shifts')
@@ -212,6 +215,7 @@ function QuestionnaireForm({
   const [saving, setSaving] = useState(false)
   const section = sections.find((entry) => entry.id === editSection) ?? sections[0]
   const currentQuestions = visibleQuestions(answers).filter((q) => editSection ? q.section === section.id : q.id === onboardingSteps[step])
+  const rateChanged = editSection === 'work' && Number(answers.hourlyRate) !== Number(baseline.answers.hourlyRate)
   const compact = editSection === 'personal' || editSection === 'shifts'
   const primary = currentQuestions.filter((q) => !compact || q.id === 'sex' || q.id === 'restDay')
   const extra = currentQuestions.filter((q) => !primary.includes(q))
@@ -237,7 +241,9 @@ function QuestionnaireForm({
     setSaving(true)
     onBusy?.(true)
     try {
-      const next = applyAnswers(baseline.profile, baseline.payroll, answers)
+      const today = localDate(Date.now())
+      const effectiveDate = editSection ? (rateChanged ? rateFrom ?? today : null) : undefined
+      const next = applyAnswers(baseline.profile, baseline.payroll, answers, today, effectiveDate)
       await onSaveQuestionnaire(next.profile, next.payroll, baseline.profile, baseline.payroll)
       onDone?.()
     } catch (reason) {
@@ -294,7 +300,13 @@ function QuestionnaireForm({
       )}
       <fieldset ref={stage} key={editSection ?? step} className="question-fields" disabled={saving}>
         <legend className="sr-only">{section.title}</legend>
-        {primary.map(renderQuestion)}
+        {primary.map((question) => (
+          <Fragment key={question.id}>
+            {renderQuestion(question)}
+            {question.id === 'hourlyRate' && rateChanged &&
+              <RateEffectiveDate date={rateFrom} onChange={setRateFrom} />}
+          </Fragment>
+        ))}
         {compact && (
           <>
             <button type="button" className="question-disclosure" aria-expanded={expanded}

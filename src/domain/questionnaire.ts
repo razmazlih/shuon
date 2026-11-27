@@ -1,6 +1,7 @@
 import type { UserProfile } from '../data/model'
 import type { PayrollProfile } from './net'
 import { localDate } from './time'
+import { withHourlyRate } from './pay-rate'
 
 export type Answers = Record<string, string>
 export type Question = {
@@ -345,6 +346,7 @@ export function applyAnswers(
   payroll: PayrollProfile,
   draft: Answers,
   today = localDate(Date.now()),
+  rateFrom?: string | null,
 ) {
   const answers: Answers = { resident: draft.resident ?? 'yes' }
   for (const q of visibleQuestions(draft)) {
@@ -353,14 +355,12 @@ export function applyAnswers(
     if (invalid) throw new Error(q.title + ' ' + invalid)
     answers[q.id] = draft[q.id].trim()
   }
-  const pay = { ...profile.pay }
-  if (answers.hourlyRate && Number(answers.hourlyRate) !== currentRate(profile, today)) {
-    if (profile.onboarded) {
-      pay.rateHistory = [
-        ...(pay.rateHistory ?? []).filter((r) => r.from !== today),
-        { from: today, rate: Number(answers.hourlyRate) },
-      ].sort((a, b) => a.from.localeCompare(b.from))
-    } else pay.hourlyRate = Number(answers.hourlyRate)
+  let pay = { ...profile.pay }
+  if (answers.hourlyRate && rateFrom !== null) {
+    const rate = Number(answers.hourlyRate)
+    if (!profile.onboarded) pay.hourlyRate = rate
+    else if (rateFrom !== undefined || rate !== currentRate(profile, today))
+      pay = withHourlyRate(pay, rateFrom ?? today, rate)
   }
   if (answers.restDay) {
     const day = answers.restDay === 'unknown' ? 6 : Number(answers.restDay)

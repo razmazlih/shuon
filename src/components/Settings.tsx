@@ -16,6 +16,8 @@ import {
 import type { Template, UserProfile } from '../data/model'
 import { holidayTimeMode, type PaySettings } from '../domain/gross'
 import { dateMs, localDate, localTime, localToInstant } from '../domain/time'
+import { withHourlyRate } from '../domain/pay-rate'
+import { RateEffectiveDate } from './RateEffectiveDate'
 import AppleCalendar from './AppleCalendar'
 import { PayrollSettings } from './PayrollSettings'
 import { ShiftTemplates } from './ShiftTemplates'
@@ -324,6 +326,8 @@ function TimeSettings({ pay, busy, save }: { pay: PaySettings; busy: boolean; sa
 }
 
 function RateSettings({ pay, busy, save }: { pay: PaySettings; busy: boolean; save: SavePay }) {
+  const [rateFrom, setRateFrom] = useState<string | null>(null)
+  const [error, setError] = useState('')
   const today = localDate(Date.now())
   const rates = [...(pay.rateHistory ?? [])].sort((a, b) => a.from.localeCompare(b.from))
   const current = rates.filter((row) => row.from <= today).at(-1)?.rate ?? pay.hourlyRate
@@ -331,13 +335,18 @@ function RateSettings({ pay, busy, save }: { pay: PaySettings; busy: boolean; sa
     event.preventDefault()
     const element = event.currentTarget
     const form = new FormData(element)
-    const from = read(form, 'from'),
-      rate = Number(form.get('rate'))
-    if (from < today) return
-    const rateHistory = [...rates.filter((row) => row.from !== from), { from, rate }].sort((a, b) =>
-      a.from.localeCompare(b.from),
-    )
-    if (await save({ ...pay, rateHistory }, 'rate', 'התעריף נשמר')) element.reset()
+    setError('')
+    let next: PaySettings
+    try {
+      next = withHourlyRate(pay, rateFrom ?? localDate(Date.now()), Number(form.get('rate')))
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'תאריך לא תקין')
+      return
+    }
+    if (await save(next, 'rate', 'התעריף נשמר')) {
+      element.reset()
+      setRateFrom(null)
+    }
   }
   return (
     <>
@@ -353,14 +362,12 @@ function RateSettings({ pay, busy, save }: { pay: PaySettings; busy: boolean; sa
             תעריף חדש לשעה (₪)
             <input type="number" name="rate" step=".01" min=".01" required placeholder="שכר הבסיס החדש" />
           </label>
-          <label className="prefs-field">
-            בתוקף מתאריך
-            <input type="date" name="from" min={today} defaultValue={today} required />
-          </label>
+          <RateEffectiveDate date={rateFrom} onChange={setRateFrom} />
         </div>
         <p className="prefs-hint">
           העדכון חל על שעות העבודה מתאריך התחולה שנבחר. תאריכים מוקדמים יותר מחושבים לפי התעריף הקודם.
         </p>
+        {error && <p className="prefs-error" role="alert">{error}</p>}
         <button className="prefs-primary" disabled={busy} type="submit">
           עדכון תעריף
         </button>
@@ -427,7 +434,7 @@ export function Settings({
       <QuestionnaireSettings profile={profile} payroll={payroll} onSaveQuestionnaire={onSaveQuestionnaire} />
       <PayrollSettings profile={payroll} onSave={onSavePayroll} />
       <details className="prefs-card prefs-pay-tools">
-        <summary><Banknote size={18} aria-hidden="true" /> תעריפים עתידיים, זמני מנוחה וחגים</summary>
+        <summary><Banknote size={18} aria-hidden="true" /> תעריפים, זמני מנוחה וחגים</summary>
         <div className="prefs-tools-grid">
           <section>
             <h3>עדכון תעריף לפי תאריך</h3>
