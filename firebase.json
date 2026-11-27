@@ -10,6 +10,15 @@
     ],
     "headers": [
       {
+        "regex": "^/($|index\\.html$|demo/?$)",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache"
+          }
+        ]
+      },
+      {
         "source": "**",
         "headers": [
           {
