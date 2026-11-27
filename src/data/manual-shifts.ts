@@ -178,18 +178,18 @@ export function buildManualShiftWrites({
     build(date, edited, edited),
     ...selections.map(({ date: day, replacement }) => build(day, replacement)),
   ]
-  const remaining = shifts.filter((shift) => !originals.has(shift.id))
+  const remaining = shifts.filter((shift) => !originals.has(shift.id)).map((shift) => {
+    const start = Date.parse(shift.start)
+    const end = shift.status === 'active' ? Math.max(now, start + 1) : Date.parse(shift.end)
+    return { start, end }
+  })
   for (const row of rows) {
     const start = Date.parse(row.start)
-    const finish = Date.parse(row.end)
-    if (remaining.some((other) => {
-      const otherStart = Date.parse(other.start)
-      const otherEnd = other.status === 'active' ? Math.max(now, otherStart + 1) : Date.parse(other.end)
-      return start < otherEnd && otherStart < finish
-    })) {
+    const end = Date.parse(row.end)
+    if (remaining.some((other) => start < other.end && other.start < end)) {
       throw new Error(formatDate(localDate(row.start)) + ' · המשמרת חופפת למשמרת אחרת.')
     }
-    remaining.push(row)
+    remaining.push({ start, end })
   }
   return { rows, deleted, originals: [...originals.values()] }
 }

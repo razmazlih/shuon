@@ -1,16 +1,21 @@
 import {
   collection,
   doc,
+  documentId,
   getDocsFromServer,
   query,
   runTransaction,
   where,
+  type DocumentSnapshot,
   type Firestore,
+  type Query,
 } from 'firebase/firestore'
 import type { WorkShift } from './model'
 
 export const shiftConflict = () => new Error('המשמרת השתנתה במכשיר אחר. יש לפתוח אותה מחדש לפני השמירה.')
 const overlap = () => new Error('יש חפיפה עם משמרת שכבר נשמרה. יש לעדכן את השעות ולנסות שוב.')
+const cloudWrites = new WeakMap<Firestore, Map<string, Promise<void>>>()
+const MAX_IDS_PER_QUERY = 30
 
 function interval(shift: WorkShift, now: number) {
   const start = Date.parse(shift.start)
@@ -69,31 +74,62 @@ export async function writeCloudShifts(
   if (!change.ids.size) return
   const shifts = collection(db, 'users', uid, 'shifts')
   const marker = doc(db, 'users', uid, 'settings', 'shiftWrite')
-  await runTransaction(db, async (tx) => {
-    // Client transactions cannot query. All supported writers rotate this marker in
-    // the same commit as their changes; a concurrent commit retries the server reads.
+  const ids = [...change.ids]
+  const read = (q: Query) => getDocsFromServer(q).then((snapshot) => snapshot.docs)
+  const write = () => runTransaction(db, async (tx) => {
+    // Every shift writer rotates this marker. Reading it before starting the queries
+    // makes Firestore retry if anything changes before the validated write commits.
     await tx.get(marker)
-    const touched = await Promise.all([...change.ids].map((id) => tx.get(doc(shifts, id))))
-    const current = new Map<string, WorkShift>()
+    const reads: Promise<DocumentSnapshot[]>[] = []
     if (rows.length) {
       const earliest = Math.min(...rows.map((s) => interval(s, Date.now()).start))
       // ISO timestamps supplied with an explicit UTC offset can sort on an adjacent date.
       // Most writes concern recent/future shifts; the lower bound skips old payroll history.
       const from = new Date(earliest - 86_400_000).toISOString()
-      const nearby = await Promise.all([
-        getDocsFromServer(query(shifts, where('end', '>=', from))),
-        getDocsFromServer(query(shifts, where('status', '==', 'active'))),
-      ])
-      for (const result of nearby)
-        for (const item of result.docs) current.set(item.id, item.data() as WorkShift)
+      reads.push(
+        read(query(shifts, where('end', '>=', from))),
+        read(query(shifts, where('status', '==', 'active'))),
+      )
     }
-    for (const item of touched) {
-      if (item.exists()) current.set(item.id, item.data() as WorkShift)
-      else current.delete(item.id)
+    const nearbyCount = reads.length
+    if (ids.length === 1) {
+      reads.push(tx.get(doc(shifts, ids[0])).then((snapshot) => [snapshot]))
+    } else {
+      // A Web SDK transaction get sends a separate request for each document.
+      for (let i = 0; i < ids.length; i += MAX_IDS_PER_QUERY) {
+        reads.push(read(query(shifts, where(documentId(), 'in', ids.slice(i, i + MAX_IDS_PER_QUERY)))))
+      }
+    }
+    const current = new Map<string, WorkShift>()
+    // Wait for every transient listener to finish even when one read fails.
+    const results = await Promise.allSettled(reads)
+    for (const [index, result] of results.entries()) {
+      if (result.status === 'rejected') throw result.reason
+      for (const item of result.value) {
+        if (item.exists() && (index >= nearbyCount || !change.ids.has(item.id))) {
+          current.set(item.id, item.data() as WorkShift)
+        }
+      }
     }
     change.validate([...current.values()])
     tx.set(marker, { nonce: crypto.randomUUID() })
     for (const s of change.writes) tx.set(doc(shifts, s.id), s)
     for (const id of deleted) tx.delete(doc(shifts, id))
   })
+
+  // A one-shot Firestore query can share an identical active listener in this SDK
+  // instance. Finish earlier reads before another write can observe a newer marker.
+  let pending = cloudWrites.get(db)
+  if (!pending) {
+    pending = new Map()
+    cloudWrites.set(db, pending)
+  }
+  const previousWrite = pending.get(uid)
+  const saving = previousWrite ? previousWrite.catch(() => {}).then(write) : write()
+  pending.set(uid, saving)
+  try {
+    await saving
+  } finally {
+    if (pending.get(uid) === saving) pending.delete(uid)
+  }
 }

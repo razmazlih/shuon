@@ -1,4 +1,4 @@
-import { useEffect, useId, useLayoutEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { Bookmark, CalendarPlus, Check, Trash2 } from 'lucide-react'
 import {
   buildManualShiftWrites,
@@ -60,6 +60,7 @@ function ClockField({
   disabled: boolean
 }) {
   const hintId = useId()
+  const ambiguous = useMemo(() => foldDates.some((date) => isAmbiguous(date, value.time)), [foldDates, value.time])
   return (
     <div className="se-clock">
       <label className="se-field">
@@ -78,7 +79,7 @@ function ClockField({
           {hint}
         </span>
       )}
-      {foldDates.some((date) => isAmbiguous(date, value.time)) && (
+      {ambiguous && (
         <label className="se-fold">
           {title} במעבר לשעון חורף
           <select
@@ -160,6 +161,7 @@ export function ShiftEditor({
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [busy, setBusy] = useState(false)
+  const writing = useRef(false)
   const [exiting, setExiting] = useState(false)
   const [error, setError] = useState('')
   const contentRef = useRef<HTMLDivElement>(null)
@@ -171,15 +173,16 @@ export function ShiftEditor({
   const useTemplate = timeMode === 'template' && templates.length > 0
   const needsTemplate = useTemplate && !templates.some((template) => template.id === selectedTemplateId)
 
-  const days = [day, ...selections.map((selection) => selection.date)].filter(Boolean)
-  const endOffset = day ? manualEndOffset(day, start, end, editing ? initial : undefined) : 0
-  const finishFoldDates = days.flatMap((date) => {
+  const days = useMemo(() => [day, ...selections.map((selection) => selection.date)].filter(Boolean), [day, selections])
+  const endOffset = useMemo(() => day ? manualEndOffset(day, start, end, initial) : 0, [day, start, end, initial])
+  const finishFoldDates = useMemo(() => days.flatMap((date) => {
     const offset = date === day ? endOffset : inferEndOffset(date, start, end)
     const finishDate = addDays(date, offset)
     const canFinishOnStartDate =
       offset === 1 && inferEndOffset(date, start, { ...end, fold: 'later' }) === 0
     return canFinishOnStartDate ? [date, finishDate] : [finishDate]
-  })
+  }), [days, day, endOffset, start, end])
+  const savingLabel = days.length > 1 ? 'שומר ' + days.length + ' משמרות…' : 'שומר משמרת…'
   const finishHint =
     endOffset === 1 ? 'למחרת' : endOffset > 1 ? dateFormat.format(dateMs(addDays(day, endOffset))) : undefined
   const replacements = selections.filter((selection) => selection.replacement).length
@@ -229,21 +232,26 @@ export function ShiftEditor({
 
   async function submit(event: FormEvent) {
     event.preventDefault()
-    if (busy || pickingDates || confirmDelete || needsTemplate) return
+    if (writing.current || pickingDates || confirmDelete || needsTemplate) return
+    writing.current = true
+    setBusy(true)
     setError('')
     try {
+      // Let React commit the pending feedback before validating the selected dates.
+      await new Promise<void>((resolve) => window.setTimeout(resolve, 0))
       const change = buildManualShiftWrites({ date: day, start, end, note, initial, selections, shifts })
-      setBusy(true)
       await onSave(change)
       setExiting(true)
     } catch (reason) {
       reportError(reason)
+      writing.current = false
       setBusy(false)
     }
   }
 
   async function deleteShift() {
-    if (busy || !editing || !confirmDelete) return
+    if (writing.current || !editing || !confirmDelete) return
+    writing.current = true
     setBusy(true)
     setError('')
     try {
@@ -251,6 +259,7 @@ export function ShiftEditor({
       setExiting(true)
     } catch (reason) {
       reportError(reason)
+      writing.current = false
       setBusy(false)
     }
   }
@@ -367,7 +376,7 @@ export function ShiftEditor({
               <div className="se-transition-panel" inert={confirmDelete}>
                 <div className="se-actions">
                   <button type="submit" className="btn primary" disabled={busy || needsTemplate || confirmDelete}>
-                    {busy ? 'שומר…' : days.length > 1 ? 'שמירת ' + days.length + ' משמרות' : 'שמירת משמרת'}
+                    {busy ? savingLabel : days.length > 1 ? 'שמירת ' + days.length + ' משמרות' : 'שמירת משמרת'}
                   </button>
                   {editing ? (
                     <button ref={deleteButtonRef} type="button" className="btn secondary se-delete" disabled={busy} onClick={() => {
@@ -409,6 +418,7 @@ export function ShiftEditor({
       onClose={pickingDates ? undefined : confirmDelete ? cancelDeletion : onClose}
       onBack={pickingDates ? closeDatesPicker : undefined}
     >
+      <span className="sr-only" role="status">{busy ? confirmDelete ? 'מוחק משמרת…' : savingLabel : ''}</span>
       {preview ? preview.content : editing && initial.status === 'active' ? (
         <div className="se-form">
           <p>המשמרת פעילה. אפשר לסיים אותה בשעון הנוכחות ולערוך את הפרטים לאחר מכן.</p>

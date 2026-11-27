@@ -124,6 +124,7 @@ firebase deploy --only firestore:rules --project shuon-shifts-il
 | --- | --- |
 | [`src/components`](src/components) | דף הפתיחה, הדשבורד, היומן, עורך המשמרות, דוח השכר וההגדרות |
 | [`src/data`](src/data) | מודל הנתונים, Firebase, נתוני הדמו ושמירת משמרות |
+| [`src/data/manual-shifts.ts`](src/data/manual-shifts.ts) · [`src/data/shift-writes.ts`](src/data/shift-writes.ts) | הכנת משמרות לכמה ימים, בדיקת חפיפות ושמירת כל השינויים יחד ב־Firestore |
 | [`src/domain`](src/domain) | חישובי זמן לפי שעון ישראל, שעות עבודה, ברוטו, מסים ונטו |
 | [`src/domain/holidays.ts`](src/domain/holidays.ts) | זיהוי חגי ישראל וחישוב זמני כניסה ויציאה |
 | [`functions`](functions) | חיבור ל־iCloud, הצפנה וסנכרון |

@@ -185,6 +185,54 @@ test('a mixed shift transaction applies every change together and rejects a stal
   assert.notDeepEqual((await getDoc(marker)).data(), markerBefore)
 })
 
+test('a 120-date shift save commits every shift and the revision together', async () => {
+  const { writeCloudShifts } = await import('../src/data/shift-writes.ts')
+  const user = 'bulk-shifts-' + randomUUID()
+  const database = env.authenticatedContext(user).firestore()
+  const marker = doc(database, 'users', user, 'settings', 'shiftWrite')
+  const nonce = randomUUID()
+  await setDoc(marker, { nonce })
+  const rows = Array.from({ length: 120 }, (_, index) => ({
+    ...shift,
+    id: 'shift-' + index,
+    start: new Date(Date.UTC(2026, 10, 26 + index, 6)).toISOString(),
+    end: new Date(Date.UTC(2026, 10, 26 + index, 14)).toISOString(),
+  }))
+
+  await writeCloudShifts(database, user, rows, [], [])
+
+  const saved = await getDocs(collection(database, 'users', user, 'shifts'))
+  assert.equal(saved.size, rows.length)
+  const savedById = new Map(saved.docs.map((doc) => [doc.id, doc.data()]))
+  for (const row of rows) {
+    assert.equal(savedById.get(row.id)?.start, row.start)
+    assert.equal(savedById.get(row.id)?.end, row.end)
+  }
+  const revision = (await getDoc(marker)).data()
+  assert.ok(revision?.nonce)
+  assert.notEqual(revision.nonce, nonce)
+})
+
+test('a bulk save rejects a stale shift with the same ID outside the overlap query range', async () => {
+  const { writeCloudShifts } = await import('../src/data/shift-writes.ts')
+  const user = 'bulk-conflict-' + randomUUID()
+  const database = env.authenticatedContext(user).firestore()
+  const shifts = collection(database, 'users', user, 'shifts')
+  const marker = doc(database, 'users', user, 'settings', 'shiftWrite')
+  const historical = { ...shift, id: 'historical', start: '2025-01-01T06:00:00Z', end: '2025-01-01T14:00:00Z' }
+  await writeCloudShifts(database, user, [historical], [], [])
+
+  const original = (await getDoc(doc(shifts, historical.id))).data()
+  const revision = (await getDoc(marker)).data()
+  const fresh = { ...shift, id: 'fresh', start: shift.end, end: '2026-11-26T18:00:00Z' }
+  await assert.rejects(
+    writeCloudShifts(database, user, [fresh, { ...shift, id: historical.id }], [], []),
+    /השתנתה/,
+  )
+  assert.deepEqual((await getDocs(shifts)).docs.map((row) => row.data()), [original])
+  assert.deepEqual((await getDoc(marker)).data(), revision)
+})
+
 test('only one of two concurrently opened timers can commit, without losing the other device’s revision', async () => {
   const { writeCloudShifts } = await import('../src/data/shift-writes.ts')
   const user = 'timers-' + randomUUID()
