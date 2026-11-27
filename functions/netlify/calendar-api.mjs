@@ -67,6 +67,6 @@ export function calendarHandler(actions, verifyToken) {
 }
 
 export default calendarHandler(
-  { ...calendarActions, syncAppleCalendar: uid => dispatchUserSync(uid) },
+  { ...calendarActions, syncAppleCalendar: (uid, data) => dispatchUserSync(uid, undefined, { entry: data?.trigger === 'entry' }) },
   token => getAuth(adminApp()).verifyIdToken(token),
 )

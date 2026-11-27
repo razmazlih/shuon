@@ -7,19 +7,25 @@ export function useAppleCalendarSync(user: User | null) {
     if (!user || !appleApiConfigured) return
     const key = 'shuon.apple.pending.' + user.uid
     let pending = localStorage.getItem(key)
+    let entryPending = true
     let disposed = false
     let running = false
     let queued = false
     let timer: number | undefined
     const sync = async () => {
-      if (disposed || !pending || !navigator.onLine) return
+      if (disposed || (!pending && !entryPending) || !navigator.onLine) return
       if (running) {
         queued = true
         return
       }
+      entryPending = false
       const revision = pending
       running = true
       try {
+        if (!revision) {
+          await appleRequest(user, 'syncAppleCalendar', { trigger: 'entry' })
+          return
+        }
         const status = await appleRequest<{ connected: boolean }>(user, 'getAppleCalendarStatus')
         if (disposed) return
         if (status.connected) await appleRequest(user, 'syncAppleCalendar')
@@ -48,7 +54,7 @@ export function useAppleCalendarSync(user: User | null) {
       localStorage.setItem(key, pending)
       schedule()
     }
-    if (pending) schedule()
+    schedule()
     window.addEventListener('shuon-shifts-written', afterWrite)
     window.addEventListener('online', schedule)
     return () => {

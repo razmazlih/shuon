@@ -33,7 +33,8 @@ export async function appleRequest<T>(user: User, name: string, data: unknown = 
       code: value?.error?.code,
     })
   }
-  if (name === 'syncAppleCalendar' && value.result?.requestId) {
+  if (name === 'syncAppleCalendar' && value.result?.requestId &&
+    (data as { trigger?: string } | null)?.trigger !== 'entry') {
     const requestId = value.result.requestId
     const deadline = Date.now() + 5 * 60_000
     let delay = 1000

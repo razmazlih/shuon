@@ -1,3 +1,4 @@
+import { shouldSkipEntrySync } from './service.js'
 import { createHash, createHmac, randomUUID, timingSafeEqual } from 'node:crypto'
 import { HttpsError } from 'firebase-functions/v2/https'
 import { FieldPath, getFirestore } from 'firebase-admin/firestore'
@@ -108,19 +109,21 @@ export async function dispatchPage(db, slot, cursor = '', enqueue = enqueueJob) 
 }
 
 // Persist before enqueueing so a dropped dispatch can also be picked up by the next scheduled run.
-export async function dispatchUserSync(uid, enqueue = enqueueJob) {
+export async function dispatchUserSync(uid, enqueue = enqueueJob, { entry = false } = {}) {
   const db = getFirestore()
   const ref = db.collection('appleCalendarConnections').doc(uid)
   const request = await db.runTransaction(async (tx) => {
     const state = (await tx.get(ref)).data()
-    if (!state?.connected) throw new HttpsError('failed-precondition', 'היומן אינו מחובר.')
     const now = Date.now()
+    if (entry && shouldSkipEntrySync(state, now)) return null
+    if (!state?.connected) throw new HttpsError('failed-precondition', 'היומן אינו מחובר.')
     if (state.pendingRequestId && state.pendingDispatchAt > now - 30_000)
       return { requestId: state.pendingRequestId, send: false }
     const requestId = state.pendingRequestId || randomUUID()
     tx.update(ref, { pendingRequestId: requestId, pendingDispatchAt: now })
     return { requestId, send: true }
   })
+  if (!request) return { skipped: true }
   if (request.send) await enqueueManual(uid, request.requestId, enqueue)
   return { requestId: request.requestId }
 }

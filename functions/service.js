@@ -28,11 +28,19 @@ const safeError = (error) => {
     return 'המשמרת השתנתה במהלך העדכון. הסנכרון הבא ינסה שוב.'
   return 'הסנכרון מול iCloud לא הושלם. נסו שוב ובדקו את הגדרות החיבור.'
 }
-async function acquire(uid, { connecting = false, setupToken, scheduledSlot, requestId } = {}) {
+export function shouldSkipEntrySync(state, now) {
+  return !state?.connected ||
+    state.lockUntil > now ||
+    Boolean(state.pendingRequestId) ||
+    now - Date.parse(state.lastSync) < 120_000
+}
+
+async function acquire(uid, { connecting = false, setupToken, scheduledSlot, requestId, entry = false } = {}) {
   const ref = connectionRef(uid)
   const lock = randomUUID()
   const details = await getFirestore().runTransaction(async (tx) => {
     const state = (await tx.get(ref)).data() || {}
+    if (entry && shouldSkipEntrySync(state, Date.now())) return null
     if (requestId && (!state.connected || state.pendingRequestId !== requestId)) return null
     if (
       scheduledSlot !== undefined &&
@@ -208,8 +216,8 @@ async function getAppleCalendarStatus(uid) {
   }
 }
 
-export async function run(uid, scheduledSlot, requestId, followUp) {
-  const job = await acquire(uid, { scheduledSlot, requestId })
+export async function run(uid, scheduledSlot, requestId, followUp, { entry = false } = {}) {
+  const job = await acquire(uid, { scheduledSlot, requestId, entry })
   if (!job) return { skipped: true }
   // The transaction captured the pending request before clearing it for this run.
   const activeRequest =
@@ -288,6 +296,6 @@ export const calendarActions = Object.freeze({
   disconnectAppleCalendar,
   getAppleCalendarStatus,
   updateAppleCalendarPreferences,
-  syncAppleCalendar: (uid) => run(uid),
+  syncAppleCalendar: (uid, data) => run(uid, undefined, undefined, undefined, { entry: data?.trigger === 'entry' }),
   resolveAppleCalendar,
 })

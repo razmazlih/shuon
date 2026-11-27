@@ -263,3 +263,28 @@ test('scheduled fanout paginates, manual writes coalesce and completed job repla
   assert.equal((await status()).syncPending, false)
   assert.equal(calls, 2)
 })
+
+test('automatic entry sync skips fresh connections and queues only once across simultaneous visits', async (t) => {
+  const { dispatchUserSync } = await import('../scheduled-jobs.js')
+  const { shouldSkipEntrySync } = await import('../service.js')
+  const uid = randomUUID()
+  const ref = getFirestore().collection('appleCalendarConnections').doc(uid)
+  t.after(() => ref.delete())
+  const jobs = []
+  const enqueue = async (job) => { jobs.push(job) }
+  const enter = () => dispatchUserSync(uid, enqueue, { entry: true })
+  const now = Date.now()
+  const lastSync = new Date(now - 120_000).toISOString()
+  assert.equal(shouldSkipEntrySync({ connected: true, lastSync }, now - 1), true)
+  assert.equal(shouldSkipEntrySync({ connected: true, lastSync }, now), false)
+  assert.deepEqual(await enter(), { skipped: true })
+  await ref.set({ connected: true, lastSync: new Date(now).toISOString() })
+  assert.deepEqual(await enter(), { skipped: true })
+  assert.ok((await dispatchUserSync(uid, enqueue)).requestId)
+  await ref.set({ connected: true, lastSync, lockUntil: now + 60_000 })
+  assert.deepEqual(await enter(), { skipped: true })
+  await ref.update({ lockUntil: 0 })
+  const requests = await Promise.all([enter(), enter()])
+  assert.equal(requests.filter((result) => result.skipped).length, 1)
+  assert.equal(jobs.length, 2)
+})
