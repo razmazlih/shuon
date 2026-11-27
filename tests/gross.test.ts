@@ -70,13 +70,19 @@ test('overnight work earns daily overtime before or after the month boundary wit
   assert.equal(calculateGross([s], { ...settings, nightPremiumPercent: 20 }).gross, 495)
 })
 
-test('night qualification honors unpaid breaks and the exact 120-minute boundary', () => {
+test('night qualification uses the full interval and the exact 120-minute boundary', () => {
   const s = shift('2026-11-23', '16:00', '00:00', '2026-11-24')
-  const pause = { start: localToInstant('2026-11-23', '22:00'), end: localToInstant('2026-11-23', '22:01') }
-  assert.equal(calculateGross([{ ...s, breaks: [{ ...pause, paid: true }] }], settings).gross, 412.5)
-  const pay = calculateGross([{ ...s, breaks: [pause] }], settings)
-  assert.equal(pay.overtimeHours, 0)
-  assert.equal(pay.gross, 399.17)
+  const legacy = {
+    ...s,
+    breaks: [{ start: localToInstant('2026-11-23', '22:00'), end: localToInstant('2026-11-23', '22:30') }],
+  }
+  const pay = calculateGross([legacy], settings, '2026-11')
+  assert.equal(pay.hours, 8)
+  assert.equal(pay.overtimeHours, 1)
+  assert.equal(pay.gross, 412.5)
+  assert.deepEqual(pay, calculateGross([s], settings, '2026-11'))
+  const shorter = { ...s, end: localToInstant('2026-11-23', '23:59') }
+  assert.equal(calculateGross([shorter], settings).overtimeHours, 0)
 })
 
 test('same-day split shifts share daily counters; weekly rest and holiday overlap once', () => {
@@ -168,35 +174,21 @@ test('automatic entry and exit replace saved defaults, while custom clocks and e
 })
 
 test('Rosh Hashanah remains a continuous holiday across both days and the weekly rest overlap', () => {
-  const overnight = {
-    ...shift('2026-09-12', '16:00', '02:00', '2026-09-13'),
-    breaks: [{ start: localToInstant('2026-09-12', '19:00'), end: localToInstant('2026-09-12', '19:30') }],
-  }
+  const overnight = shift('2026-09-12', '16:00', '02:00', '2026-09-13')
   const pay = calculateGross([overnight], settings)
-  assert.equal(pay.restHours, 9.5)
+  assert.equal(pay.restHours, 10)
   assert.deepEqual(calculateGross([overnight], { ...settings, restDay: 3 }), pay)
   assert.deepEqual(pay.bands.map(({ kind, hours }) => ({ kind, hours })), [
     { kind: 'rest150', hours: 7 },
     { kind: 'rest175', hours: 2 },
-    { kind: 'rest200', hours: 0.5 },
+    { kind: 'rest200', hours: 1 },
   ])
 })
 
-test('invalid and overlapping records fail before payment; fully unpaid shift remains a zero row', () => {
+test('invalid and overlapping records fail before payment', () => {
   const s = shift('2026-11-23', '08:00', '16:00')
   assert.throws(() => calculateGross([s, { ...s, id: 'second' }], settings), /חפיפה/)
-  assert.throws(() => calculateGross([{ ...s, breaks: [shift('2026-11-23', '07:00', '09:00')] }], settings))
   assert.throws(() => calculateGross([{ ...s, end: s.start }], settings))
-  assert.deepEqual(calculateGross([{ ...s, breaks: [s] }], settings).shifts[0], {
-    id: s.id,
-    gross: 0,
-    pensionable: 0,
-    hours: 0,
-    regularHours: 0,
-    overtimeHours: 0,
-    restHours: 0,
-    bands: [],
-  })
 })
 
 test('exact holiday windows alone identify shortened holiday eves and the precise paid overlap', () => {

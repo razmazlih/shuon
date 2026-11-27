@@ -143,7 +143,6 @@ function fixture(t) {
           assert.ok(!docs.has(ref.key))
           docs.set(ref.key, v)
         },
-        update: (ref, v) => docs.set(ref.key, { ...docs.get(ref.key), ...v }),
         delete: (ref) => docs.delete(ref.key),
         set: (ref, v) => docs.set(ref.key, v),
       })
@@ -202,7 +201,7 @@ function fixture(t) {
 test('bidirectional create, incremental ETags, rename, simultaneous edit, completed review, retries, tombstones and imports', async (t) => {
   const f = fixture(t)
   const path = 'users/alice/shifts/one'
-  f.docs.set(path, { ...original, id: 'one', breaks: [], status: 'planned', notes: 'private', holiday: true })
+  f.docs.set(path, { ...original, id: 'one', status: 'planned', notes: 'private', holiday: true })
   f.docs.set('users/alice/shifts/live', {
     ...original,
     start: '2027-10-24T20:00:00.000Z',
@@ -360,9 +359,9 @@ test('reject invalid dates, all-day, zero-length, and nonexistent Israeli local 
     assert.equal(parseEvent(invalid), null)
 })
 
-test('incoming overlaps, invalid break windows, open clocks and adjacent boundaries', async (t) => {
+test('incoming overlaps, open clocks, adjacent boundaries and updates to legacy shifts', async (t) => {
   const f = fixture(t)
-  f.docs.set('users/alice/shifts/local', { ...original, id: 'local', status: 'completed', breaks: [] })
+  f.docs.set('users/alice/shifts/local', { ...original, id: 'local', status: 'completed' })
   const url = calendar + 'other.ics'
   const uid = 'another'
   f.put(url, serializeEvent(uid, { ...original, title: 'Apple' }))
@@ -379,11 +378,12 @@ test('incoming overlaps, invalid break windows, open clocks and adjacent boundar
   f.docs.set(imported, {
     ...shift,
     breaks: [{ start: '2026-10-25T08:00:00.000Z', end: '2026-10-25T08:30:00.000Z' }],
+    openBreak: null,
   })
-  f.put(url, serializeEvent(uid, { ...adjacent, end: '2026-10-25T07:00:00.000Z' }))
-  assert.equal((await f.run()).reviews, 1)
-  assert.equal(f.docs.get(marker).review.invalidBreaks, true)
-  assert.equal(f.docs.get(imported).end, adjacent.end)
+  const shortened = { ...adjacent, end: '2026-10-25T07:00:00.000Z' }
+  f.put(url, serializeEvent(uid, shortened))
+  assert.equal((await f.run()).reviews, 0)
+  assert.deepEqual(f.docs.get(imported), { ...shift, ...shortened })
   f.setTime(Date.parse(adjacent.start) + 1)
   f.docs.set('users/alice/shifts/clock', {
     id: 'clock',
@@ -401,7 +401,7 @@ test('a new local revision invalidates a previously approved deletion of a compl
   const f = fixture(t),
     id = 'users/alice/shifts/one'
   f.setTime(Date.parse(original.end))
-  f.docs.set(id, { ...original, id: 'one', status: 'completed', updatedAt: 'old', breaks: [] })
+  f.docs.set(id, { ...original, id: 'one', status: 'completed', updatedAt: 'old' })
   await f.run()
   f.objects.clear()
   await f.run()
@@ -425,7 +425,7 @@ test('a new local revision invalidates a previously approved deletion of a compl
 test('an Apple deletion needs review when the shift ends during the incoming transaction', async (t) => {
   const f = fixture(t)
   const id = 'users/alice/shifts/one'
-  f.docs.set(id, { ...original, id: 'one', status: 'planned', updatedAt: 'stored', breaks: [] })
+  f.docs.set(id, { ...original, id: 'one', status: 'planned', updatedAt: 'stored' })
   await f.run()
   f.objects.clear()
   const end = Date.parse(original.end)
@@ -440,7 +440,6 @@ test('an Apple deletion needs review when the shift ends during the incoming tra
     right: null,
     status: 'completed',
     revision: 'stored',
-    invalidBreaks: false,
     overlap: false,
   })
 })
@@ -448,7 +447,7 @@ test('an Apple deletion needs review when the shift ends during the incoming tra
 test('partial outbound success is idempotent when a cloud write succeeded before its response was lost', async (t) => {
   const f = fixture(t),
     id = 'users/alice/shifts/one'
-  f.docs.set(id, { ...original, id: 'one', status: 'planned', breaks: [] })
+  f.docs.set(id, { ...original, id: 'one', status: 'planned' })
   await f.run()
   const marker = [...f.docs.keys()].find((key) => key.includes('appleSyncScopes'))
   f.docs.delete(marker)

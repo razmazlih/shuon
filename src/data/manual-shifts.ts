@@ -73,31 +73,6 @@ export function manualEndOffset(date: string, start: Wall, end: Wall, initial?: 
   return inferEndOffset(date, start, end)
 }
 
-function savedBreaks(shift: WorkShift, date: string, start: number, end: number) {
-  const originalDate = localDate(shift.start)
-  const move = (instant: string) => {
-    const dateWithOffset = addDays(date, dayOffset(originalDate, localDate(instant)))
-    const minute = localToInstant(dateWithOffset, localTime(instant), wallFromInstant(instant).fold)
-    const originalMs = Date.parse(instant)
-    const seconds = originalMs - Math.floor(originalMs / 60_000) * 60_000
-    return new Date(Date.parse(minute) + seconds).toISOString()
-  }
-  const breaks =
-    date === originalDate
-      ? shift.breaks
-      : shift.breaks.map((pause) => ({ ...pause, start: move(pause.start), end: move(pause.end) }))
-  for (const pause of breaks) {
-    const pauseStart = Date.parse(pause.start)
-    const pauseEnd = Date.parse(pause.end)
-    if (pauseStart < start || pauseEnd > end || pauseEnd <= pauseStart) {
-      throw new Error(
-        `ההפסקה שנרשמה משעה ${localTime(pause.start)} עד ${localTime(pause.end)} אינה מתאימה לטווח החדש. יש להתאים את שעות המשמרת.`,
-      )
-    }
-  }
-  return breaks
-}
-
 type ManualShiftDraft = {
   date: string
   start: Wall
@@ -163,10 +138,8 @@ export function buildManualShiftWrites({
         start: shiftStart,
         end: shiftEnd,
         status: finish <= now ? 'completed' : 'planned',
-        breaks: original ? savedBreaks(original, day, begin, finish) : [],
         note: note.trim(),
         updatedAt: new Date(now).toISOString(),
-        openBreak: null,
       }
     } catch (reason) {
       if (reason instanceof Error) throw new Error(formatDate(day) + ' · ' + reason.message)

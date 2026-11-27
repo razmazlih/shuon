@@ -5,7 +5,7 @@ import { Forest } from './Forest'
 import './landing.css'
 
 const features = [
-  { icon: Clock3, title: 'רישום שעות', description: 'שעון משמרת, הפסקות והזנת שעות בדיעבד.' },
+  { icon: Clock3, title: 'רישום שעות', description: 'שעון משמרת והזנת שעות בדיעבד.' },
   { icon: CalendarDays, title: 'יומן משמרות', description: 'תכנון מראש ורישום של כמה ימי עבודה יחד.' },
   { icon: ChartNoAxesColumnIncreasing, title: 'תחזית שכר', description: 'אומדן חודשי של ברוטו, נטו ושעות נוספות.' },
 ]

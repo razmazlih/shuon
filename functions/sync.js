@@ -11,16 +11,6 @@ import {
   signature,
 } from './events.js'
 
-export function breaksFit(breaks, event) {
-  return (
-    !event ||
-    !Array.isArray(breaks) ||
-    breaks.every(
-      (b) => Date.parse(b.start) >= Date.parse(event.start) && Date.parse(b.end) <= Date.parse(event.end),
-    )
-  )
-}
-
 export function overlappingShift(id, rows, event, now = Date.now()) {
   if (!event) return false
   const start = Date.parse(event.start),
@@ -139,9 +129,8 @@ export async function syncCalendar(db, uid, connection, client, deadline) {
       revision: current?.updatedAt ?? null,
       resolution: prior?.resolution,
     })
-    const invalidBreaks = !breaksFit(current?.breaks, right)
     const overlap = (action === 'remote' || action === 'review') && overlappingShift(id, local, right)
-    if (action === 'remote' && (invalidBreaks || overlap)) action = 'review'
+    if (action === 'remote' && overlap) action = 'review'
     const appliedTravel = prior?.appliedTravel ?? 0
     const common = {
       uid: eventUid,
@@ -159,7 +148,6 @@ export async function syncCalendar(db, uid, connection, client, deadline) {
         right,
         status: expectedStatus,
         revision: current?.updatedAt ?? null,
-        invalidBreaks,
         overlap,
       }
       if (JSON.stringify(prior?.review ?? null) !== JSON.stringify(review) || prior?.etag !== common.etag) {
@@ -219,15 +207,15 @@ export async function syncCalendar(db, uid, connection, client, deadline) {
           signature(projectShift(latest)) !== signature(left) ||
           latest?.status !== current?.status ||
           shiftStatus(latest, now) !== expectedStatus ||
-          (latest?.updatedAt ?? null) !== (current?.updatedAt ?? null) ||
-          !breaksFit(latest?.breaks, right)
+          (latest?.updatedAt ?? null) !== (current?.updatedAt ?? null)
         )
           throw Error('apple-concurrent')
         let next = null
         if (right) {
           const fields = { ...right, status: shiftStatus(right, now), updatedAt: new Date(now).toISOString() }
-          next = latest ? { ...latest, ...fields } : { ...fields, id, breaks: [] }
-          if (latest) tx.update(shiftRef, fields)
+          const { breaks: _breaks, openBreak: _openBreak, ...savedFields } = latest ?? { id }
+          next = { ...savedFields, ...fields }
+          if (latest) tx.set(shiftRef, next)
           else tx.create(shiftRef, next)
         } else tx.delete(shiftRef)
         tx.set(revisionRef, { nonce: randomUUID() })

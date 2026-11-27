@@ -22,8 +22,7 @@ service cloud.firestore {
         && request.resource.data.id == shiftId
         && request.resource.data.status in ['planned', 'completed', 'active']
         && request.resource.data.start is string && request.resource.data.end is string
-        && request.resource.data.title is string && request.resource.data.title.size() <= 120
-        && request.resource.data.breaks is list && request.resource.data.breaks.size() <= 100;
+        && request.resource.data.title is string && request.resource.data.title.size() <= 120;
     }
   }
 }

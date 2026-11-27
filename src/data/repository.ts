@@ -1,6 +1,6 @@
 import { collection, doc, onSnapshot, runTransaction } from 'firebase/firestore'
 import { db } from './firebase'
-import { demoWorkspace, freshWorkspace, type Workspace, type WorkShift } from './model'
+import { demoWorkspace, freshWorkspace, normalizeShift, type Workspace, type WorkShift } from './model'
 import { prepareShiftWrites, writeCloudShifts } from './shift-writes'
 
 type Setting = Exclude<keyof Workspace, 'shifts'>
@@ -61,7 +61,8 @@ export function subscribeWorkspace(
   if (!uid) {
     const read = () => {
       try {
-        next(local())
+        const data = local()
+        next({ ...data, shifts: data.shifts.map(normalizeShift) })
       } catch (err) {
         fail(err as Error)
       }
@@ -99,7 +100,7 @@ export function subscribeWorkspace(
     onSnapshot(
       collection(db, 'users', uid, 'shifts'),
       (snap) => {
-        current = { ...current, shifts: snap.docs.map((d) => d.data() as WorkShift) }
+        current = { ...current, shifts: snap.docs.map((d) => normalizeShift(d.data() as WorkShift)) }
         emit('shifts')
       },
       fail,

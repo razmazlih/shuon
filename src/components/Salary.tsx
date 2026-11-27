@@ -1,6 +1,7 @@
 import { useId, useRef, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
-import { CalendarCheck, Wallet } from 'lucide-react'
+import { Calculator, ChevronDown, Clock, ReceiptText, Wallet } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import { payrollRules2026, salaryReport } from '../domain/net'
 import type {
   PayrollAdjustment,
@@ -31,10 +32,6 @@ const shekels = new Intl.NumberFormat('he-IL', {
   maximumFractionDigits: 2,
 })
 const money = (sum: number) => shekels.format(sum)
-const monthLabel = (month: string) =>
-  new Intl.DateTimeFormat('he-IL', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(
-    new Date(month + '-15T12:00:00Z'),
-  )
 function PayslipForm({
   month,
   profile,
@@ -149,43 +146,48 @@ const bandLabels: Record<PayBand['kind'], string> = {
 }
 
 function SalaryComparison({ title, children }: { title: string; children: ReactNode }) {
-  const heading = useId()
   return (
-    <section className="salary-card salary-comparison">
-      <h2 id={heading}>{title}</h2>
-      <table className="salary-table" aria-labelledby={heading}>
-        <thead>
-          <tr>
-            <th scope="col">רכיב</th>
-            <th scope="col">תחזית לסוף החודש</th>
-            <th scope="col">בפועל עד כה</th>
-          </tr>
-        </thead>
-        {children}
-      </table>
-    </section>
+    <table className="salary-table" aria-label={title}>
+      <thead>
+        <tr>
+          <th scope="col">רכיב</th>
+          <th scope="col">עד עכשיו</th>
+          <th scope="col">סוף החודש</th>
+        </tr>
+      </thead>
+      {children}
+    </table>
   )
 }
 
-function ComparisonRow({ title, forecast, actual }: { title: string; forecast: ReactNode; actual: ReactNode }) {
+function ComparisonRow({ title, forecast, actual, shared }: {
+  title: string
+  forecast: ReactNode
+  actual: ReactNode
+  shared?: boolean
+}) {
   return (
     <tr>
       <th scope="row">{title}</th>
-      <td>{forecast}</td>
-      <td>{actual}</td>
+      {shared ? (
+        <td colSpan={2}><span className="sr-only">עד עכשיו ובסוף החודש </span>{actual}</td>
+      ) : (
+        <><td>{actual}</td><td>{forecast}</td></>
+      )}
     </tr>
   )
 }
 
 function SalaryAmount({ value }: { value: number | null }) {
-  return value === null ? <span aria-label="אין אומדן">—</span> : <bdi>{money(value)}</bdi>
+  return value === null ? <span className="salary-unknown">לא ידוע</span> : <bdi>{money(value)}</bdi>
 }
 
 function PayBandValue({ band }: { band?: PayBand }) {
+  if (!band) return <span aria-label="אין שעות">—</span>
   return (
     <>
-      <SalaryAmount value={band?.amount ?? 0} />
-      <small>{hourCount(band?.hours ?? 0)} שעות</small>
+      <SalaryAmount value={band.amount} />
+      <small>{hourCount(band.hours)} שעות</small>
     </>
   )
 }
@@ -193,12 +195,61 @@ function PayBandValue({ band }: { band?: PayBand }) {
 type Estimate = ReturnType<typeof salaryReport>['actual']
 type Amount = (estimate: Estimate) => number | null
 
+function SalarySummary({ earned, forecast }: { earned: Estimate; forecast: Estimate }) {
+  const sameNet = earned.net === forecast.net
+  const sameGross = earned.cashGross === forecast.cashGross
+  return (
+    <section className="salary-summary" aria-label="סיכום השכר לחודש">
+      <div className="salary-summary-net">
+        <div className="salary-earned">
+          <Wallet size={22} className="salary-wallet" aria-hidden="true" />
+          <h2>נטו משוער שנצבר</h2>
+          {earned.net === null ? <strong className="salary-unavailable">אין עדיין אומדן</strong> : (
+            <strong className="salary-total"><SalaryAmount value={earned.net} /></strong>
+          )}
+          {sameNet && earned.net !== null && <p>הצפי לסוף החודש זהה</p>}
+        </div>
+        {!sameNet && (
+          <div className="salary-forecast">
+            <h2>צפי נטו לסוף החודש</h2>
+            <strong>{forecast.net === null ? 'אין עדיין אומדן' : <SalaryAmount value={forecast.net} />}</strong>
+            <p>כולל מה שבוצע ומה שמתוכנן</p>
+          </div>
+        )}
+      </div>
+      <div className="salary-gross">
+        <h2>לפני ניכויים</h2>
+        <dl>
+          {sameGross ? (
+            <div><dt>עד עכשיו וגם בסוף החודש</dt><dd><SalaryAmount value={earned.cashGross} /></dd></div>
+          ) : (
+            <>
+              <div><dt>עד עכשיו</dt><dd><SalaryAmount value={earned.cashGross} /></dd></div>
+              <div><dt>צפי לסוף החודש</dt><dd><SalaryAmount value={forecast.cashGross} /></dd></div>
+            </>
+          )}
+        </dl>
+      </div>
+    </section>
+  )
+}
+
+function DisclosureLabel({ icon: Icon, children }: { icon: LucideIcon; children: ReactNode }) {
+  return (
+    <summary className="salary-disclosure-label">
+      <Icon className="salary-disclosure-icon" size={19} aria-hidden="true" />
+      <span>{children}</span>
+      <ChevronDown size={18} className="salary-disclosure-chevron" aria-hidden="true" />
+    </summary>
+  )
+}
+
 export function Salary(props: SalaryProps) {
   const { month, actual, planned, profile, adjustments, actualBands, forecastBands } = props
   const { forecast, actual: earned } = salaryReport(month, actual, planned, profile, adjustments)
   const payslip = useRef<HTMLDetailsElement>(null)
   const payslipId = useId()
-  const missing = forecast.missing
+  const missing = [...new Set([...earned.missing, ...forecast.missing])]
   const hasPayrollRules = month.startsWith('2026-')
   const bands = Object.entries(bandLabels).flatMap(([kind, label]) => {
     const forecastBand = forecastBands?.find((band) => band.kind === kind && band.hours > 0)
@@ -206,53 +257,47 @@ export function Salary(props: SalaryProps) {
     return forecastBand || actualBand ? [{ kind, label, forecastBand, actualBand }] : []
   })
 
-  function amountRow(title: string, amount: Amount) {
+  const monthData = profile.months?.[month]
+  const hasSalaryData = bands.length > 0 ||
+    [actual.gross, actual.pensionable, planned.gross, planned.pensionable].some((value) => value !== 0) ||
+    adjustments.some((item) => item.month === month) ||
+    [monthData?.pensionBase, monthData?.incomeTax, monthData?.insurance, monthData?.prior].some((value) => value != null)
+
+  function amountRow(title: string, amount: Amount, hideZero = false) {
+    const actualAmount = amount(earned)
+    const forecastAmount = amount(forecast)
+    if (hideZero && actualAmount === 0 && forecastAmount === 0) return null
     return (
       <ComparisonRow
+        key={title}
         title={title}
-        forecast={<SalaryAmount value={amount(forecast)} />}
-        actual={<SalaryAmount value={amount(earned)} />}
+        actual={<SalaryAmount value={actualAmount} />}
+        forecast={<SalaryAmount value={forecastAmount} />}
+        shared={actualAmount === forecastAmount}
       />
     )
   }
 
+  const deductions = [
+    amountRow('מס הכנסה לאחר זיכויים', (estimate) => estimate.incomeTax, true),
+    ...(forecast.contributions && earned.contributions ? [
+      amountRow('ביטוח לאומי', (estimate) => estimate.contributions?.national ?? null, true),
+      amountRow('ביטוח בריאות', (estimate) => estimate.contributions?.health ?? null, true),
+    ] : [amountRow('ביטוח לאומי ובריאות', (estimate) => estimate.insurance, true)]),
+    amountRow('הפרשת עובד לפנסיה', (estimate) => estimate.pension, true),
+    amountRow('החזרים פטורים', (estimate) => estimate.reimbursements, true),
+    amountRow('ניכויים נוספים', (estimate) => estimate.otherDeductions, true),
+  ].filter((row) => row !== null)
+
   return (
     <div className="salary-report">
-      <div className="salary-overview">
-        <section className="salary-figure salary-figure-forecast">
-          <h2><Wallet size={17} aria-hidden="true" /> תחזית לסוף החודש</h2>
-          <div className="salary-figure-net">
-            <span>נטו צפוי</span>
-            <strong>
-              <SalaryAmount value={forecast.net} />
-            </strong>
-          </div>
-          <div className="salary-figure-gross">
-            <span>ברוטו צפוי</span>
-            <strong>
-              <SalaryAmount value={forecast.cashGross} />
-            </strong>
-          </div>
-          <small>כולל משמרות ורכיבים שבוצעו ותוכננו</small>
+      {hasSalaryData ? <SalarySummary earned={earned} forecast={forecast} /> : (
+        <section className="salary-card salary-empty">
+          <Wallet size={22} className="salary-wallet" aria-hidden="true" />
+          <h2>אין עדיין נתוני שכר לחודש הזה</h2>
         </section>
-        <section className="salary-figure">
-          <h2><CalendarCheck size={17} aria-hidden="true" /> בפועל עד כה</h2>
-          <div className="salary-figure-net">
-            <span>אומדן נטו שנצבר</span>
-            <strong>
-              <SalaryAmount value={earned.net} />
-            </strong>
-          </div>
-          <div className="salary-figure-gross">
-            <span>ברוטו שנצבר</span>
-            <strong>
-              <SalaryAmount value={earned.cashGross} />
-            </strong>
-          </div>
-          <small>משמרות ורכיבים שבוצעו</small>
-        </section>
-      </div>
-      {missing.length > 0 && (
+      )}
+      {hasSalaryData && missing.length > 0 && (
         <div className="salary-card salary-estimate-note">
           <p>
             {hasPayrollRules ? 'להשלמת אומדן הנטו חסרים הפרטים הבאים: ' : ''}
@@ -279,91 +324,88 @@ export function Salary(props: SalaryProps) {
           )}
         </div>
       )}
-      <SalaryComparison title="מברוטו לנטו">
-        <tbody>
-          {amountRow('ברוטו לתשלום', (estimate) => estimate.cashGross)}
-          {amountRow('שכר חייב במס ובביטוח', (estimate) => estimate.taxable)}
-          {amountRow('שכר מבוטח לפנסיה', (estimate) => estimate.pensionBase)}
-        </tbody>
-        <tbody>
-          <tr className="salary-group">
-            <th scope="rowgroup" colSpan={3}>ניכויים והחזרים</th>
-          </tr>
-          {amountRow('מס הכנסה לאחר זיכויים', (estimate) => estimate.incomeTax)}
-          {forecast.contributions && earned.contributions ? (
-            <>
-              {amountRow('ביטוח לאומי', (estimate) => estimate.contributions?.national ?? null)}
-              {amountRow('ביטוח בריאות', (estimate) => estimate.contributions?.health ?? null)}
-            </>
-          ) : (
-            amountRow('ביטוח לאומי ובריאות', (estimate) => estimate.insurance)
-          )}
-          {amountRow('הפרשת עובד לפנסיה', (estimate) => estimate.pension)}
-          {(forecast.reimbursements !== 0 || earned.reimbursements !== 0) &&
-            amountRow('החזרים פטורים', (estimate) => estimate.reimbursements)}
-          {(forecast.otherDeductions !== 0 || earned.otherDeductions !== 0) &&
-            amountRow('ניכויים נוספים', (estimate) => estimate.otherDeductions)}
-        </tbody>
-        <tfoot>
-          {amountRow('אומדן נטו לתשלום', (estimate) => estimate.net)}
-        </tfoot>
-      </SalaryComparison>
-      <details className="salary-card salary-settings" ref={payslip} id={payslipId}>
-        <summary>נתוני תלוש לחודש {monthLabel(month)}</summary>
-        <PayslipForm
-          key={month}
-          month={month}
-          profile={profile}
-          onProfileChange={props.onProfileChange}
-        />
+      <details className="salary-card salary-disclosure">
+        <DisclosureLabel icon={Calculator}>איך חושב השכר</DisclosureLabel>
+        {hasSalaryData && (
+          <SalaryComparison title="בסיסי החישוב והניכויים">
+            <tbody>
+              {amountRow('שכר חייב במס ובביטוח', (estimate) => estimate.taxable)}
+              {amountRow('שכר מבוטח לפנסיה', (estimate) => estimate.pensionBase)}
+            </tbody>
+            {deductions.length > 0 && (
+              <tbody>
+                <tr className="salary-group"><th scope="rowgroup" colSpan={3}>ניכויים והחזרים</th></tr>
+                {deductions}
+              </tbody>
+            )}
+          </SalaryComparison>
+        )}
+        {hasSalaryData ? (
+          <details className="salary-method">
+            <summary>כללי החישוב ומקורות</summary>
+            <SalaryMethod />
+          </details>
+        ) : <div className="salary-method"><SalaryMethod /></div>}
       </details>
       {bands.length > 0 && (
-        <SalaryComparison title="השעות המרכיבות את הברוטו">
-          <tbody>
-            {bands.map(({ kind, label, forecastBand, actualBand }) => (
-              <ComparisonRow
-                key={kind}
-                title={label}
-                forecast={<PayBandValue band={forecastBand} />}
-                actual={<PayBandValue band={actualBand} />}
-              />
-            ))}
-          </tbody>
-        </SalaryComparison>
+        <details className="salary-card salary-disclosure">
+          <DisclosureLabel icon={Clock}>פירוט שעות העבודה</DisclosureLabel>
+          <SalaryComparison title="שעות ושכר לפי תעריף">
+            <tbody>
+              {bands.map(({ kind, label, forecastBand, actualBand }) => (
+                <ComparisonRow
+                  key={kind}
+                  title={label}
+                  forecast={<PayBandValue band={forecastBand} />}
+                  actual={<PayBandValue band={actualBand} />}
+                  shared={actualBand?.amount === forecastBand?.amount && actualBand?.hours === forecastBand?.hours}
+                />
+              ))}
+            </tbody>
+          </SalaryComparison>
+        </details>
       )}
-      <details className="salary-card salary-method">
-        <summary>איך מחושב האומדן?</summary>
-        <p>
-          כללי 2026 חלים על שכר עבודה ממעסיק עיקרי אחד, לתושב ישראל מגיל 18 ועד גיל הפרישה. התחזית כוללת את
-          המשמרות והרכיבים שהוזנו לחודש. סכומים ידניים מחליפים את החישוב בפועל ובתחזית.
-        </p>
-        <p>
-          מס הכנסה מחושב במדרגות, בניכוי נקודות זיכוי וזיכוי להפקדה מוכרת לפנסיה. בסיס הפנסיה האוטומטי כולל
-          שכר יסוד של שעות רגילות ורכיבים מבוטחים שנשמרו בעבר. בנתוני התלוש אפשר לשנות את הבסיס לפי ההסכם האישי.
-        </p>
-        <p>
-          לשכר משתנה אפשר להזין נתונים מצטברים מהתלוש הקודם. במשרה נוספת, בתיאום מס, בזכאות להטבת מס למשמרות
-          בתעשייה או בהסדר ביטוח מיוחד, אפשר להזין את סכומי הניכוי לחודש מאישור או מתלוש.
-        </p>
-        <p>{grossCoverage.scope} {grossCoverage.limitations}</p>
-        <div className="salary-sources">
-          <a href={grossCoverage.sources[0]} target="_blank" rel="noreferrer">
-            צו קיצור שבוע העבודה
-          </a>
-          <a href={payrollRules2026.sources.tax} target="_blank" rel="noreferrer">
-            מדרגות מס הכנסה לשנת 2026
-          </a>
-          <a href={payrollRules2026.sources.insurance} target="_blank" rel="noreferrer">
-            דמי ביטוח לשכירים
-          </a>
-          <a href={payrollRules2026.sources.deductions} target="_blank" rel="noreferrer">
-            לוחות ניכויים וזיכויים
-          </a>
-          <a href={payrollRules2026.sources.pension} target="_blank" rel="noreferrer">
-            ביטוח פנסיוני
-          </a>
-        </div>
+      <details className="salary-card salary-disclosure salary-settings" ref={payslip} id={payslipId}>
+        <DisclosureLabel icon={ReceiptText}>עדכון לפי תלוש</DisclosureLabel>
+        <PayslipForm key={month} month={month} profile={profile} onProfileChange={props.onProfileChange} />
       </details>
     </div>
+  )
+}
+
+function SalaryMethod() {
+  return (
+    <>
+      <p>
+        כללי 2026 חלים על שכר עבודה ממעסיק עיקרי אחד, לתושב ישראל מגיל 18 ועד גיל הפרישה. התחזית כוללת את
+        המשמרות והרכיבים שהוזנו לחודש. סכומים ידניים מחליפים את החישוב בפועל ובתחזית.
+      </p>
+      <p>
+        מס הכנסה מחושב במדרגות, בניכוי נקודות זיכוי וזיכוי להפקדה מוכרת לפנסיה. בסיס הפנסיה האוטומטי כולל
+        שכר יסוד של שעות רגילות ורכיבים מבוטחים שנשמרו בעבר. בנתוני התלוש אפשר לשנות את הבסיס לפי ההסכם האישי.
+      </p>
+      <p>
+        לשכר משתנה אפשר להזין נתונים מצטברים מהתלוש הקודם. במשרה נוספת, בתיאום מס, בזכאות להטבת מס למשמרות
+        בתעשייה או בהסדר ביטוח מיוחד, אפשר להזין את סכומי הניכוי לחודש מאישור או מתלוש.
+      </p>
+      <p>{grossCoverage.scope} {grossCoverage.limitations}</p>
+      <div className="salary-sources">
+        <a href={grossCoverage.sources[0]} target="_blank" rel="noreferrer">
+          צו קיצור שבוע העבודה
+        </a>
+        <a href={payrollRules2026.sources.tax} target="_blank" rel="noreferrer">
+          מדרגות מס הכנסה לשנת 2026
+        </a>
+        <a href={payrollRules2026.sources.insurance} target="_blank" rel="noreferrer">
+          דמי ביטוח לשכירים
+        </a>
+        <a href={payrollRules2026.sources.deductions} target="_blank" rel="noreferrer">
+          לוחות ניכויים וזיכויים
+        </a>
+        <a href={payrollRules2026.sources.pension} target="_blank" rel="noreferrer">
+          ביטוח פנסיוני
+        </a>
+      </div>
+    </>
   )
 }

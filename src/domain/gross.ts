@@ -9,7 +9,6 @@ export interface Window {
 }
 export interface Shift extends Window {
   id: string
-  breaks?: (Window & { paid?: boolean })[]
   note?: string
   holiday?: boolean
   /** Optional shared anchor for pieces of an overnight split shift. */
@@ -101,24 +100,6 @@ function readSpan(window: Window): Span {
     end = instantMs(window.end)
   if (end <= start) throw new Error('שעת הסיום חייבת להיות אחרי שעת ההתחלה')
   return { start, end }
-}
-
-function paidSpans(shift: Shift, span: Span): Span[] {
-  const breaks = (shift.breaks ?? [])
-    .map((b) => ({ ...readSpan(b), paid: b.paid }))
-    .sort((a, b) => a.start - b.start)
-  const paid: Span[] = []
-  let cursor = span.start,
-    previousEnd = span.start
-  for (const b of breaks) {
-    if (b.start < previousEnd || b.end > span.end) throw new Error('יש להזין הפסקות בתוך המשמרת וללא חפיפה')
-    previousEnd = b.end
-    if (b.paid) continue
-    if (cursor < b.start) paid.push({ start: cursor, end: b.start })
-    cursor = b.end
-  }
-  if (cursor < span.end) paid.push({ start: cursor, end: span.end })
-  return paid
 }
 
 function validClock(time: string, allowMidnight = false): boolean {
@@ -282,19 +263,17 @@ export function calculateGross(shifts: Shift[], settings: PaySettings, month?: s
     }
     const workDate = shift.workDate ?? localDate(span.start)
     dateMs(workDate)
-    for (const paid of paidSpans(shift, span)) {
-      let start = paid.start
-      while (start < paid.end) {
-        const date = localDate(start)
-        const { intervals, next, nightEnd, nightStart } = calendar.forDate(date)
-        const edges = [paid.end, next, nightEnd, nightStart, ...intervals.flatMap((r) => [r.start, r.end])]
-        const end = Math.min(...edges.filter((edge) => edge > start))
-        const night = start < nightEnd || start >= nightStart
-        const rest = shift.holiday === true || intervals.some((r) => start >= r.start && start < r.end)
-        pieces.push({ start, end, date, workDate, shiftId: shift.id, rest, night })
-        if (night) nightDuration.set(shift.id, (nightDuration.get(shift.id) ?? 0) + end - start)
-        start = end
-      }
+    let start = span.start
+    while (start < span.end) {
+      const date = localDate(start)
+      const { intervals, next, nightEnd, nightStart } = calendar.forDate(date)
+      const edges = [span.end, next, nightEnd, nightStart, ...intervals.flatMap((r) => [r.start, r.end])]
+      const end = Math.min(...edges.filter((edge) => edge > start))
+      const night = start < nightEnd || start >= nightStart
+      const rest = shift.holiday === true || intervals.some((r) => start >= r.start && start < r.end)
+      pieces.push({ start, end, date, workDate, shiftId: shift.id, rest, night })
+      if (night) nightDuration.set(shift.id, (nightDuration.get(shift.id) ?? 0) + end - start)
+      start = end
     }
   }
   const result: GrossResult = { ...emptyTotals(), shifts: [...rows.values()] }

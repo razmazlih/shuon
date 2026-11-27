@@ -13,7 +13,6 @@ type Review = {
   left: EventTimes | null
   right: EventTimes | null
   status: string | null
-  invalidBreaks: boolean
   overlap: boolean
   revision: string | null
 }
@@ -159,9 +158,6 @@ export default function AppleCalendar({ user, onSignIn }: { user: User | null; o
                 <p>במערכת · {eventSummary(review.left)}</p>
                 <p>ביומן Apple · {eventSummary(review.right)}</p>
                 {review.overlap && <p>שעות היומן חופפות למשמרת אחרת. יש לעדכן את השעות ולסנכרן שוב.</p>}
-                {review.invalidBreaks && (
-                  <p>השעות ביומן אינן כוללות את כל ההפסקות. יש לעדכן אותן לפני האישור.</p>
-                )}
                 <div className="calendar-actions">
                   <button
                     type="button"
@@ -171,7 +167,7 @@ export default function AppleCalendar({ user, onSignIn }: { user: User | null; o
                   </button>
                   <button
                     type="button"
-                    disabled={review.invalidBreaks || review.overlap}
+                    disabled={review.overlap}
                     onClick={() => void act('resolveAppleCalendar', { ...review, choice: 'remote' })}
                   >
                     אישור הגרסה שביומן

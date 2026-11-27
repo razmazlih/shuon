@@ -5,9 +5,12 @@ import { addDays, localDate, localToInstant, weekday } from '../domain/time'
 export interface WorkShift extends Shift {
   title: string
   status: 'planned' | 'completed' | 'active'
-  breaks: { start: string; end: string; paid?: boolean }[]
   updatedAt: string
-  openBreak?: string | null
+}
+
+export function normalizeShift(stored: WorkShift & { breaks?: unknown; openBreak?: unknown }): WorkShift {
+  const { breaks: _breaks, openBreak: _openBreak, ...shift } = stored
+  return shift
 }
 
 export function shiftStatusAt(shift: WorkShift, now: number): WorkShift['status'] {
@@ -76,7 +79,6 @@ export function demoWorkspace(): Workspace {
       start,
       end,
       updatedAt: start,
-      breaks: [],
     })
   }
   return state

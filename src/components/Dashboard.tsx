@@ -38,7 +38,7 @@ type Props = {
   plannedCount: number | null
   foxReaction: 'start' | 'stop' | null
   busy: boolean
-  onTimer: (op: 'start' | 'resume' | 'stop') => void
+  onTimer: (op: 'start' | 'stop') => void
   onSalary: () => void
   onCalendar: (date: string) => void
   onShift: (s: WorkShift) => void
@@ -47,29 +47,21 @@ export function shiftIcon(s: WorkShift) {
   const hour = Number(localTime(s.start).slice(0, 2))
   return hour >= 20 || hour < 5 ? Moon : hour >= 12 ? Sunrise : Sun
 }
-function duration(shift: WorkShift) {
-  const end = shift.openBreak ? Date.parse(shift.openBreak) : Date.now()
-  const breaks = shift.breaks.reduce(
-    (sum, b) => sum + (b.paid ? 0 : Math.max(0, Math.min(end, Date.parse(b.end)) - Date.parse(b.start))),
-    0,
-  )
-  return Math.max(0, Math.floor((end - Date.parse(shift.start) - breaks) / 1000))
-}
 function Clock({ active, scheduled, scheduledGross, busy, foxReaction, onTimer }: Pick<Props, 'foxReaction' | 'active' | 'scheduled' | 'busy' | 'onTimer'> & { scheduledGross?: number }) {
   const displayedShift = active ?? scheduled
   const [, refresh] = useState(0)
   useEffect(() => {
-    if (!displayedShift || displayedShift.openBreak) return
+    if (!displayedShift) return
     const interval = window.setInterval(() => refresh((t) => t + 1), 1000)
     return () => clearInterval(interval)
   }, [displayedShift])
-  const seconds = displayedShift ? duration(displayedShift) : 0
+  const seconds = displayedShift ? Math.max(0, Math.floor((Date.now() - Date.parse(displayedShift.start)) / 1000)) : 0
   const parts = [Math.floor(seconds / 3600), Math.floor(seconds / 60) % 60, seconds % 60].map((n) =>
     String(n).padStart(2, '0'),
   )
   return (
     <article className="clock-card" data-fox-reaction={foxReaction ?? undefined}>
-      <Forest alert={Boolean(displayedShift && !displayedShift.openBreak)} />
+      <Forest alert={Boolean(displayedShift)} />
       <div className="clock-content">
         <div className="overline">
           <Timer size={17} /> שעון נוכחות
@@ -84,7 +76,7 @@ function Clock({ active, scheduled, scheduledGross, busy, foxReaction, onTimer }
         {(active || !scheduled) && (
           <div className="clock-state">
             <span className={'status-light ' + (active ? 'running' : '')} />
-            {active ? (active.openBreak ? 'בהפסקה' : 'המשמרת בפעילות') : 'אין משמרת פעילה'}
+            {active ? 'המשמרת בפעילות' : 'אין משמרת פעילה'}
           </div>
         )}
         {!active && scheduled && (
@@ -96,18 +88,10 @@ function Clock({ active, scheduled, scheduledGross, busy, foxReaction, onTimer }
         )}
         <div className="timer-actions">
           {displayedShift ? (
-            <>
-              <button className="btn primary" disabled={busy} onClick={() => onTimer('stop')}>
-                <Square size={15} fill="currentColor" />
-                סיום משמרת
-              </button>
-              {active?.openBreak && (
-                <button className="btn clock-break" disabled={busy} onClick={() => onTimer('resume')}>
-                  <Coffee size={16} />
-                  חזרה מהפסקה
-                </button>
-              )}
-            </>
+            <button className="btn primary" disabled={busy} onClick={() => onTimer('stop')}>
+              <Square size={15} fill="currentColor" />
+              סיום משמרת
+            </button>
           ) : (
             <button className="btn primary start-button" disabled={busy} onClick={() => onTimer('start')}>
               <Play size={15} fill="currentColor" />
